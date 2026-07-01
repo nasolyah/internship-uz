@@ -1,0 +1,16 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Supabase local
+supabase/.env
+supabase/.branches/
+supabase/.temp/
+
+# Env / secrets — никогда не коммитим токены
+.env
+.env.*
+*.local

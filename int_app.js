@@ -1,0 +1,666 @@
+/* internship.uz — vanilla SPA (int_app.js) */
+(function () {
+  'use strict';
+
+  /* ---------- supabase ---------- */
+  var SUPABASE_URL = 'https://ysxvlopfcarhdszqzmnp.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_kcFUE1wOjQ9pCa0f07bqSg_oZonsiRC';
+  var supabase = (window.supabase && SUPABASE_URL.indexOf('YOUR_PROJECT_REF') === -1)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  /* ---------- telegram login ---------- */
+  // Имя бота из @BotFather, БЕЗ символа @. Напр. 'internship_uz_bot'.
+  var TELEGRAM_BOT = 'int_auth_bot';
+  // Числовой bot_id (первая часть токена до ':') — нужен для Telegram.Login.auth.
+  var TELEGRAM_BOT_ID = '8827034426';
+  // Эндпоинт Edge Function, которая проверяет подпись Telegram и выдаёт сессию.
+  var TG_AUTH_FN = SUPABASE_URL + '/functions/v1/telegram-auth';
+
+  /* ---------- state ---------- */
+  var state = {
+    view: 'home',
+    catalogTab: 'students',
+    authRole: null,            // null | 'student' | 'company'
+    studentStep: 'login',      // login | profile | consent | done
+    studentProfile: null,
+    companyProfile: null,
+    session: null,
+    form: {},
+    consentUploaded: false,
+    tgDraft: false,
+    otp: { email: '', error: '', loading: false },
+    tgAuth: { loading: false, error: '' },
+    _statsRan: false
+  };
+
+  var STATS_TARGET = { students: 148, companies: 23, projects: 41, score: 84 };
+  var statsCur = { students: 0, companies: 0, projects: 0, score: 0 };
+
+  /* ---------- data ---------- */
+  var startupValue = [
+    { title: 'Мотивированные исполнители бесплатно', desc: 'Студенты работают за опыт и рекомендацию — на старте платформа бесплатна.' },
+    { title: 'Проекты закрываются быстрее', desc: 'Небольшие задачи находят руки за дни, а не недели найма.' },
+    { title: 'Только верифицированные профили', desc: 'SMS и университетская почта отсекают случайных людей.' },
+    { title: 'ИИ-тест навыков перед откликом', desc: 'Видно реальный уровень исполнителя ещё до общения.' }
+  ];
+  var studentValue = [
+    { title: 'Реальный опыт на живых проектах', desc: 'Не учебные кейсы, а задачи настоящих стартапов.' },
+    { title: 'Официальный документ о практике', desc: 'Оформляется как учебная практика — сильный пункт для поступления.' },
+    { title: 'Рекомендация для резюме', desc: 'Подтверждённый вклад, а не просто строчка в CV.' },
+    { title: 'Верифицированный профиль', desc: 'Статус доверия, который видят компании.' }
+  ];
+  var stepsStartup = [
+    { n: '1', title: 'Разместите задачу', desc: 'Опишите проект, формат и длительность — за пару минут.' },
+    { n: '2', title: 'Получите отклики', desc: 'Верифицированные студенты с результатами ИИ-теста откликаются на задачу.' },
+    { n: '3', title: 'Работайте и подтвердите практику', desc: 'По завершении подтверждаете практику — студент получает документ.' }
+  ];
+  var stepsStudent = [
+    { n: '1', title: 'Войдите и заполните профиль', desc: 'Вход через Telegram или email — без барьера. Имя и фамилия как в паспорте.' },
+    { n: '2', title: 'Пройдите ИИ-тест и откликнитесь', desc: 'Короткий тест навыков, затем отклик на подходящие задачи.' },
+    { n: '3', title: 'Завершите проект', desc: 'Получите официальный документ о практике и рекомендацию.' }
+  ];
+  var verifyItems = [
+    { icon: '✉', title: 'Почта вуза + SMS', desc: 'Базовая верификация студента — бесплатно.', tag: 'Бесплатно' },
+    { icon: '★', title: 'Сертификаты навыков', desc: 'Подтверждение через API площадок, а не сканы.', tag: 'Опционально' },
+    { icon: '◇', title: 'ИИ-тест навыков', desc: 'Объективная оценка уровня перед откликом.', tag: 'Автоматически' },
+    { icon: '§', title: 'Документ о практике', desc: 'Учебная практика, а не трудоустройство.', tag: 'Официально' }
+  ];
+  var catalogStudents = [
+    { initials: 'АК', name: 'Азиз Каримов', school: 'Университет ИНХА · 2 курс', skills: ['UI/UX', 'Figma', 'Прототипы'], score: '82' },
+    { initials: 'МН', name: 'Мадина Нурова', school: 'УзГУМЯ · 3 курс', skills: ['Копирайтинг', 'SMM', 'Контент'], score: '76' },
+    { initials: 'ТИ', name: 'Тимур Исмаилов', school: 'ТУИТ · 1 курс', skills: ['Python', 'Аналитика', 'SQL'], score: '88' },
+    { initials: 'ДС', name: 'Дилноза Саидова', school: 'Школа №64 · 11 класс', skills: ['Дизайн', 'Иллюстрация'], score: '71' },
+    { initials: 'РА', name: 'Рустам Ахмедов', school: 'Westminster · 2 курс', skills: ['Frontend', 'React'], score: '84' },
+    { initials: 'ЗК', name: 'Зарина Камолова', school: 'ИНХА · 3 курс', skills: ['Маркетинг', 'Таргет'], score: '79' }
+  ];
+  var catalogGigs = [
+    { initials: 'GT', title: 'Дизайн лендинга для запуска', company: 'GreenTech Tashkent · EdTech', desc: 'Нужен лендинг под запуск бета-версии: макет + вёрстка простой страницы.', format: 'Удалённо', duration: '2 недели', slots: '1' },
+    { initials: 'FP', title: 'Тестирование мобильного приложения', company: 'FinPay · Fintech', desc: 'Ручное тестирование, поиск багов, оформление отчётов по чек-листу.', format: 'Гибрид', duration: '1 месяц', slots: '2' },
+    { initials: 'AG', title: 'SMM и контент для соцсетей', company: 'AgroLink · AgriTech', desc: 'Контент-план и посты на 2 недели, оформление и базовая аналитика.', format: 'Удалённо', duration: '2–3 месяца', slots: '1' },
+    { initials: 'MD', title: 'Аналитика пользовательских данных', company: 'MedData · HealthTech', desc: 'Собрать и визуализировать данные по онбордингу, короткий дашборд.', format: 'Офис (Ташкент)', duration: '1 месяц', slots: '1' }
+  ];
+
+  /* ---------- helpers ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function fv(k) { return esc(state.form[k] || ''); }
+  function isMinor() { return !!(state.studentProfile && state.studentProfile.minor); }
+  function studentName() { var p = state.studentProfile; return p ? ((p.first + ' ' + p.last).trim() || 'Студент') : 'Студент'; }
+  function studentInitials() { var p = state.studentProfile; if (!p) return 'С'; return (((p.first || '')[0] || '') + ((p.last || '')[0] || '')).toUpperCase() || 'С'; }
+  function companyName() { return state.companyProfile ? state.companyProfile.name : 'Ваша компания'; }
+  function companyDomain() { return state.companyProfile ? (state.companyProfile.domain || '') : ''; }
+  function companyDirector() { return state.companyProfile ? (state.companyProfile.director || '') : ''; }
+
+  /* ---------- shared style snippets ---------- */
+  var S = {
+    input: 'padding:13px 14px; border:1px solid var(--line); border-radius:11px; font-size:15px; background:#fff; width:100%;',
+    label: 'display:flex; flex-direction:column; gap:7px;',
+    labelSpan: 'font-size:14px; font-weight:600;',
+    primary: 'font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:15px; border-radius:11px; cursor:pointer;',
+    dark: 'font-size:15px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px 24px; border-radius:11px; cursor:pointer;',
+    ghost: 'font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:14px; border-radius:11px; cursor:pointer;',
+    back: 'font-size:14px; color:var(--muted); cursor:pointer; font-weight:500;'
+  };
+
+  function inputField(label, field, ph, hint) {
+    return '<label style="' + S.label + '"><span style="' + S.labelSpan + '">' + label + '</span>' +
+      '<input data-field="' + field + '" value="' + fv(field) + '" placeholder="' + esc(ph) + '" style="' + S.input + '">' +
+      (hint ? '<span style="font-size:12px; color:var(--muted);">' + hint + '</span>' : '') + '</label>';
+  }
+
+  /* ---------- header ---------- */
+  function header() {
+    var auth;
+    if (state.authRole === 'student') {
+      auth = '<button data-action="goStudentCabinet" style="display:flex; align-items:center; gap:9px; font-size:14.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:6px 14px 6px 6px; border-radius:999px; cursor:pointer;">' +
+        '<span style="width:30px; height:30px; border-radius:50%; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:13px;">' + esc(studentInitials()) + '</span>' + esc(studentName()) + '</button>';
+    } else if (state.authRole === 'company') {
+      auth = '<button data-action="goCompanyCabinet" style="display:flex; align-items:center; gap:9px; font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer;"><span style="width:7px; height:7px; border-radius:50%; background:#4ade80;"></span>Профиль компании</button>';
+    } else {
+      auth = '<span style="display:flex; align-items:center; gap:12px;">' +
+        '<button data-action="goStudent" style="font-size:14.5px; font-weight:600; color:var(--ink); background:none; border:1px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Войти как студент</button>' +
+        '<button data-action="goStartupForm" style="font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Регистрация компании</button></span>';
+    }
+    return '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line);">' +
+      '<div style="max-width:1180px; margin:0 auto; padding:16px 28px; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:24px;">' +
+        '<a data-action="goHome" style="display:flex; align-items:center; gap:10px; cursor:pointer;">' +
+          '<span style="width:30px; height:30px; border-radius:8px; background:var(--accent); display:flex; align-items:center; justify-content:center; color:#fff; font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:16px;">i</span>' +
+          '<span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
+        '</a>' +
+        '<nav style="display:flex; align-items:center; justify-content:center; gap:30px; white-space:nowrap;">' +
+          '<a data-action="scrollHow" style="font-size:14.5px; color:var(--muted); font-weight:500;">Как это работает</a>' +
+          '<a data-action="scrollVerify" style="font-size:14.5px; color:var(--muted); font-weight:500;">Верификация</a>' +
+          '<a data-action="goCatalog" style="font-size:14.5px; color:var(--muted); font-weight:500;">Каталог</a>' +
+        '</nav>' +
+        '<div style="display:flex; align-items:center; justify-content:flex-end; gap:12px;">' + auth + '</div>' +
+      '</div></header>';
+  }
+
+  /* ---------- footer ---------- */
+  function footer() {
+    return '<footer style="border-top:1px solid var(--line); background:#fff;">' +
+      '<div style="max-width:1180px; margin:0 auto; padding:36px 28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">' +
+        '<div style="display:flex; align-items:center; gap:10px;"><span style="width:26px; height:26px; border-radius:7px; background:var(--accent); display:flex; align-items:center; justify-content:center; color:#fff; font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:14px;">i</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">internship.uz</span></div>' +
+        '<div style="font-size:13px; color:var(--muted); text-align:right;">Платформа стажировок для стартапов и студентов Узбекистана<br>Пилот · 2026</div>' +
+      '</div></footer>';
+  }
+
+  /* ---------- HOME ---------- */
+  function homeView() {
+    var trust = ['Бесплатно на старте', 'Верификация через вуз', 'Официальная практика, не трудоустройство'].map(function (t) {
+      return '<span style="display:flex; align-items:center; gap:7px;"><span style="color:var(--accent); font-weight:700;">✓</span>' + t + '</span>';
+    }).join('');
+
+    var statTile = function (id, val, label, dark, suffix) {
+      var numStyle = 'font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:34px; line-height:1; letter-spacing:-0.02em;' + (dark ? '' : (id === 'stat-companies' ? ' color:var(--accent);' : ''));
+      var bg = dark ? 'background:var(--ink); color:#fff;' : 'background:var(--bg); border:1px solid var(--line);';
+      var lblColor = dark ? 'rgba(255,255,255,0.62)' : 'var(--muted)';
+      var num = suffix
+        ? '<div style="display:flex; align-items:baseline; gap:2px;"><span id="' + id + '" style="' + numStyle + '">' + val + '</span><span style="font-size:15px; font-weight:600; color:var(--muted);">' + suffix + '</span></div>'
+        : '<div id="' + id + '" style="' + numStyle + '">' + val + '</div>';
+      return '<div style="border-radius:15px; padding:18px; ' + bg + '">' + num + '<div style="font-size:12.5px; color:' + lblColor + '; margin-top:7px;">' + label + '</div></div>';
+    };
+
+    var statsPanel = '<div class="hero-up" style="animation-delay:.18s; position:relative;">' +
+      '<div style="position:absolute; inset:-12% -8% -16% 4%; background:radial-gradient(58% 58% at 60% 40%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%); filter:blur(10px); z-index:0;"></div>' +
+      '<div style="position:relative; z-index:1; background:#fff; border:1px solid var(--line); border-radius:20px; box-shadow:0 30px 72px -34px rgba(18,20,26,0.32); padding:26px;">' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;"><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">Платформа в цифрах</span><span style="display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:var(--muted);"><span class="pulse-dot" style="width:8px; height:8px; border-radius:50%; background:#22c55e;"></span>в реальном времени</span></div>' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' +
+          statTile('stat-students', statsCur.students, 'студентов в базе', true) +
+          statTile('stat-companies', statsCur.companies, 'компаний зарегистрировано', false) +
+          statTile('stat-projects', statsCur.projects, 'проектов закрыто', false) +
+          statTile('stat-score', statsCur.score, 'средний ИИ-балл', false, '/100') +
+        '</div>' +
+        '<div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); text-align:center;">Данные пилота · обновляется</div>' +
+      '</div>' +
+      '<div class="floaty" style="position:absolute; z-index:2; left:-22px; bottom:-20px; background:var(--ink); color:#fff; border-radius:14px; padding:13px 17px; box-shadow:0 22px 46px -22px rgba(18,20,26,0.55); display:flex; align-items:center; gap:12px;"><span style="width:38px; height:38px; border-radius:10px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:18px;">✦</span><div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:18px; line-height:1.05;">+34</div><div style="font-size:11.5px; color:rgba(255,255,255,0.6);">отклика за неделю</div></div></div>' +
+      '<div class="floaty2" style="position:absolute; z-index:2; right:-16px; top:22px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 14px; box-shadow:0 16px 36px -20px rgba(18,20,26,0.35); display:flex; align-items:center; gap:9px;"><span class="pulse-dot" style="width:8px; height:8px; border-radius:50%; background:#22c55e;"></span><span style="font-size:12.5px; font-weight:600;">12 стартапов в пилоте</span></div>' +
+    '</div>';
+
+    var hero = '<section style="max-width:1180px; margin:0 auto; padding:76px 28px 40px;">' +
+      '<div style="display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px; align-items:center;">' +
+        '<div>' +
+          '<div class="hero-up" style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1px solid var(--line); border-radius:999px; background:#fff; font-size:12.5px; font-weight:600; color:var(--muted); letter-spacing:0.01em; animation-delay:.02s;"><span style="width:6px; height:6px; border-radius:50%; background:var(--accent);"></span>Платформа стажировок · Узбекистан</div>' +
+          '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(38px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:22px 0 0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
+          '<p class="hero-up" style="font-size:18px; line-height:1.55; color:var(--muted); max-width:500px; margin:22px 0 0; animation-delay:.14s;">internship.uz связывает узбекские стартапы со студентами и школьниками: живые проекты, верифицированные профили и официальный документ о пройденной практике.</p>' +
+          '<div class="hero-up" style="display:flex; gap:12px; margin-top:30px; flex-wrap:wrap; animation-delay:.2s;">' +
+            '<button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 24px; border-radius:11px; cursor:pointer;">Я стартап — нужна помощь</button>' +
+            '<button data-action="goStudent" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:14px 24px; border-radius:11px; cursor:pointer;">Я студент — ищу опыт</button>' +
+          '</div>' +
+          '<div class="hero-up" style="display:flex; gap:22px; margin-top:26px; flex-wrap:wrap; font-size:13.5px; color:var(--muted); animation-delay:.26s;">' + trust + '</div>' +
+        '</div>' + statsPanel +
+      '</div></section>';
+
+    var valItem = function (v, dark) {
+      var line = dark ? 'rgba(255,255,255,0.12)' : 'var(--line)';
+      var descColor = dark ? 'rgba(255,255,255,0.6)' : 'var(--muted)';
+      return '<div style="display:flex; gap:12px; padding:13px 0; border-top:1px solid ' + line + ';"><span style="color:var(--accent); font-weight:700; margin-top:1px;">✓</span><div><div style="font-weight:600; font-size:15px;">' + v.title + '</div><div style="font-size:13.5px; color:' + descColor + '; margin-top:2px;">' + v.desc + '</div></div></div>';
+    };
+    var value = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:56px 28px;">' +
+      '<div style="text-align:center; max-width:640px; margin:0 auto 44px;"><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Две стороны, одна выгода</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 0;">Каждый получает то, чего ему не хватает</h2></div>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">' +
+        '<div data-stagger style="background:#fff; border:1px solid var(--line); border-radius:18px; padding:32px;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">◆</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для стартапов</span></div><p style="color:var(--muted); font-size:15px; margin:0 0 20px;">Ранние команды с ограниченным бюджетом — быстрые руки без затрат на найм.</p>' + startupValue.map(function (v) { return valItem(v, false); }).join('') + '<button data-action="goStartupForm" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px; border-radius:11px; cursor:pointer;">Подтвердить компанию</button></div>' +
+        '<div data-stagger style="background:var(--ink); border:1px solid var(--ink); border-radius:18px; padding:32px; color:#fff;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">●</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для студентов и школьников</span></div><p style="color:rgba(255,255,255,0.62); font-size:15px; margin:0 0 20px;">Реальные проекты в резюме и официальный документ — сильный аргумент при поступлении.</p>' + studentValue.map(function (v) { return valItem(v, true); }).join('') + '<button data-action="goStudent" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:13px; border-radius:11px; cursor:pointer;">Создать профиль студента</button></div>' +
+      '</div></section>';
+
+    var stepItem = function (s, accent) {
+      var circle = accent
+        ? 'border:1.5px solid color-mix(in srgb, var(--accent) 40%, #fff); color:var(--accent); background:color-mix(in srgb, var(--accent) 6%, #fff);'
+        : 'border:1.5px solid var(--line); background:#fff;';
+      return '<div data-stagger style="display:flex; gap:16px; padding-bottom:26px; position:relative;"><div style="flex-shrink:0; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px; ' + circle + '">' + s.n + '</div><div><div style="font-weight:600; font-size:16px;">' + s.title + '</div><div style="font-size:14px; color:var(--muted); margin-top:3px;">' + s.desc + '</div></div></div>';
+    };
+    var how = '<section id="sec-how" data-reveal style="background:#fff; border-top:1px solid var(--line); border-bottom:1px solid var(--line);">' +
+      '<div style="max-width:1180px; margin:0 auto; padding:64px 28px;"><div style="text-align:center; max-width:640px; margin:0 auto 44px;"><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Как это работает</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 0;">Два простых пути навстречу</h2></div>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:48px;">' +
+        '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--ink);"></span>Стартап</div>' + stepsStartup.map(function (s) { return stepItem(s, false); }).join('') + '</div>' +
+        '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent);"></span>Студент</div>' + stepsStudent.map(function (s) { return stepItem(s, true); }).join('') + '</div>' +
+      '</div></div></section>';
+
+    var verifyCard = function (q) {
+      return '<div data-lift data-stagger style="background:#fff; border:1px solid var(--line); border-radius:14px; padding:22px;"><div style="width:36px; height:36px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:17px; margin-bottom:14px;">' + q.icon + '</div><div style="font-weight:600; font-size:15.5px;">' + q.title + '</div><div style="font-size:13.5px; color:var(--muted); margin-top:5px; line-height:1.5;">' + q.desc + '</div><div style="margin-top:12px; font-size:11.5px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.04em;">' + q.tag + '</div></div>';
+    };
+    var verify = '<section id="sec-verify" data-reveal style="max-width:1180px; margin:0 auto; padding:72px 28px;">' +
+      '<div style="display:grid; grid-template-columns:0.9fr 1.1fr; gap:56px; align-items:center;">' +
+        '<div><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Доверие и качество</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 16px;">Профили проверены. Результат — оформлен официально.</h2><p style="font-size:16px; color:var(--muted); line-height:1.6;">Мы снижаем два главных риска: сомнительное качество исполнителей для компаний и юридическую неопределённость для обеих сторон. Верификация — бесплатная, а практика оформляется как учебная, а не как трудоустройство.</p>' +
+          '<div style="margin-top:24px; padding:18px 20px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 20%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Официальный документ о практике</strong> — студент получает подтверждение пройденной учебной практики, которое можно приложить к резюме или заявке на поступление.</div>' +
+          '<div style="margin-top:14px; padding:18px 20px; background:color-mix(in srgb, #e2a53a 8%, #fff); border:1px solid color-mix(in srgb, #e2a53a 26%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Защита несовершеннолетних</strong> — участникам до 18 лет доступ открывается только после письменного согласия родителя (по законодательству РУз). Готовый шаблон согласия — в один клик.</div>' +
+        '</div>' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">' + verifyItems.map(verifyCard).join('') + '</div>' +
+      '</div></section>';
+
+    var waitlist = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:32px 28px 88px;"><div style="background:var(--ink); border-radius:22px; padding:56px 40px; text-align:center; color:#fff; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 60%); opacity:0.5;"></div><div style="position:relative;"><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3.2vw,42px); letter-spacing:-0.02em; margin:0;">Присоединяйтесь к пилоту</h2><p style="font-size:17px; color:rgba(255,255,255,0.66); max-width:480px; margin:14px auto 0;">Набираем первые 5–10 стартапов и 10–20 студентов. Ранние участники получают бесплатный доступ и приоритет в матчинге.</p><div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;"><button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Записать стартап</button><button data-action="goStudent" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Записаться студентом</button></div></div></div></section>';
+
+    return '<main class="view-in">' + hero + value + how + verify + waitlist + '</main>';
+  }
+
+  /* ---------- STUDENT FORM ---------- */
+  function studentView() {
+    var inner = '';
+    if (state.studentStep === 'login') {
+      inner = '<div style="max-width:440px;">' +
+        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:20px 0 8px;">Войти как студент</h1>' +
+        '<p style="color:var(--muted); font-size:16px; margin:0 0 28px;">Быстрый вход без барьеров. При входе через Telegram имя и фамилия подтянутся автоматически — останется только подтвердить их.</p>' +
+        '<button data-action="loginTelegram" class="tg-btn"' + (state.tgAuth.loading ? ' disabled' : '') + '>' +
+          '<svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>' +
+          '<span>' + (state.tgAuth.loading ? 'Открываем Telegram…' : 'Войти через Telegram') + '</span>' +
+        '</button>' +
+        (state.tgAuth.loading ? '<div style="margin-top:12px; text-align:center; font-size:13px; color:var(--muted);">Проверяем вход через Telegram…</div>' : '') +
+        (state.tgAuth.error ? '<div style="margin-top:12px; padding:11px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:13px; color:#b3261e; line-height:1.5;">' + esc(state.tgAuth.error) + '</div>' : '') +
+        '<div style="display:flex; align-items:center; gap:14px; margin:20px 0;"><div style="flex:1; height:1px; background:var(--line);"></div><span style="font-size:13px; color:var(--muted);">или</span><div style="flex:1; height:1px; background:var(--line);"></div></div>' +
+        '<button data-action="continueEmail" style="width:100%; ' + S.ghost + '">Продолжить по email</button>' +
+        '<div style="margin-top:28px; padding-top:22px; border-top:1px solid var(--line);"><div style="font-size:12.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px;">Три шага регистрации</div>' +
+          '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:6px;">' +
+            stepDot('1', 'Стандартная регистрация', true) + arrow() + stepDot('2', 'Заполнение личных данных', false) + arrow() + stepDot('3', 'Тестирование', false) +
+          '</div></div></div>';
+    } else if (state.studentStep === 'email') {
+      var noClient = !supabase;
+      inner = '<div style="max-width:440px;">' +
+        '<a data-action="backToLogin" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Назад</a>' +
+        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:10px 0 8px;">Вход по email</h1>' +
+        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Подходит и студентам, и школьникам. Укажите email — пришлём одноразовый код подтверждения.</p>' +
+        (noClient ? '<div style="padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:12px; margin-bottom:16px; font-size:13px; color:#b3261e; line-height:1.5;">Supabase не настроен: укажите SUPABASE_URL и SUPABASE_ANON_KEY в int_app.js.</div>' : '') +
+        '<div style="display:flex; flex-direction:column; gap:16px;">' +
+          inputField('Email', 'semail', 'you@email.com') +
+          (state.otp.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
+          '<button data-action="sendOtp"' + (state.otp.loading || noClient ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading || noClient ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Отправка…' : 'Получить код') + '</button>' +
+        '</div></div>';
+    } else if (state.studentStep === 'otp') {
+      inner = '<div style="max-width:440px;">' +
+        '<a data-action="backToEmail" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Изменить email</a>' +
+        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:10px 0 8px;">Введите код</h1>' +
+        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Шестизначный код отправлен на <strong style="color:var(--ink);">' + esc(state.otp.email) + '</strong>. Проверьте почту (и папку «Спам»).</p>' +
+        '<div style="display:flex; flex-direction:column; gap:16px;">' +
+          inputField('Код из письма', 'otpInput', '000000') +
+          (state.otp.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
+          '<button data-action="verifyOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Проверка…' : 'Подтвердить и войти') + '</button>' +
+          '<button data-action="resendOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.ghost + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">Отправить код повторно</button>' +
+        '</div></div>';
+    } else if (state.studentStep === 'profile') {
+      inner = '<div>' +
+        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Обязательный шаг</div>' +
+        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:14px 0 8px;">Заполните профиль</h1>' +
+        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Укажите имя и фамилию <strong style="color:var(--ink);">как в паспорте или студенческом</strong> — именно это имя попадёт в официальный документ о практике.</p>' +
+        (state.tgDraft ? '<div style="display:flex; gap:11px; align-items:flex-start; padding:13px 15px; background:color-mix(in srgb, #229ED9 8%, #fff); border:1px solid color-mix(in srgb, #229ED9 22%, #fff); border-radius:12px; margin-bottom:20px;"><span style="color:#229ED9; font-weight:700;">✈</span><span style="font-size:13px; color:var(--muted); line-height:1.5;">Черновик подтянут из Telegram. Проверьте имя и фамилию и при необходимости исправьте.</span></div>' : '') +
+        '<div style="display:flex; flex-direction:column; gap:18px;">' +
+          '<label style="' + S.label + '"><span style="' + S.labelSpan + '">Ваш статус</span><select data-field="status" style="' + S.input + '">' + statusOptions() + '</select><span style="font-size:12px; color:var(--muted);">Если вам ещё нет 18 — для доступа к каталогу потребуется согласие родителя.</span></label>' +
+          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('Имя <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'sfirst', 'Азиз') + inputField('Фамилия <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'slast', 'Каримов') + '</div>' +
+          inputField('Email', 'semail', 'you@email.com') +
+          inputField('Telegram для связи <span style="color:var(--muted); font-weight:500;">(необязательно)</span>', 'tg', '@username', 'Используется только как способ связи, не как отображаемое имя в профиле.') +
+          '<button data-action="saveStudentProfile" style="margin-top:4px; ' + S.primary + '">Сохранить и продолжить</button>' +
+        '</div></div>';
+    } else if (state.studentStep === 'consent') {
+      var cstep = function (n, t) { return '<div style="display:flex; gap:14px; align-items:flex-start;"><span style="width:28px; height:28px; border-radius:50%; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:13px; flex-shrink:0;">' + n + '</span><div style="font-size:14.5px; padding-top:3px;">' + t + '</div></div>'; };
+      inner = '<div>' +
+        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:#b26b12; background:color-mix(in srgb, #e2a53a 14%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">🔒 Доступ ограничен · до 18 лет</div>' +
+        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:14px 0 8px;">Согласие родителя</h1>' +
+        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">По законодательству РУз для участия несовершеннолетних нужно письменное согласие родителя или опекуна. Каталог задач откроется после загрузки и ручной проверки согласия.</p>' +
+        '<div style="display:flex; flex-direction:column; gap:14px; margin-bottom:24px;">' + cstep('1', 'Скачайте готовый шаблон согласия') + cstep('2', 'Подпишите его вместе с родителем или опекуном') + cstep('3', 'Загрузите скан или фото — мы проверим документ вручную') + '</div>' +
+        '<div style="display:flex; flex-direction:column; gap:12px;">' +
+          '<button style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; ' + S.ghost + '"><span>⬇</span>Скачать шаблон согласия (PDF)</button>' +
+          '<button data-action="uploadConsent" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; ' + S.primary + '"><span>⤒</span>Загрузить подписанное согласие</button>' +
+          '<p style="font-size:12.5px; color:var(--muted); text-align:center; margin:0;">Проверка обычно занимает 1–2 дня.</p>' +
+        '</div></div>';
+    } else { // done
+      var body = state.consentUploaded && isMinor()
+        ? '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Согласие отправлено на проверку</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:460px; margin:0 auto 28px;">Мы проверим согласие родителя вручную (обычно 1–2 дня). До подтверждения каталог задач остаётся заблокированным.</p>'
+        : '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:440px; margin:0 auto 28px;">Дальше можно подтвердить вуз и пройти ИИ-тест — статусы доверия добавятся к профилю.</p>';
+      inner = '<div style="text-align:center; padding-top:56px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div>' + body + '<button data-action="goStudentCabinet" style="' + S.dark + '">Перейти в личный кабинет</button></div>';
+    }
+    return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
+  }
+  function statusOptions() {
+    var opts = ['', 'Студент вуза (18+)', 'Студент колледжа (18+)', 'Школьник, 10–11 класс (до 18)', 'Лицей, 1–2 курс (до 18)'];
+    return opts.map(function (o) { var sel = state.form.status === o ? ' selected' : ''; return '<option' + sel + '>' + (o || 'Выберите…') + '</option>'; }).join('');
+  }
+  function stepDot(n, label, active) {
+    var c = active ? 'background:var(--accent); color:#fff;' : 'background:#fff; border:1.5px solid var(--line); color:var(--muted);';
+    return '<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; text-align:center;"><span style="width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:14px; flex-shrink:0; ' + c + '">' + n + '</span><span style="font-size:12px; font-weight:600; line-height:1.3;">' + label + '</span></div>';
+  }
+  function arrow() { return '<span style="margin-top:9px; color:var(--muted); font-size:14px;">→</span>'; }
+
+  /* ---------- COMPANY FORM ---------- */
+  function companyView() {
+    var inner;
+    if (!state.companyProfile) {
+      inner = '<div>' +
+        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Шаг 1 · Подтверждение профиля</div>' +
+        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:14px 0 8px;">Заявка на подтверждение компании</h1>' +
+        '<p style="color:var(--muted); font-size:16px; margin:0 0 28px;">На старте профили компаний подтверждаются вручную — так мы защищаем студентов. Проверяем госреестр, корпоративный домен и созваниваемся с командой.</p>' +
+        '<div style="display:flex; flex-direction:column; gap:18px;">' +
+          inputField('Название компании', 'company', 'Напр. GreenTech Tashkent LLC') +
+          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('ИНН <span style="color:var(--muted); font-weight:500;">(госреестр)</span>', 'inn', '9 цифр') + inputField('Руководитель', 'director', 'ФИО по реестру') + '</div>' +
+          inputField('Корпоративная почта <span style="color:var(--muted); font-weight:500;">(@домен компании)</span>', 'corpEmail', 'you@company.uz') +
+          inputField('LinkedIn или соцсети компании', 'linkedin', 'Ссылка на профиль представителя или страницу') +
+          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('Контактное лицо', 'contact', 'Имя') + inputField('Телефон для созвона', 'phone', '+998 ...') + '</div>' +
+          '<div style="display:flex; gap:11px; align-items:flex-start; padding:14px 16px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px;"><span style="color:var(--accent); font-weight:700;">ⓘ</span><span style="font-size:13px; color:var(--muted); line-height:1.5;">Для первых компаний обязателен короткий созвон с командой платформы — это даёт максимальное доверие для студентов. Занимает 10–15 минут.</span></div>' +
+          '<button data-action="submitCompany" style="margin-top:4px; ' + S.primary + '">Отправить заявку</button>' +
+          '<p style="font-size:12.5px; color:var(--muted); text-align:center; margin:0;">Участие бесплатно на старте. Задачи можно размещать после подтверждения профиля.</p>' +
+        '</div></div>';
+    } else {
+      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:16px; max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCompanyCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goCatalog" style="' + S.ghost + '">Каталог студентов</button></div></div>';
+    }
+    return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
+  }
+
+  /* ---------- catalog cards ---------- */
+  function studentCard(s) {
+    return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px;"><div style="display:flex; align-items:center; justify-content:space-between;"><div style="width:44px; height:44px; border-radius:11px; background:color-mix(in srgb, var(--accent) 11%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px;">' + s.initials + '</div><span style="font-size:11px; font-weight:700; color:var(--accent);">✓ verified</span></div><div style="font-weight:600; font-size:16px; margin-top:14px;">' + s.name + '</div><div style="font-size:13px; color:var(--muted);">' + s.school + '</div><div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">' + s.skills.map(function (sk) { return '<span style="font-size:11.5px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:4px 9px; border-radius:6px;">' + sk + '</span>'; }).join('') + '</div><div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px solid var(--line);"><span style="font-size:12.5px; color:var(--muted);">ИИ-тест: <strong style="color:var(--ink);">' + s.score + '</strong></span><button style="font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button></div></div>';
+  }
+  function gigCard(g) {
+    return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:16px;">' + g.title + '</span><span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:13.5px; color:var(--muted); margin-top:2px;">' + g.company + '</div><div style="font-size:14px; color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:12.5px; color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div><button style="font-size:13px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:10px 16px; border-radius:9px; cursor:pointer; flex-shrink:0;">Откликнуться</button></div>';
+  }
+  function minorLock(title) {
+    var action = state.consentUploaded
+      ? '<div style="display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#b26b12; background:color-mix(in srgb, #e2a53a 14%, #fff); padding:10px 16px; border-radius:10px;"><span style="width:7px; height:7px; border-radius:50%; background:#e2a53a;"></span>Согласие на проверке · обычно 1–2 дня</div>'
+      : '<button data-action="goConsent" style="' + S.primary.replace('padding:15px','padding:13px 24px') + '">Загрузить согласие родителя</button>';
+    return '<div style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:52px 32px; text-align:center;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, #e2a53a 16%, #fff); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 20px;">🔒</div><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:23px; letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3><p style="color:var(--muted); font-size:15px; max-width:440px; margin:0 auto 22px; line-height:1.55;">Вам ещё нет 18 лет. Доступ откроется после загрузки и ручной проверки согласия родителя.</p>' + action + '</div>';
+  }
+
+  /* ---------- CATALOG ---------- */
+  function catalogView() {
+    var role = state.authRole;
+    var effectiveTab = role === 'company' ? 'students' : role === 'student' ? 'gigs' : state.catalogTab;
+    var studentsActive = effectiveTab === 'students';
+    var minorLocked = role === 'student' && isMinor();
+
+    var head = '<div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:26px;">' +
+      '<div><div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em;">Черновик интерфейса</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:12px 0 0;">Каталог и личный кабинет</h1></div>';
+    if (role === null) {
+      var tb = 'font-size:13.5px; font-weight:600; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;';
+      head += '<div style="display:flex; background:#fff; border:1px solid var(--line); border-radius:11px; padding:4px;"><button data-action="tabStudents" style="' + tb + (studentsActive ? ' background:var(--ink); color:#fff;' : ' background:transparent; color:var(--muted);') + '">Студенты</button><button data-action="tabGigs" style="' + tb + (studentsActive ? ' background:transparent; color:var(--muted);' : ' background:var(--ink); color:#fff;') + '">Задачи стартапов</button></div>';
+    } else if (role === 'company') {
+      head += '<button data-action="goStartupForm" style="font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:11px 18px; border-radius:10px; cursor:pointer;">Разместить задачу</button>';
+    }
+    head += '</div>';
+
+    // sidebar
+    var sidebar;
+    if (role === 'student') {
+      sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:17px;">' + esc(studentInitials()) + '</div><div><div style="font-weight:600; font-size:15px;">' + esc(studentName()) + '</div><div style="font-size:12px; color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
+    } else if (role === 'company') {
+      sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;">◆</div><div><div style="font-weight:600; font-size:15px;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#b26b12; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:#e2a53a;"></span>На подтверждении</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Что дальше</div><div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div><button data-action="goStartupForm" style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button><button data-action="goCompanyCabinet" style="margin-top:10px; width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
+    } else {
+      sidebar = '<div aria-hidden="true"></div>';
+    }
+
+    // listings
+    var listings;
+    if (studentsActive) {
+      listings = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">' + catalogStudents.map(studentCard).join('') + '</div>';
+    } else if (minorLocked) {
+      listings = minorLock('Каталог заблокирован');
+    } else {
+      listings = '<div style="display:flex; flex-direction:column; gap:14px;">' + catalogGigs.map(gigCard).join('') + '</div>';
+    }
+
+    return '<main class="view-in" style="max-width:1180px; margin:0 auto; padding:40px 28px 88px;">' + head +
+      '<div style="display:grid; grid-template-columns:270px 1fr; gap:24px; align-items:start;">' + sidebar + '<div>' + listings + '</div></div></main>';
+  }
+
+  /* ---------- STUDENT CABINET ---------- */
+  function studentCabinetView() {
+    var minor = isMinor();
+    var consentRow = minor
+      ? '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;"><span style="font-size:13.5px; font-weight:600; color:var(--muted);">Согласие родителя</span>' + (state.consentUploaded ? '<span style="font-size:11.5px; font-weight:700; color:#b26b12;">на проверке</span>' : '<button data-action="goConsent" style="font-size:11.5px; font-weight:600; color:#fff; background:#b26b12; border:none; padding:4px 10px; border-radius:7px; cursor:pointer;">Загрузить</button>') + '</div>'
+      : '';
+    var sp = state.studentProfile || {};
+    var aside = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px; position:sticky; top:88px;">' +
+      '<div style="display:flex; align-items:center; gap:14px;"><span style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px;">' + esc(studentInitials()) + '</span><div><div style="font-weight:700; font-size:17px; letter-spacing:-0.01em;">' + esc(studentName()) + '</div><div style="font-size:13px; color:var(--muted);">Студент · пилот</div></div></div>' +
+      '<div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:12px;">' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;"><span style="font-size:13.5px; font-weight:600; color:var(--muted);">Email</span><span style="font-size:13px; font-weight:600;">' + esc(sp.email || '—') + '</span></div>' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;"><span style="font-size:13.5px; font-weight:600; color:var(--muted);">Telegram</span><span style="font-size:13px; font-weight:600;">' + esc(sp.tg || '—') + '</span></div>' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;"><span style="font-size:13.5px; font-weight:600; color:var(--muted);">Статус</span><span style="font-size:13px; font-weight:600; text-align:right;">' + esc(sp.status || '—') + '</span></div>' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;"><span style="font-size:13.5px; font-weight:600; color:var(--muted);">Учебное заведение</span><button style="font-size:11.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:4px 10px; border-radius:7px; cursor:pointer;">Подтвердить</button></div>' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px;"><span style="font-size:13.5px; font-weight:600; color:var(--muted);">Тестирование</span><button style="font-size:11.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:4px 10px; border-radius:7px; cursor:pointer;">Пройти тест</button></div>' + consentRow +
+      '</div>' +
+      '<div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:10px;"><button style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-size:13.5px; font-weight:600; color:#fff; background:#229ED9; border:none; padding:11px; border-radius:10px; cursor:pointer;"><span>✈</span>Написать в Telegram</button><button style="width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Скачать документ о практике</button><button data-action="logout" style="width:100%; font-size:13.5px; font-weight:600; color:#b3261e; background:#fff; border:1px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div></aside>';
+
+    var content = minor ? minorLock('Задачи заблокированы') : '<div style="display:flex; flex-direction:column; gap:14px;">' + catalogGigs.map(gigCard).join('') + '</div>';
+    return '<main class="view-in" style="max-width:1180px; margin:0 auto; padding:40px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:16px 0 24px;">Личный кабинет</h1><div style="display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start;">' + aside + '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:19px; margin-bottom:16px;">Рекомендуемые задачи</div>' + content + '</div></div></main>';
+  }
+
+  /* ---------- COMPANY CABINET ---------- */
+  function companyCabinetView() {
+    var cp = state.companyProfile || {};
+    var infoRow = function (label, val) {
+      return '<div><div style="font-size:12px; color:var(--muted);">' + label + '</div><div style="font-size:13.5px; font-weight:600;">' + esc(val || '—') + '</div></div>';
+    };
+    var aside = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:14px;"><span style="width:56px; height:56px; border-radius:14px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px;">◆</span><div><div style="font-weight:700; font-size:17px; letter-spacing:-0.01em;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#b26b12; margin-top:2px;"><span style="width:6px; height:6px; border-radius:50%; background:#e2a53a;"></span>На подтверждении</div></div></div>' +
+      '<div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:13px;">' +
+        infoRow('ИНН', cp.inn) +
+        infoRow('Руководитель', cp.director) +
+        infoRow('Корпоративная почта', cp.corpEmail) +
+        infoRow('Домен', companyDomain()) +
+        infoRow('Контактное лицо', cp.contact) +
+        infoRow('Телефон', cp.phone) +
+        infoRow('LinkedIn / соцсети', cp.linkedin) +
+        '<div><div style="font-size:12px; color:var(--muted);">Проверки</div><div style="font-size:13px; color:var(--muted); line-height:1.6;">Госреестр · корпоративный домен · созвон с командой</div></div>' +
+      '</div>' +
+      '<div style="margin-top:18px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:12.5px; color:var(--muted); line-height:1.5;">Размещение задач откроется после подтверждения профиля — обычно 1–2 дня.</div>' +
+      '<button data-action="logout" style="margin-top:14px; width:100%; font-size:13.5px; font-weight:600; color:#b3261e; background:#fff; border:1px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></aside>';
+    return '<main class="view-in" style="max-width:1180px; margin:0 auto; padding:40px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:16px 0 24px;">Личный кабинет компании</h1><div style="display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start;">' + aside + '<div><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap;"><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:19px;">Каталог студентов</span><button data-action="goStartupForm" style="font-size:13.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:10px 16px; border-radius:9px; cursor:pointer;">Разместить задачу</button></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">' + catalogStudents.map(studentCard).join('') + '</div></div></div></main>';
+  }
+
+  /* ---------- view dispatch ---------- */
+  function viewHtml() {
+    switch (state.view) {
+      case 'student': return studentView();
+      case 'company': return companyView();
+      case 'catalog': return catalogView();
+      case 'studentCabinet': return studentCabinetView();
+      case 'companyCabinet': return companyCabinetView();
+      default: return homeView();
+    }
+  }
+
+  /* ---------- actions ---------- */
+  var root;
+  function setState(patch) { for (var k in patch) state[k] = patch[k]; render(); }
+  function top() { try { window.scrollTo(0, 0); } catch (e) {} }
+
+  var actions = {
+    goHome: function () { setState({ view: 'home' }); top(); },
+    goStudent: function () { setState({ view: 'student', studentStep: 'login' }); top(); },
+    goStartupForm: function () { setState({ view: 'company' }); top(); },
+    goCatalog: function () { setState({ view: 'catalog' }); top(); },
+    goStudentCabinet: function () { setState({ view: 'studentCabinet' }); top(); },
+    goCompanyCabinet: function () { setState({ view: 'companyCabinet' }); top(); },
+    tabStudents: function () { setState({ catalogTab: 'students' }); },
+    tabGigs: function () { setState({ catalogTab: 'gigs' }); },
+    // Открывает окно авторизации Telegram через JS-API (своя кнопка вместо iframe-виджета).
+    loginTelegram: function () {
+      if (TELEGRAM_BOT.indexOf('YOUR_BOT') !== -1) { setState({ tgAuth: { loading: false, error: 'Telegram-бот не настроен (TELEGRAM_BOT / TELEGRAM_BOT_ID в int_app.js).' } }); return; }
+      if (!window.Telegram || !window.Telegram.Login || typeof window.Telegram.Login.auth !== 'function') {
+        setState({ tgAuth: { loading: false, error: 'Виджет Telegram ещё не загрузился, попробуйте через секунду.' } });
+        return;
+      }
+      setState({ tgAuth: { loading: true, error: '' } });
+      window.Telegram.Login.auth({ bot_id: TELEGRAM_BOT_ID, request_access: 'write' }, function (user) {
+        if (!user) { setState({ tgAuth: { loading: false, error: 'Вход через Telegram отменён' } }); return; }
+        actions.telegramAuth(user);
+      });
+    },
+    // Отправляет подписанные данные Telegram в Edge Function и устанавливает Supabase-сессию.
+    telegramAuth: function (user) {
+      if (!supabase) { setState({ tgAuth: { loading: false, error: 'Supabase не настроен' } }); return; }
+      if (!user || !user.id) { setState({ tgAuth: { loading: false, error: 'Telegram не вернул данные пользователя' } }); return; }
+      setState({ tgAuth: { loading: true, error: '' } });
+      fetch(TG_AUTH_FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        body: JSON.stringify(user)
+      }).then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, body: j }; });
+      }).then(function (res) {
+        if (!res.ok || !res.body || !res.body.email || !res.body.email_otp) {
+          setState({ tgAuth: { loading: false, error: (res.body && res.body.error) || 'Не удалось войти через Telegram' } });
+          return;
+        }
+        return supabase.auth.verifyOtp({ email: res.body.email, token: res.body.email_otp, type: 'email' }).then(function (v) {
+          if (v.error) { setState({ tgAuth: { loading: false, error: v.error.message } }); return; }
+          state.form.sfirst = user.first_name || state.form.sfirst || '';
+          state.form.slast = user.last_name || state.form.slast || '';
+          state.form.tg = user.username ? '@' + user.username : (state.form.tg || '');
+          setState({ session: v.data.session, tgDraft: true, studentStep: 'profile', tgAuth: { loading: false, error: '' } });
+          top();
+        });
+      }).catch(function (err) {
+        setState({ tgAuth: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
+      });
+    },
+    continueEmail: function () { setState({ tgDraft: false, studentStep: 'email', otp: { email: '', error: '', loading: false } }); top(); },
+    backToLogin: function () { setState({ studentStep: 'login', otp: { email: '', error: '', loading: false } }); top(); },
+    backToEmail: function () { setState({ studentStep: 'email', otp: { email: state.otp.email, error: '', loading: false } }); top(); },
+    sendOtp: function () {
+      var email = (state.form.semail || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setState({ otp: { email: '', error: 'Введите корректный email', loading: false } });
+        return;
+      }
+      if (!supabase) {
+        setState({ otp: { email: email, error: 'Supabase не настроен', loading: false } });
+        return;
+      }
+      setState({ otp: { email: email, error: '', loading: true } });
+      supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: true } }).then(function (res) {
+        if (res.error) { setState({ otp: { email: '', error: res.error.message, loading: false } }); return; }
+        state.form.otpInput = '';
+        setState({ studentStep: 'otp', otp: { email: email, error: '', loading: false } });
+        top();
+      });
+    },
+    resendOtp: function () {
+      if (!supabase || state.otp.loading) return;
+      var email = state.otp.email;
+      setState({ otp: { email: email, error: '', loading: true } });
+      supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: true } }).then(function (res) {
+        if (res.error) { setState({ otp: { email: email, error: res.error.message, loading: false } }); return; }
+        setState({ otp: { email: email, error: '', loading: false } });
+      });
+    },
+    verifyOtp: function () {
+      var entered = (state.form.otpInput || '').trim();
+      if (!entered) {
+        setState({ otp: { email: state.otp.email, error: 'Введите код из письма', loading: false } });
+        return;
+      }
+      if (!supabase) {
+        setState({ otp: { email: state.otp.email, error: 'Supabase не настроен', loading: false } });
+        return;
+      }
+      var email = state.otp.email;
+      setState({ otp: { email: email, error: '', loading: true } });
+      supabase.auth.verifyOtp({ email: email, token: entered, type: 'email' }).then(function (res) {
+        if (res.error) { setState({ otp: { email: email, error: 'Неверный или устаревший код', loading: false } }); return; }
+        state.form.semail = email;
+        setState({ session: res.data.session, studentStep: 'profile', otp: { email: email, error: '', loading: false } });
+        top();
+      });
+    },
+    saveStudentProfile: function () {
+      var status = state.form.status || '';
+      var minor = /до 18/.test(status);
+      state.studentProfile = { first: state.form.sfirst || '', last: state.form.slast || '', tg: state.form.tg || '', email: state.form.semail || '', status: status, minor: minor };
+      setState({ authRole: 'student', studentStep: minor ? 'consent' : 'done' }); top();
+    },
+    uploadConsent: function () { setState({ consentUploaded: true, studentStep: 'done' }); top(); },
+    goConsent: function () { setState({ view: 'student', studentStep: 'consent' }); top(); },
+    submitCompany: function () {
+      state.companyProfile = {
+        name: state.form.company || 'Ваша компания',
+        inn: state.form.inn || '',
+        director: state.form.director || '',
+        corpEmail: state.form.corpEmail || '',
+        domain: (state.form.corpEmail || '').split('@')[1] || '',
+        linkedin: state.form.linkedin || '',
+        contact: state.form.contact || '',
+        phone: state.form.phone || ''
+      };
+      setState({ authRole: 'company' }); top();
+    },
+    scrollHow: function () { scrollToId('sec-how'); },
+    scrollVerify: function () { scrollToId('sec-verify'); },
+    logout: function () {
+      if (supabase && state.session) supabase.auth.signOut();
+      setState({
+        authRole: null, studentProfile: null, companyProfile: null, session: null,
+        studentStep: 'login', consentUploaded: false, tgDraft: false,
+        otp: { email: '', error: '', loading: false },
+        tgAuth: { loading: false, error: '' },
+        form: {}, view: 'home', catalogTab: 'students'
+      });
+      top();
+    }
+  };
+  function scrollToId(id) {
+    if (state.view !== 'home') { setState({ view: 'home' }); setTimeout(function () { doScroll(id); }, 60); }
+    else doScroll(id);
+  }
+  function doScroll(id) { var el = document.getElementById(id); if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: 'smooth' }); }
+
+  /* ---------- count-up ---------- */
+  function writeStats() {
+    var map = { 'stat-students': statsCur.students, 'stat-companies': statsCur.companies, 'stat-projects': statsCur.projects, 'stat-score': statsCur.score };
+    for (var id in map) { var e = document.getElementById(id); if (e) e.textContent = map[id]; }
+  }
+  function startStats() {
+    if (state._statsRan) return; state._statsRan = true;
+    var dur = 1500, start = now(), ease = function (t) { return 1 - Math.pow(1 - t, 3); };
+    function tick() {
+      var t = Math.min(1, (now() - start) / dur), e = ease(t);
+      statsCur = { students: Math.round(STATS_TARGET.students * e), companies: Math.round(STATS_TARGET.companies * e), projects: Math.round(STATS_TARGET.projects * e), score: Math.round(STATS_TARGET.score * e) };
+      writeStats();
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    if ('requestAnimationFrame' in window) requestAnimationFrame(tick);
+    setTimeout(function () { statsCur = { students: STATS_TARGET.students, companies: STATS_TARGET.companies, projects: STATS_TARGET.projects, score: STATS_TARGET.score }; writeStats(); }, 1900);
+  }
+  function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+
+  /* ---------- scroll reveal ---------- */
+  function setupReveal() {
+    var els = [].slice.call(root.querySelectorAll('[data-reveal]'));
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.remove('reveal-armed'); }); return; }
+    var vh = window.innerHeight || 800;
+    var io = new IntersectionObserver(function (ents) {
+      ents.forEach(function (en) { if (en.isIntersecting) { en.target.classList.remove('reveal-armed'); io.unobserve(en.target); } });
+    }, { threshold: 0.06, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(function (el) { if (el.getBoundingClientRect().top > vh * 0.85) { el.classList.add('reveal-armed'); io.observe(el); } });
+    setTimeout(function () { root.querySelectorAll('[data-reveal].reveal-armed').forEach(function (e) { e.classList.remove('reveal-armed'); }); }, 1600);
+  }
+
+  /* ---------- telegram widget script ---------- */
+  // Грузим telegram-widget.js один раз — он нужен ради JS-API Telegram.Login.auth,
+  // который открывает окно авторизации по клику на нашу собственную кнопку.
+  function loadTelegramScript() {
+    if (document.getElementById('tg-widget-js')) return;
+    var s = document.createElement('script');
+    s.id = 'tg-widget-js';
+    s.async = true;
+    s.src = 'https://telegram.org/js/telegram-widget.js?22';
+    document.head.appendChild(s);
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    root.innerHTML = header() + viewHtml() + footer();
+    setupReveal();
+    if (state.view === 'home') startStats();
+  }
+
+  function init() {
+    root = document.getElementById('root');
+    loadTelegramScript();
+    root.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-action]');
+      if (t && actions[t.getAttribute('data-action')]) { e.preventDefault(); actions[t.getAttribute('data-action')](t); }
+    });
+    root.addEventListener('input', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value; });
+    root.addEventListener('change', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value; });
+    render();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
