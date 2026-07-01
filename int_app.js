@@ -31,6 +31,7 @@
     tgDraft: false,
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
+    profileSave: { loading: false, error: '' },
     _statsRan: false
   };
 
@@ -286,7 +287,8 @@
           '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('Имя <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'sfirst', 'Азиз') + inputField('Фамилия <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'slast', 'Каримов') + '</div>' +
           inputField('Email', 'semail', 'you@email.com') +
           inputField('Telegram для связи <span style="color:var(--muted); font-weight:500;">(необязательно)</span>', 'tg', '@username', 'Используется только как способ связи, не как отображаемое имя в профиле.') +
-          '<button data-action="saveStudentProfile" style="margin-top:4px; ' + S.primary + '">Сохранить и продолжить</button>' +
+          (state.profileSave.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
+          '<button data-action="saveStudentProfile"' + (state.profileSave.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.profileSave.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.profileSave.loading ? 'Сохранение…' : 'Сохранить и продолжить') + '</button>' +
         '</div></div>';
     } else if (state.studentStep === 'consent') {
       var cstep = function (n, t) { return '<div style="display:flex; gap:14px; align-items:flex-start;"><span style="width:28px; height:28px; border-radius:50%; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:13px; flex-shrink:0;">' + n + '</span><div style="font-size:14.5px; padding-top:3px;">' + t + '</div></div>'; };
@@ -561,9 +563,22 @@
       var status = state.form.status || '';
       var minor = /до 18/.test(status);
       state.studentProfile = { first: state.form.sfirst || '', last: state.form.slast || '', tg: state.form.tg || '', email: state.form.semail || '', status: status, minor: minor };
-      setState({ authRole: 'student', studentStep: minor ? 'consent' : 'done' }); top();
+      var nextStep = minor ? 'consent' : 'done';
+      // Нет сессии (не должно случаться для студентов) — просто продолжаем в памяти.
+      if (!supabase || !currentUserId()) {
+        setState({ authRole: 'student', studentStep: nextStep }); top(); return;
+      }
+      setState({ profileSave: { loading: true, error: '' } });
+      saveProfileToDb().then(function (res) {
+        if (res.error) { setState({ profileSave: { loading: false, error: 'Не удалось сохранить профиль: ' + res.error.message } }); return; }
+        setState({ authRole: 'student', studentStep: nextStep, profileSave: { loading: false, error: '' } }); top();
+      });
     },
-    uploadConsent: function () { setState({ consentUploaded: true, studentStep: 'done' }); top(); },
+    uploadConsent: function () {
+      state.consentUploaded = true;
+      if (supabase && currentUserId()) saveProfileToDb();  // фоновое обновление флага согласия
+      setState({ consentUploaded: true, studentStep: 'done' }); top();
+    },
     goConsent: function () { setState({ view: 'student', studentStep: 'consent' }); top(); },
     submitCompany: function () {
       state.companyProfile = {
@@ -587,6 +602,7 @@
         studentStep: 'login', consentUploaded: false, tgDraft: false,
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
+        profileSave: { loading: false, error: '' },
         form: {}, view: 'home', catalogTab: 'students'
       });
       top();
@@ -643,6 +659,41 @@
   }
 
   /* ---------- render ---------- */
+  /* ---------- profile persistence ---------- */
+  function currentUserId() {
+    return state.session && state.session.user && state.session.user.id;
+  }
+  // Сохраняет текущий профиль студента в таблицу profiles (RLS: только своя строка).
+  function saveProfileToDb() {
+    var userId = currentUserId();
+    if (!supabase || !userId || !state.studentProfile) return Promise.resolve({ error: null });
+    var p = state.studentProfile;
+    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, consentUploaded: !!state.consentUploaded };
+    return supabase.from('profiles')
+      .upsert({ id: userId, role: 'student', data: data, updated_at: new Date().toISOString() })
+      .then(function (r) { return { error: r.error }; });
+  }
+  // При загрузке страницы восстанавливает сессию и профиль из Supabase.
+  function restoreSession() {
+    if (!supabase) return;
+    supabase.auth.getSession().then(function (res) {
+      var session = res.data && res.data.session;
+      if (!session) return;
+      state.session = session;
+      supabase.from('profiles').select('role,data').eq('id', session.user.id).maybeSingle().then(function (r) {
+        var row = r && r.data;
+        if (row && row.role === 'student' && row.data) {
+          var d = row.data;
+          state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor };
+          state.consentUploaded = !!d.consentUploaded;
+          state.authRole = 'student';
+          state.studentStep = 'done';
+        }
+        render();
+      });
+    });
+  }
+
   function render() {
     root.innerHTML = header() + viewHtml() + footer();
     setupReveal();
@@ -652,6 +703,7 @@
   function init() {
     root = document.getElementById('root');
     loadTelegramScript();
+    restoreSession();
     root.addEventListener('click', function (e) {
       var t = e.target.closest('[data-action]');
       if (t && actions[t.getAttribute('data-action')]) { e.preventDefault(); actions[t.getAttribute('data-action')](t); }
