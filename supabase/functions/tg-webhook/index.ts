@@ -4,7 +4,8 @@
 //
 // Секреты:
 //   TELEGRAM_BOT_TOKEN  — токен бота
-//   TG_REVIEW_CHAT_ID   — id группы проверки
+//   TG_STUDY_CHAT_ID    — id группы проверки справок
+//   TG_CONSENT_CHAT_ID  — id группы проверки согласий
 //   TG_WEBHOOK_SECRET   — секрет, который Telegram шлёт в заголовке (задаётся при setWebhook)
 // Авто: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //
@@ -26,7 +27,7 @@ async function tg(method: string, body: unknown, botToken: string) {
 Deno.serve(async (req) => {
   try {
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
-    const reviewChat = Deno.env.get('TG_REVIEW_CHAT_ID');
+    const allowedChats = [Deno.env.get('TG_STUDY_CHAT_ID'), Deno.env.get('TG_CONSENT_CHAT_ID')].filter(Boolean).map(String);
     const secret = Deno.env.get('TG_WEBHOOK_SECRET');
 
     // Защита эндпоинта: Telegram шлёт секрет в этом заголовке (см. setWebhook).
@@ -38,8 +39,8 @@ Deno.serve(async (req) => {
     const cb = update.callback_query;
     if (!cb) return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
 
-    // Только из группы проверки.
-    if (reviewChat && cb.message && String(cb.message.chat.id) !== String(reviewChat)) {
+    // Только из разрешённых групп проверки (справки/согласия).
+    if (allowedChats.length && cb.message && !allowedChats.includes(String(cb.message.chat.id))) {
       await tg('answerCallbackQuery', { callback_query_id: cb.id, text: 'Недоступно' }, botToken);
       return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
     }

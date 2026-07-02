@@ -9,19 +9,23 @@
 Выполните миграцию [supabase/migrations/0002_student_docs.sql](supabase/migrations/0002_student_docs.sql)
 (создаёт приватный бакет `student-docs` и RLS). Профили уже хранят статусы в `profiles.data.docStatus`.
 
-## 2. Группа проверки в Telegram
+## 2. Две группы проверки в Telegram
 
-1. Создайте группу (напр. «internship.uz — проверка документов»).
-2. Добавьте туда бота **@int_auth_bot** и сделайте его администратором.
-3. Узнайте `chat_id` группы: временно напишите в группе что-нибудь и откройте
-   `https://api.telegram.org/bot<ТОКЕН>/getUpdates` — там будет `chat.id` вида `-1001234567890`.
+Отдельная группа под каждый тип документа:
+1. Группа для **справок о месте учёбы**.
+2. Группа для **согласий родителей**.
+
+В обе добавьте бота **@int_auth_bot** и сделайте его администратором. Затем узнайте
+`chat_id` каждой группы (вид `-1001234567890`) через
+`https://api.telegram.org/bot<ТОКЕН>/getUpdates`.
 
 ## 3. Секреты Edge Functions
 
 Dashboard → Edge Functions → Secrets (или `supabase secrets set`):
 
-- `TG_REVIEW_CHAT_ID` = id группы проверки (напр. `-1001234567890`)
-- `TG_WEBHOOK_SECRET` = любая случайная строка (напр. сгенерируйте 32 символа)
+- `TG_STUDY_CHAT_ID` = id группы проверки справок
+- `TG_CONSENT_CHAT_ID` = id группы проверки согласий
+- `TG_WEBHOOK_SECRET` = любая случайная строка (напр. 32 символа)
 - `TELEGRAM_BOT_TOKEN` — уже задан (используется повторно)
 
 ## 4. Задеплоить функции

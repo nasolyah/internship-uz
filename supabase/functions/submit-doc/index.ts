@@ -4,7 +4,8 @@
 //
 // Секреты:
 //   TELEGRAM_BOT_TOKEN  — токен бота
-//   TG_REVIEW_CHAT_ID   — id группы проверки (напр. -1001234567890)
+//   TG_STUDY_CHAT_ID    — id группы проверки справок о месте учёбы
+//   TG_CONSENT_CHAT_ID  — id группы проверки согласий родителей
 // Авто: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -26,8 +27,7 @@ Deno.serve(async (req) => {
 
   try {
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-    const chatId = Deno.env.get('TG_REVIEW_CHAT_ID');
-    if (!botToken || !chatId) return json({ error: 'TELEGRAM_BOT_TOKEN / TG_REVIEW_CHAT_ID не заданы' }, 500);
+    if (!botToken) return json({ error: 'TELEGRAM_BOT_TOKEN не задан' }, 500);
 
     // Идентифицируем пользователя по его JWT (нельзя доверять userId из тела).
     const authHeader = req.headers.get('Authorization') ?? '';
@@ -41,6 +41,10 @@ Deno.serve(async (req) => {
     const { type, path } = await req.json();
     if (type !== 'study' && type !== 'consent') return json({ error: 'Неизвестный тип документа' }, 400);
     if (typeof path !== 'string' || !path.startsWith(user.id + '/')) return json({ error: 'Некорректный путь файла' }, 403);
+
+    // Тип документа → своя группа проверки.
+    const chatId = type === 'consent' ? Deno.env.get('TG_CONSENT_CHAT_ID') : Deno.env.get('TG_STUDY_CHAT_ID');
+    if (!chatId) return json({ error: (type === 'consent' ? 'TG_CONSENT_CHAT_ID' : 'TG_STUDY_CHAT_ID') + ' не задан' }, 500);
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
       auth: { autoRefreshToken: false, persistSession: false },
