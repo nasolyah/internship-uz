@@ -417,7 +417,8 @@
     var role = state.authRole;
     var effectiveTab = role === 'company' ? 'students' : role === 'student' ? 'gigs' : state.catalogTab;
     var studentsActive = effectiveTab === 'students';
-    var minorLocked = role === 'student' && isMinor();
+    // несовершеннолетний видит замок, пока согласие родителя не подтверждено
+    var minorLocked = role === 'student' && isMinor() && docStat('consent') !== 'approved';
 
     var catTitle = role === 'company' ? 'Каталог студентов' : role === 'student' ? 'Каталог задач' : 'Каталог';
     var catSub = role === 'company' ? 'Кандидаты для ваших задач' : role === 'student' ? 'Задачи от стартапов и компаний' : 'Студенты и задачи стартапов';
