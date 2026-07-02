@@ -873,7 +873,11 @@
     supabase.auth.getSession().then(function (res) {
       var session = res.data && res.data.session;
       if (!session) return;
-      applyStudentProfile(session).then(function () { render(); });
+      applyStudentProfile(session).then(function (hasProfile) {
+        // залогиненного не держим на маркетинговом лендинге — в рабочий раздел (каталог)
+        if (hasProfile && state.view === 'home') state.view = 'catalog';
+        render();
+      });
     });
   }
 
