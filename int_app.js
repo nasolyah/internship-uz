@@ -575,11 +575,19 @@
         }
         return supabase.auth.verifyOtp({ email: res.body.email, token: res.body.email_otp, type: 'email' }).then(function (v) {
           if (v.error) { setState({ tgAuth: { loading: false, error: v.error.message } }); return; }
-          state.form.sfirst = user.first_name || state.form.sfirst || '';
-          state.form.slast = user.last_name || state.form.slast || '';
-          state.form.tg = user.username ? '@' + user.username : (state.form.tg || '');
-          setState({ session: v.data.session, tgDraft: true, studentStep: 'profile', tgAuth: { loading: false, error: '' } });
-          top();
+          return applyStudentProfile(v.data.session).then(function (hasProfile) {
+            if (hasProfile) {
+              // профиль уже есть — сразу в кабинет (или на шаг согласия, если требуется)
+              setState({ view: state.studentStep === 'consent' ? 'student' : 'cabinet', tgDraft: false, tgAuth: { loading: false, error: '' } });
+            } else {
+              // новый пользователь — черновик из Telegram и форма профиля
+              state.form.sfirst = user.first_name || state.form.sfirst || '';
+              state.form.slast = user.last_name || state.form.slast || '';
+              state.form.tg = user.username ? '@' + user.username : (state.form.tg || '');
+              setState({ view: 'student', tgDraft: true, studentStep: 'profile', tgAuth: { loading: false, error: '' } });
+            }
+            top();
+          });
         });
       }).catch(function (err) {
         setState({ tgAuth: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
@@ -630,8 +638,14 @@
       supabase.auth.verifyOtp({ email: email, token: entered, type: 'email' }).then(function (res) {
         if (res.error) { setState({ otp: { email: email, error: 'Неверный или устаревший код', loading: false } }); return; }
         state.form.semail = email;
-        setState({ session: res.data.session, studentStep: 'profile', otp: { email: email, error: '', loading: false } });
-        top();
+        applyStudentProfile(res.data.session).then(function (hasProfile) {
+          if (hasProfile) {
+            setState({ view: state.studentStep === 'consent' ? 'student' : 'cabinet', otp: { email: email, error: '', loading: false } });
+          } else {
+            setState({ view: 'student', studentStep: 'profile', otp: { email: email, error: '', loading: false } });
+          }
+          top();
+        });
       });
     },
     saveStudentProfile: function () {
@@ -749,24 +763,33 @@
       .upsert({ id: userId, role: 'student', data: data, updated_at: new Date().toISOString() })
       .then(function (r) { return { error: r.error }; });
   }
+  // Загружает существующий профиль студента из БД в state.
+  // Возвращает Promise<boolean> — есть ли уже сохранённый профиль.
+  function applyStudentProfile(session) {
+    state.session = session;
+    var userId = session && session.user && session.user.id;
+    if (!supabase || !userId) return Promise.resolve(false);
+    return supabase.from('profiles').select('role,data').eq('id', userId).maybeSingle().then(function (r) {
+      var row = r && r.data;
+      if (row && row.role === 'student' && row.data) {
+        var d = row.data;
+        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor };
+        state.consentUploaded = !!d.consentUploaded;
+        state.authRole = 'student';
+        // несовершеннолетний без согласия → на шаг согласия, иначе профиль готов
+        state.studentStep = (state.studentProfile.minor && !state.consentUploaded) ? 'consent' : 'done';
+        return true;
+      }
+      return false;
+    });
+  }
   // При загрузке страницы восстанавливает сессию и профиль из Supabase.
   function restoreSession() {
     if (!supabase) return;
     supabase.auth.getSession().then(function (res) {
       var session = res.data && res.data.session;
       if (!session) return;
-      state.session = session;
-      supabase.from('profiles').select('role,data').eq('id', session.user.id).maybeSingle().then(function (r) {
-        var row = r && r.data;
-        if (row && row.role === 'student' && row.data) {
-          var d = row.data;
-          state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor };
-          state.consentUploaded = !!d.consentUploaded;
-          state.authRole = 'student';
-          state.studentStep = 'done';
-        }
-        render();
-      });
+      applyStudentProfile(session).then(function () { render(); });
     });
   }
 
