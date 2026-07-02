@@ -17,6 +17,12 @@
   // Эндпоинт Edge Function, которая проверяет подпись Telegram и выдаёт сессию.
   var TG_AUTH_FN = SUPABASE_URL + '/functions/v1/telegram-auth';
 
+  /* ---------- документы студента ---------- */
+  var SUBMIT_DOC_FN = SUPABASE_URL + '/functions/v1/submit-doc';
+  var DOC_BUCKET = 'student-docs';
+  // Путь к шаблону согласия (статика Netlify). Положите файл в /templates/.
+  var CONSENT_TEMPLATE_URL = 'templates/parental-consent-template.pdf';
+
   /* ---------- state ---------- */
   var state = {
     view: 'home',
@@ -27,12 +33,14 @@
     companyProfile: null,
     session: null,
     form: {},
-    consentUploaded: false,
+    docStatus: { study: 'none', consent: 'none' },  // none | pending | approved | rejected
     tgDraft: false,
     menuOpen: false,
+    modal: null,               // null | 'study' | 'consent'
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
     profileSave: { loading: false, error: '' },
+    docUpload: { loading: false, error: '' },
     _statsRan: false
   };
 
@@ -91,11 +99,25 @@
   function studentInitials() { var p = state.studentProfile; if (!p) return 'С'; return (((p.first || '')[0] || '') + ((p.last || '')[0] || '')).toUpperCase() || 'С'; }
   function companyName() { return state.companyProfile ? state.companyProfile.name : 'Ваша компания'; }
   function companyDomain() { return state.companyProfile ? (state.companyProfile.domain || '') : ''; }
+  // Статус конкретного документа: none | pending | approved | rejected.
+  function docStat(type) { return (state.docStatus && state.docStatus[type]) || 'none'; }
+  function docLabel(status) {
+    return { pending: 'на проверке', approved: 'подтверждено', rejected: 'отклонено — загрузите заново', none: '' }[status] || '';
+  }
+  function docColor(status) {
+    return { pending: '#b26b12', approved: '#16a34a', rejected: '#b3261e', none: 'var(--muted)' }[status] || 'var(--muted)';
+  }
   // Короткий статус верификации для шапки/меню.
   function verifyStatus() {
     if (state.authRole === 'company') return 'На подтверждении';
     if (state.authRole === 'student') {
-      if (isMinor()) return state.consentUploaded ? 'Согласие на проверке' : 'Требуется согласие родителя';
+      if (isMinor()) {
+        var c = docStat('consent');
+        if (c === 'approved') return 'Согласие подтверждено';
+        if (c === 'pending') return 'Согласие на проверке';
+        if (c === 'rejected') return 'Согласие отклонено';
+        return 'Требуется согласие родителя';
+      }
       return 'Профиль активен';
     }
     return '';
@@ -163,7 +185,7 @@
       }
       auth = '<div style="position:relative;">' + btn + dropdown + '</div>';
       // невидимый оверлей на весь экран — клик вне меню закрывает его (рендерится вне header из-за backdrop-filter)
-      if (state.menuOpen) overlay = '<div data-overlay data-action="toggleMenu" style="position:fixed; inset:0; z-index:40;"></div>';
+      if (state.menuOpen) overlay = '<div data-menu-overlay data-action="toggleMenu" style="position:fixed; inset:0; z-index:40;"></div>';
     } else {
       auth = '<span style="display:flex; align-items:center; gap:12px;">' +
         '<button data-action="goStudent" style="font-size:14.5px; font-weight:600; color:var(--ink); background:none; border:1px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Войти как студент</button>' +
@@ -333,22 +355,10 @@
           (state.profileSave.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
           '<button data-action="saveStudentProfile"' + (state.profileSave.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.profileSave.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.profileSave.loading ? 'Сохранение…' : 'Сохранить и продолжить') + '</button>' +
         '</div></div>';
-    } else if (state.studentStep === 'consent') {
-      var cstep = function (n, t) { return '<div style="display:flex; gap:14px; align-items:flex-start;"><span style="width:28px; height:28px; border-radius:50%; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:13px; flex-shrink:0;">' + n + '</span><div style="font-size:14.5px; padding-top:3px;">' + t + '</div></div>'; };
-      inner = '<div>' +
-        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:#b26b12; background:color-mix(in srgb, #e2a53a 14%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">🔒 Доступ ограничен · до 18 лет</div>' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:14px 0 8px;">Согласие родителя</h1>' +
-        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">По законодательству РУз для участия несовершеннолетних нужно письменное согласие родителя или опекуна. Каталог задач откроется после загрузки и ручной проверки согласия.</p>' +
-        '<div style="display:flex; flex-direction:column; gap:14px; margin-bottom:24px;">' + cstep('1', 'Скачайте готовый шаблон согласия') + cstep('2', 'Подпишите его вместе с родителем или опекуном') + cstep('3', 'Загрузите скан или фото — мы проверим документ вручную') + '</div>' +
-        '<div style="display:flex; flex-direction:column; gap:12px;">' +
-          '<button style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; ' + S.ghost + '"><span>⬇</span>Скачать шаблон согласия (PDF)</button>' +
-          '<button data-action="uploadConsent" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; ' + S.primary + '"><span>⤒</span>Загрузить подписанное согласие</button>' +
-          '<p style="font-size:12.5px; color:var(--muted); text-align:center; margin:0;">Проверка обычно занимает 1–2 дня.</p>' +
-        '</div></div>';
     } else { // done
-      var body = state.consentUploaded && isMinor()
-        ? '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Согласие отправлено на проверку</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:460px; margin:0 auto 28px;">Мы проверим согласие родителя вручную (обычно 1–2 дня). До подтверждения каталог задач остаётся заблокированным.</p>'
-        : '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:440px; margin:0 auto 28px;">Дальше можно подтвердить вуз и пройти ИИ-тест — статусы доверия добавятся к профилю.</p>';
+      var body = isMinor()
+        ? '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:460px; margin:0 auto 28px;">Дальше в личном кабинете загрузите <strong style="color:var(--ink);">справку о месте учёбы</strong> и <strong style="color:var(--ink);">согласие родителя</strong>. После ручной проверки откроется каталог задач.</p>'
+        : '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:440px; margin:0 auto 28px;">Дальше можно подтвердить место учёбы и пройти ИИ-тест — статусы доверия добавятся к профилю.</p>';
       inner = '<div style="text-align:center; padding-top:56px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div>' + body + '<button data-action="goCabinet" style="' + S.dark + '">Перейти в личный кабинет</button></div>';
     }
     return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
@@ -395,9 +405,10 @@
     return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:16px;">' + g.title + '</span><span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:13.5px; color:var(--muted); margin-top:2px;">' + g.company + '</div><div style="font-size:14px; color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:12.5px; color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div><button style="font-size:13px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:10px 16px; border-radius:9px; cursor:pointer; flex-shrink:0;">Откликнуться</button></div>';
   }
   function minorLock(title) {
-    var action = state.consentUploaded
-      ? '<div style="display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#b26b12; background:color-mix(in srgb, #e2a53a 14%, #fff); padding:10px 16px; border-radius:10px;"><span style="width:7px; height:7px; border-radius:50%; background:#e2a53a;"></span>Согласие на проверке · обычно 1–2 дня</div>'
-      : '<button data-action="goConsent" style="' + S.primary.replace('padding:15px','padding:13px 24px') + '">Загрузить согласие родителя</button>';
+    var c = docStat('consent');
+    var action;
+    if (c === 'pending') action = '<div style="display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#b26b12; background:color-mix(in srgb, #e2a53a 14%, #fff); padding:10px 16px; border-radius:10px;"><span style="width:7px; height:7px; border-radius:50%; background:#e2a53a;"></span>Согласие на проверке · обычно 1–2 дня</div>';
+    else action = '<button data-action="openConsentDoc" style="' + S.primary.replace('padding:15px', 'padding:13px 24px') + '">' + (c === 'rejected' ? 'Загрузить согласие заново' : 'Загрузить согласие родителя') + '</button>';
     return '<div style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:52px 32px; text-align:center;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, #e2a53a 16%, #fff); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 20px;">🔒</div><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:23px; letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3><p style="color:var(--muted); font-size:15px; max-width:440px; margin:0 auto 22px; line-height:1.55;">Вам ещё нет 18 лет. Доступ откроется после загрузки и ручной проверки согласия родителя.</p>' + action + '</div>';
   }
 
@@ -448,7 +459,8 @@
   function studentCabinetView() {
     var sp = state.studentProfile || {};
     var minor = isMinor();
-    var statusColor = minor ? (state.consentUploaded ? '#b26b12' : '#b3261e') : '#16a34a';
+    var cs = docStat('consent');
+    var statusColor = !minor ? '#16a34a' : (cs === 'approved' ? '#16a34a' : cs === 'pending' ? '#b26b12' : '#b3261e');
     var card = 'background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px;';
     var cardTitle = 'font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:4px;';
     var row = function (label, right) {
@@ -465,13 +477,26 @@
     var contacts = '<div style="' + card + '"><div style="' + cardTitle + '">Контакты и статус</div>' +
       row('Email', val(sp.email)) + row('Telegram', val(sp.tg)) + row('Статус', val(sp.status)) + '</div>';
 
-    var consentRight = state.consentUploaded
-      ? '<span style="font-size:12px; font-weight:700; color:#b26b12;">на проверке</span>'
-      : '<button data-action="goConsent" style="font-size:12px; font-weight:600; color:#fff; background:#b26b12; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">Загрузить</button>';
+    // строка документа со статусом и кнопкой загрузки (открывает модалку)
+    var docRow = function (label, type) {
+      var s = docStat(type);
+      var right;
+      if (s === 'pending') right = '<span style="font-size:12px; font-weight:700; color:' + docColor(s) + ';">на проверке</span>';
+      else if (s === 'approved') right = '<span style="font-size:12px; font-weight:700; color:' + docColor(s) + ';">✓ подтверждено</span>';
+      else {
+        var lbl = s === 'rejected' ? 'Загрузить заново' : (type === 'consent' ? 'Загрузить' : 'Подтвердить');
+        var bg = type === 'consent' ? '#b26b12' : 'var(--accent)';
+        var btn = '<button data-action="' + (type === 'consent' ? 'openConsentDoc' : 'openStudyDoc') + '" style="font-size:12px; font-weight:600; color:#fff; background:' + bg + '; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">' + lbl + '</button>';
+        right = s === 'rejected'
+          ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:11.5px; font-weight:700; color:#b3261e;">отклонено</span>' + btn + '</span>'
+          : btn;
+      }
+      return row(label, right);
+    };
     var verification = '<div style="' + card + '"><div style="' + cardTitle + '">Верификация</div>' +
-      row('Учебное заведение', todoBtn('Подтвердить')) +
+      docRow('Место учёбы (справка)', 'study') +
       row('ИИ-тест навыков', todoBtn('Пройти тест')) +
-      (minor ? row('Согласие родителя', consentRight) : '') + '</div>';
+      (minor ? docRow('Согласие родителя', 'consent') : '') + '</div>';
 
     var documents = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:8px;">Документы</div>' +
       '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 16px;">Официальный документ о практике станет доступен после завершения первого проекта.</p>' +
@@ -684,23 +709,47 @@
       var status = state.form.status || '';
       var minor = /до 18/.test(status);
       state.studentProfile = { first: state.form.sfirst || '', last: state.form.slast || '', tg: state.form.tg || '', email: state.form.semail || '', status: status, minor: minor };
-      var nextStep = minor ? 'consent' : 'done';
-      // Нет сессии (не должно случаться для студентов) — просто продолжаем в памяти.
+      // Документы (справка/согласие) загружаются уже в кабинете — сюда всегда 'done'.
       if (!supabase || !currentUserId()) {
-        setState({ authRole: 'student', studentStep: nextStep }); top(); return;
+        setState({ authRole: 'student', studentStep: 'done' }); top(); return;
       }
       setState({ profileSave: { loading: true, error: '' } });
       saveProfileToDb().then(function (res) {
         if (res.error) { setState({ profileSave: { loading: false, error: 'Не удалось сохранить профиль: ' + res.error.message } }); return; }
-        setState({ authRole: 'student', studentStep: nextStep, profileSave: { loading: false, error: '' } }); top();
+        setState({ authRole: 'student', studentStep: 'done', profileSave: { loading: false, error: '' } }); top();
       });
     },
-    uploadConsent: function () {
-      state.consentUploaded = true;
-      if (supabase && currentUserId()) saveProfileToDb();  // фоновое обновление флага согласия
-      setState({ consentUploaded: true, studentStep: 'done' }); top();
+    // Модальные окна загрузки документов
+    openStudyDoc: function () { setState({ modal: 'study', docUpload: { loading: false, error: '' } }); },
+    openConsentDoc: function () { setState({ modal: 'consent', docUpload: { loading: false, error: '' } }); },
+    closeModal: function () { setState({ modal: null, docUpload: { loading: false, error: '' } }); },
+    submitDoc: function () {
+      var type = state.modal;
+      if (!type) return;
+      var input = document.getElementById('doc-file');
+      var file = input && input.files && input.files[0];
+      if (!file) { setState({ docUpload: { loading: false, error: 'Сначала выберите файл' } }); return; }
+      if (file.size > 10 * 1024 * 1024) { setState({ docUpload: { loading: false, error: 'Файл больше 10 МБ' } }); return; }
+      var userId = currentUserId();
+      if (!supabase || !userId || !state.session) { setState({ docUpload: { loading: false, error: 'Сессия истекла — войдите заново' } }); return; }
+      var ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf';
+      var path = userId + '/' + type + '.' + ext;
+      setState({ docUpload: { loading: true, error: '' } });
+      supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' }).then(function (up) {
+        if (up.error) { setState({ docUpload: { loading: false, error: 'Ошибка загрузки: ' + up.error.message } }); return; }
+        return fetch(SUBMIT_DOC_FN, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.session.access_token },
+          body: JSON.stringify({ type: type, path: path })
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); }).then(function (res) {
+          if (!res.ok || !res.body || res.body.error) { setState({ docUpload: { loading: false, error: (res.body && res.body.error) || 'Не удалось отправить на проверку' } }); return; }
+          state.docStatus[type] = 'pending';
+          setState({ modal: null, docUpload: { loading: false, error: '' } });
+        });
+      }).catch(function (err) {
+        setState({ docUpload: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
+      });
     },
-    goConsent: function () { setState({ view: 'student', studentStep: 'consent' }); top(); },
     submitCompany: function () {
       state.companyProfile = {
         name: state.form.company || 'Ваша компания',
@@ -720,11 +769,12 @@
       if (supabase && state.session) supabase.auth.signOut();
       setState({
         authRole: null, studentProfile: null, companyProfile: null, session: null,
-        studentStep: 'login', consentUploaded: false, tgDraft: false,
+        studentStep: 'login', docStatus: { study: 'none', consent: 'none' }, tgDraft: false,
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         profileSave: { loading: false, error: '' },
-        menuOpen: false,
+        docUpload: { loading: false, error: '' },
+        menuOpen: false, modal: null,
         form: {}, view: 'home', catalogTab: 'students'
       });
       top();
@@ -790,7 +840,7 @@
     var userId = currentUserId();
     if (!supabase || !userId || !state.studentProfile) return Promise.resolve({ error: null });
     var p = state.studentProfile;
-    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, consentUploaded: !!state.consentUploaded };
+    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, docStatus: state.docStatus };
     return supabase.from('profiles')
       .upsert({ id: userId, role: 'student', data: data, updated_at: new Date().toISOString() })
       .then(function (r) { return { error: r.error }; });
@@ -806,10 +856,10 @@
       if (row && row.role === 'student' && row.data) {
         var d = row.data;
         state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor };
-        state.consentUploaded = !!d.consentUploaded;
+        // статусы документов (совместимость со старым флагом consentUploaded)
+        state.docStatus = d.docStatus || { study: 'none', consent: d.consentUploaded ? 'pending' : 'none' };
         state.authRole = 'student';
-        // несовершеннолетний без согласия → на шаг согласия, иначе профиль готов
-        state.studentStep = (state.studentProfile.minor && !state.consentUploaded) ? 'consent' : 'done';
+        state.studentStep = 'done';
         return true;
       }
       return false;
@@ -825,14 +875,48 @@
     });
   }
 
+  /* ---------- document upload modal ---------- */
+  function modalHtml() {
+    if (!state.modal) return '';
+    var type = state.modal;
+    var isConsent = type === 'consent';
+    var title = isConsent ? 'Согласие родителя' : 'Подтверждение места учёбы';
+    var desc = isConsent
+      ? 'Скачайте шаблон, подпишите его вместе с родителем или опекуном, затем загрузите скан или фото подписанного документа.'
+      : 'Загрузите справку о месте учёбы (из вуза, колледжа, школы или лицея). PDF или фото, до 10 МБ.';
+    var status = docStat(type);
+    var loading = state.docUpload.loading;
+    var tmpl = isConsent
+      ? '<a href="' + CONSENT_TEMPLATE_URL + '" download style="display:flex; align-items:center; justify-content:center; gap:9px; font-size:14px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:12px; border-radius:11px; text-decoration:none; margin-bottom:16px;"><span>⬇</span>Скачать шаблон согласия</a>'
+      : '';
+    var statusNote = (status === 'pending' || status === 'approved')
+      ? '<div style="padding:11px 14px; background:color-mix(in srgb, ' + docColor(status) + ' 10%, #fff); border:1px solid color-mix(in srgb, ' + docColor(status) + ' 26%, #fff); border-radius:10px; font-size:13px; color:' + docColor(status) + '; margin-bottom:16px;">Текущий статус: ' + docLabel(status) + '. При необходимости загрузите файл заново.</div>'
+      : '';
+    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
+
+    var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:440px; width:100%; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + title + '</h3>' +
+        '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 18px;">' + desc + '</p>' +
+      statusNote + tmpl +
+      '<input id="doc-file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="width:100%; font-size:13.5px; padding:12px; border:1px dashed var(--line); border-radius:11px; background:var(--bg); cursor:pointer;">' +
+      err +
+      '<button data-action="submitDoc"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Отправка…' : 'Отправить на проверку') + '</button>' +
+      '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
+    '</div>';
+
+    return '<div data-action="closeModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
+      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+  }
+
   function render() {
-    root.innerHTML = header() + viewHtml() + footer();
+    root.innerHTML = header() + viewHtml() + footer() + modalHtml();
     setupReveal();
     if (state.view === 'home') startStats();
   }
   // Перерисовывает только шапку и оверлей (для открытия/закрытия меню), не трогая тело страницы.
   function paintHeader() {
-    var ov = root.querySelector('[data-overlay]');
+    var ov = root.querySelector('[data-menu-overlay]');
     if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
     var hdr = root.querySelector('header');
     if (hdr) hdr.outerHTML = header();

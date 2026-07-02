@@ -14,3 +14,7 @@ supabase/.temp/
 .env
 .env.*
 *.local
+
+# Внутренние документы — не в публичный репозиторий
+*.docx
+business_plan*
