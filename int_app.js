@@ -29,6 +29,7 @@
     form: {},
     consentUploaded: false,
     tgDraft: false,
+    menuOpen: false,
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
     profileSave: { loading: false, error: '' },
@@ -90,6 +91,15 @@
   function studentInitials() { var p = state.studentProfile; if (!p) return 'С'; return (((p.first || '')[0] || '') + ((p.last || '')[0] || '')).toUpperCase() || 'С'; }
   function companyName() { return state.companyProfile ? state.companyProfile.name : 'Ваша компания'; }
   function companyDomain() { return state.companyProfile ? (state.companyProfile.domain || '') : ''; }
+  // Короткий статус верификации для шапки/меню.
+  function verifyStatus() {
+    if (state.authRole === 'company') return 'На подтверждении';
+    if (state.authRole === 'student') {
+      if (isMinor()) return state.consentUploaded ? 'Согласие на проверке' : 'Требуется согласие родителя';
+      return 'Профиль активен';
+    }
+    return '';
+  }
   function companyDirector() { return state.companyProfile ? (state.companyProfile.director || '') : ''; }
 
   /* ---------- shared style snippets ---------- */
@@ -110,29 +120,62 @@
   }
 
   /* ---------- header ---------- */
+  function navLink(action, label) {
+    var active = state.view === action.replace(/^go/, '').toLowerCase();
+    return '<a data-action="' + action + '" class="nav-link" style="font-size:14.5px; font-weight:500; color:' + (active ? 'var(--ink)' : 'var(--muted)') + ';">' + label + '</a>';
+  }
   function header() {
-    var auth;
-    if (state.authRole === 'student') {
-      auth = '<button data-action="goStudentCabinet" style="display:flex; align-items:center; gap:9px; font-size:14.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:6px 14px 6px 6px; border-radius:999px; cursor:pointer;">' +
-        '<span style="width:30px; height:30px; border-radius:50%; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:13px;">' + esc(studentInitials()) + '</span>' + esc(studentName()) + '</button>';
-    } else if (state.authRole === 'company') {
-      auth = '<button data-action="goCompanyCabinet" style="display:flex; align-items:center; gap:9px; font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer;"><span style="width:7px; height:7px; border-radius:50%; background:#4ade80;"></span>Профиль компании</button>';
+    var role = state.authRole;
+
+    // центральная навигация — свой набор для каждой роли
+    var nav;
+    if (role === 'student') {
+      nav = navLink('goCatalog', 'Каталог') + navLink('goResponses', 'Мои отклики');
+    } else if (role === 'company') {
+      nav = navLink('goCatalog', 'Каталог') + navLink('goVacancies', 'Мои вакансии');
+    } else {
+      nav = navLink('scrollHow', 'Как это работает') + navLink('scrollVerify', 'Верификация') + navLink('goCatalog', 'Каталог');
+    }
+
+    // правая часть — кнопки для гостя или аватар с выпадающим меню
+    var auth, overlay = '';
+    if (role === 'student' || role === 'company') {
+      var avatar = role === 'student'
+        ? '<span style="width:30px; height:30px; border-radius:50%; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:13px; flex-shrink:0;">' + esc(studentInitials()) + '</span>'
+        : '<span style="width:30px; height:30px; border-radius:8px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0;">◆</span>';
+      var name = role === 'student' ? studentName() : companyName();
+      var caret = '<span style="color:var(--muted); font-size:10px;' + (state.menuOpen ? ' transform:rotate(180deg);' : '') + '">▾</span>';
+      var btn = '<button data-action="toggleMenu" style="display:flex; align-items:center; gap:9px; font-size:14.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid ' + (state.menuOpen ? 'var(--accent)' : 'var(--line)') + '; padding:6px 13px 6px 6px; border-radius:999px; cursor:pointer;">' + avatar + '<span style="max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(name) + '</span>' + caret + '</button>';
+
+      var dropdown = '';
+      if (state.menuOpen) {
+        var dot = role === 'company' ? '#e2a53a' : '#4ade80';
+        var mItem = function (action, label, color) {
+          return '<a data-action="' + action + '" class="menu-item" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; font-size:14px; font-weight:600; color:' + color + '; cursor:pointer;">' + label + '</a>';
+        };
+        dropdown = '<div style="position:absolute; right:0; top:calc(100% + 10px); width:252px; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34); padding:8px; z-index:60;">' +
+          '<div style="display:flex; align-items:center; gap:11px; padding:8px 10px 12px; border-bottom:1px solid var(--line); margin-bottom:6px;">' + avatar +
+            '<div style="min-width:0;"><div style="font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + esc(name) + '</div>' +
+            '<div style="font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; margin-top:3px;"><span style="width:6px; height:6px; border-radius:50%; background:' + dot + '; flex-shrink:0;"></span>' + esc(verifyStatus()) + '</div></div></div>' +
+          mItem('goCabinet', 'Личный кабинет', 'var(--ink)') +
+          mItem('logout', 'Выйти', '#b3261e') +
+        '</div>';
+      }
+      auth = '<div style="position:relative;">' + btn + dropdown + '</div>';
+      // невидимый оверлей на весь экран — клик вне меню закрывает его (рендерится вне header из-за backdrop-filter)
+      if (state.menuOpen) overlay = '<div data-action="toggleMenu" style="position:fixed; inset:0; z-index:40;"></div>';
     } else {
       auth = '<span style="display:flex; align-items:center; gap:12px;">' +
         '<button data-action="goStudent" style="font-size:14.5px; font-weight:600; color:var(--ink); background:none; border:1px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Войти как студент</button>' +
         '<button data-action="goStartupForm" style="font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Регистрация компании</button></span>';
     }
-    return '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line);">' +
+    return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line);">' +
       '<div style="max-width:1180px; margin:0 auto; padding:16px 28px; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:24px;">' +
         '<a data-action="goHome" style="display:flex; align-items:center; gap:10px; cursor:pointer;">' +
           '<span style="width:30px; height:30px; border-radius:8px; background:var(--accent); display:flex; align-items:center; justify-content:center; color:#fff; font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:16px;">i</span>' +
           '<span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
         '</a>' +
-        '<nav style="display:flex; align-items:center; justify-content:center; gap:30px; white-space:nowrap;">' +
-          '<a data-action="scrollHow" style="font-size:14.5px; color:var(--muted); font-weight:500;">Как это работает</a>' +
-          '<a data-action="scrollVerify" style="font-size:14.5px; color:var(--muted); font-weight:500;">Верификация</a>' +
-          '<a data-action="goCatalog" style="font-size:14.5px; color:var(--muted); font-weight:500;">Каталог</a>' +
-        '</nav>' +
+        '<nav style="display:flex; align-items:center; justify-content:center; gap:30px; white-space:nowrap;">' + nav + '</nav>' +
         '<div style="display:flex; align-items:center; justify-content:flex-end; gap:12px;">' + auth + '</div>' +
       '</div></header>';
   }
@@ -306,7 +349,7 @@
       var body = state.consentUploaded && isMinor()
         ? '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Согласие отправлено на проверку</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:460px; margin:0 auto 28px;">Мы проверим согласие родителя вручную (обычно 1–2 дня). До подтверждения каталог задач остаётся заблокированным.</p>'
         : '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:440px; margin:0 auto 28px;">Дальше можно подтвердить вуз и пройти ИИ-тест — статусы доверия добавятся к профилю.</p>';
-      inner = '<div style="text-align:center; padding-top:56px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div>' + body + '<button data-action="goStudentCabinet" style="' + S.dark + '">Перейти в личный кабинет</button></div>';
+      inner = '<div style="text-align:center; padding-top:56px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div>' + body + '<button data-action="goCabinet" style="' + S.dark + '">Перейти в личный кабинет</button></div>';
     }
     return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
   }
@@ -339,7 +382,7 @@
           '<p style="font-size:12.5px; color:var(--muted); text-align:center; margin:0;">Участие бесплатно на старте. Задачи можно размещать после подтверждения профиля.</p>' +
         '</div></div>';
     } else {
-      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:16px; max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCompanyCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goCatalog" style="' + S.ghost + '">Каталог студентов</button></div></div>';
+      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:16px; max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goCatalog" style="' + S.ghost + '">Каталог студентов</button></div></div>';
     }
     return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
   }
@@ -365,8 +408,10 @@
     var studentsActive = effectiveTab === 'students';
     var minorLocked = role === 'student' && isMinor();
 
+    var catTitle = role === 'company' ? 'Каталог студентов' : role === 'student' ? 'Каталог задач' : 'Каталог';
+    var catSub = role === 'company' ? 'Кандидаты для ваших задач' : role === 'student' ? 'Задачи от стартапов и компаний' : 'Студенты и задачи стартапов';
     var head = '<div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:26px;">' +
-      '<div><div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em;">Черновик интерфейса</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:12px 0 0;">Каталог и личный кабинет</h1></div>';
+      '<div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0;">' + catTitle + '</h1><div style="font-size:14.5px; color:var(--muted); margin-top:6px;">' + catSub + '</div></div>';
     if (role === null) {
       var tb = 'font-size:13.5px; font-weight:600; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;';
       head += '<div style="display:flex; background:#fff; border:1px solid var(--line); border-radius:11px; padding:4px;"><button data-action="tabStudents" style="' + tb + (studentsActive ? ' background:var(--ink); color:#fff;' : ' background:transparent; color:var(--muted);') + '">Студенты</button><button data-action="tabGigs" style="' + tb + (studentsActive ? ' background:transparent; color:var(--muted);' : ' background:var(--ink); color:#fff;') + '">Задачи стартапов</button></div>';
@@ -380,7 +425,7 @@
     if (role === 'student') {
       sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:17px;">' + esc(studentInitials()) + '</div><div><div style="font-weight:600; font-size:15px;">' + esc(studentName()) + '</div><div style="font-size:12px; color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
     } else if (role === 'company') {
-      sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;">◆</div><div><div style="font-weight:600; font-size:15px;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#b26b12; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:#e2a53a;"></span>На подтверждении</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Что дальше</div><div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div><button data-action="goStartupForm" style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button><button data-action="goCompanyCabinet" style="margin-top:10px; width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
+      sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;">◆</div><div><div style="font-weight:600; font-size:15px;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#b26b12; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:#e2a53a;"></span>На подтверждении</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Что дальше</div><div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div><button data-action="goStartupForm" style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button><button data-action="goCabinet" style="margin-top:10px; width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
     } else {
       sidebar = '<div aria-hidden="true"></div>';
     }
@@ -443,16 +488,44 @@
     return '<main class="view-in" style="max-width:1180px; margin:0 auto; padding:40px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:16px 0 24px;">Личный кабинет компании</h1><div style="display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start;">' + aside + '<div><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap;"><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:19px;">Каталог студентов</span><button data-action="goStartupForm" style="font-size:13.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:10px 16px; border-radius:9px; cursor:pointer;">Разместить задачу</button></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">' + catalogStudents.map(studentCard).join('') + '</div></div></div></main>';
   }
 
+  /* ---------- MY RESPONSES / MY VACANCIES ---------- */
+  function emptyState(icon, title, text, btnAction, btnLabel) {
+    return '<div style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:56px 32px; text-align:center;">' +
+      '<div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:26px; margin:0 auto 20px;">' + icon + '</div>' +
+      '<h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3>' +
+      '<p style="color:var(--muted); font-size:15px; max-width:420px; margin:0 auto 22px; line-height:1.55;">' + text + '</p>' +
+      '<button data-action="' + btnAction + '" style="' + S.primary.replace('padding:15px', 'padding:13px 24px') + '">' + btnLabel + '</button></div>';
+  }
+  function pageWrap(title, inner) {
+    return '<main class="view-in" style="max-width:820px; margin:0 auto; padding:40px 28px 88px;">' +
+      '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:8px 0 24px;">' + title + '</h1>' + inner + '</main>';
+  }
+  function responsesView() {
+    if (state.authRole !== 'student') return homeView();
+    return pageWrap('Мои отклики', emptyState('◎', 'Пока нет откликов', 'Откликнитесь на задачи в каталоге — здесь появится статус каждого отклика: на рассмотрении, приглашение или отказ.', 'goCatalog', 'Открыть каталог задач'));
+  }
+  function vacanciesView() {
+    if (state.authRole !== 'company') return homeView();
+    return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появится статус ваших вакансий и отклики студентов.', 'goStartupForm', 'Разместить задачу'));
+  }
+
   /* ---------- view dispatch ---------- */
   function viewHtml() {
     switch (state.view) {
       case 'student': return studentView();
       case 'company': return companyView();
       case 'catalog': return catalogView();
-      case 'studentCabinet': return studentCabinetView();
-      case 'companyCabinet': return companyCabinetView();
+      case 'cabinet': return cabinetView();
+      case 'responses': return responsesView();
+      case 'vacancies': return vacanciesView();
       default: return homeView();
     }
+  }
+  // Единая страница личного кабинета — отображается по роли.
+  function cabinetView() {
+    if (state.authRole === 'company') return companyCabinetView();
+    if (state.authRole === 'student') return studentCabinetView();
+    return homeView();
   }
 
   /* ---------- actions ---------- */
@@ -465,8 +538,10 @@
     goStudent: function () { setState({ view: 'student', studentStep: 'login' }); top(); },
     goStartupForm: function () { setState({ view: 'company' }); top(); },
     goCatalog: function () { setState({ view: 'catalog' }); top(); },
-    goStudentCabinet: function () { setState({ view: 'studentCabinet' }); top(); },
-    goCompanyCabinet: function () { setState({ view: 'companyCabinet' }); top(); },
+    goCabinet: function () { setState({ view: 'cabinet' }); top(); },
+    goResponses: function () { setState({ view: 'responses' }); top(); },
+    goVacancies: function () { setState({ view: 'vacancies' }); top(); },
+    toggleMenu: function () { setState({ menuOpen: !state.menuOpen }); },
     tabStudents: function () { setState({ catalogTab: 'students' }); },
     tabGigs: function () { setState({ catalogTab: 'gigs' }); },
     // Открывает окно авторизации Telegram через JS-API (своя кнопка вместо iframe-виджета).
@@ -603,6 +678,7 @@
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         profileSave: { loading: false, error: '' },
+        menuOpen: false,
         form: {}, view: 'home', catalogTab: 'students'
       });
       top();
@@ -706,7 +782,13 @@
     restoreSession();
     root.addEventListener('click', function (e) {
       var t = e.target.closest('[data-action]');
-      if (t && actions[t.getAttribute('data-action')]) { e.preventDefault(); actions[t.getAttribute('data-action')](t); }
+      if (t && actions[t.getAttribute('data-action')]) {
+        e.preventDefault();
+        var name = t.getAttribute('data-action');
+        // любое действие, кроме переключения меню, закрывает выпадающее меню
+        if (name !== 'toggleMenu' && state.menuOpen) state.menuOpen = false;
+        actions[name](t);
+      }
     });
     root.addEventListener('input', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value; });
     root.addEventListener('change', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value; });

@@ -13,6 +13,12 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 [data-lift] { transition: transform .28s cubic-bezier(.16,1,.3,1), box-shadow .3s ease, border-color .2s ease; }
 [data-lift]:hover { transform: translateY(-3px); box-shadow: 0 26px 50px -30px rgba(18,20,26,0.30); }
 
+/* Header nav + profile dropdown */
+.nav-link { transition: color .15s ease; }
+.nav-link:hover { color: var(--ink); }
+.menu-item { transition: background-color .15s ease; }
+.menu-item:hover { background: var(--bg); }
+
 /* Telegram login button */
 .tg-btn {
   width: 100%;
