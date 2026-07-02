@@ -708,8 +708,15 @@
     },
     saveStudentProfile: function () {
       var status = state.form.status || '';
+      var first = (state.form.sfirst || '').trim();
+      var last = (state.form.slast || '').trim();
+      var email = (state.form.semail || '').trim();
+      // Обязательные поля (Telegram — необязателен)
+      if (!status) { setState({ profileSave: { loading: false, error: 'Выберите ваш статус' } }); return; }
+      if (!first || !last) { setState({ profileSave: { loading: false, error: 'Укажите имя и фамилию' } }); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите корректный email' } }); return; }
       var minor = /до 18/.test(status);
-      state.studentProfile = { first: state.form.sfirst || '', last: state.form.slast || '', tg: state.form.tg || '', email: state.form.semail || '', status: status, minor: minor };
+      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor };
       // Документы (справка/согласие) загружаются уже в кабинете — сюда всегда 'done'.
       if (!supabase || !currentUserId()) {
         setState({ authRole: 'student', studentStep: 'done' }); top(); return;
