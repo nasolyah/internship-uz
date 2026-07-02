@@ -18,6 +18,8 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .nav-link:hover { color: var(--ink); }
 .menu-item { transition: background-color .15s ease; }
 .menu-item:hover { background: var(--bg); }
+.file-drop { transition: border-color .15s ease, background-color .15s ease; }
+.file-drop:hover { border-color: var(--accent); background: #fff; }
 
 /* Telegram login button */
 .tg-btn {

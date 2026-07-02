@@ -40,7 +40,7 @@
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
     profileSave: { loading: false, error: '' },
-    docUpload: { loading: false, error: '' },
+    docUpload: { loading: false, error: '', fileName: '' },
     _statsRan: false
   };
 
@@ -585,6 +585,7 @@
 
   /* ---------- actions ---------- */
   var root;
+  var pendingDocFile = null;  // выбранный в модалке файл (хранится вне DOM, чтобы переживать перерисовку)
   function setState(patch) { for (var k in patch) state[k] = patch[k]; render(); }
   function top() { try { window.scrollTo(0, 0); } catch (e) {} }
 
@@ -720,34 +721,34 @@
       });
     },
     // Модальные окна загрузки документов
-    openStudyDoc: function () { setState({ modal: 'study', docUpload: { loading: false, error: '' } }); },
-    openConsentDoc: function () { setState({ modal: 'consent', docUpload: { loading: false, error: '' } }); },
-    closeModal: function () { setState({ modal: null, docUpload: { loading: false, error: '' } }); },
+    openStudyDoc: function () { pendingDocFile = null; setState({ modal: 'study', docUpload: { loading: false, error: '', fileName: '' } }); },
+    openConsentDoc: function () { pendingDocFile = null; setState({ modal: 'consent', docUpload: { loading: false, error: '', fileName: '' } }); },
+    closeModal: function () { pendingDocFile = null; setState({ modal: null, docUpload: { loading: false, error: '', fileName: '' } }); },
     submitDoc: function () {
       var type = state.modal;
       if (!type) return;
-      var input = document.getElementById('doc-file');
-      var file = input && input.files && input.files[0];
-      if (!file) { setState({ docUpload: { loading: false, error: 'Сначала выберите файл' } }); return; }
-      if (file.size > 10 * 1024 * 1024) { setState({ docUpload: { loading: false, error: 'Файл больше 10 МБ' } }); return; }
+      var file = pendingDocFile;
+      if (!file) { setState({ docUpload: { loading: false, error: 'Сначала выберите файл', fileName: '' } }); return; }
+      if (file.size > 10 * 1024 * 1024) { setState({ docUpload: { loading: false, error: 'Файл больше 10 МБ', fileName: file.name } }); return; }
       var userId = currentUserId();
-      if (!supabase || !userId || !state.session) { setState({ docUpload: { loading: false, error: 'Сессия истекла — войдите заново' } }); return; }
+      if (!supabase || !userId || !state.session) { setState({ docUpload: { loading: false, error: 'Сессия истекла — войдите заново', fileName: file.name } }); return; }
       var ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf';
       var path = userId + '/' + type + '.' + ext;
-      setState({ docUpload: { loading: true, error: '' } });
+      setState({ docUpload: { loading: true, error: '', fileName: file.name } });
       supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' }).then(function (up) {
-        if (up.error) { setState({ docUpload: { loading: false, error: 'Ошибка загрузки: ' + up.error.message } }); return; }
+        if (up.error) { setState({ docUpload: { loading: false, error: 'Ошибка загрузки: ' + up.error.message, fileName: file.name } }); return; }
         return fetch(SUBMIT_DOC_FN, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.session.access_token },
           body: JSON.stringify({ type: type, path: path })
         }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); }).then(function (res) {
-          if (!res.ok || !res.body || res.body.error) { setState({ docUpload: { loading: false, error: (res.body && res.body.error) || 'Не удалось отправить на проверку' } }); return; }
+          if (!res.ok || !res.body || res.body.error) { setState({ docUpload: { loading: false, error: (res.body && res.body.error) || 'Не удалось отправить на проверку', fileName: file.name } }); return; }
           state.docStatus[type] = 'pending';
-          setState({ modal: null, docUpload: { loading: false, error: '' } });
+          pendingDocFile = null;
+          setState({ modal: null, docUpload: { loading: false, error: '', fileName: '' } });
         });
       }).catch(function (err) {
-        setState({ docUpload: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
+        setState({ docUpload: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err), fileName: file.name } });
       });
     },
     submitCompany: function () {
@@ -767,13 +768,14 @@
     scrollVerify: function () { scrollToId('sec-verify'); },
     logout: function () {
       if (supabase && state.session) supabase.auth.signOut();
+      pendingDocFile = null;
       setState({
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', docStatus: { study: 'none', consent: 'none' }, tgDraft: false,
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         profileSave: { loading: false, error: '' },
-        docUpload: { loading: false, error: '' },
+        docUpload: { loading: false, error: '', fileName: '' },
         menuOpen: false, modal: null,
         form: {}, view: 'home', catalogTab: 'students'
       });
@@ -892,15 +894,19 @@
     var statusNote = (status === 'pending' || status === 'approved')
       ? '<div style="padding:11px 14px; background:color-mix(in srgb, ' + docColor(status) + ' 10%, #fff); border:1px solid color-mix(in srgb, ' + docColor(status) + ' 26%, #fff); border-radius:10px; font-size:13px; color:' + docColor(status) + '; margin-bottom:16px;">Текущий статус: ' + docLabel(status) + '. При необходимости загрузите файл заново.</div>'
       : '';
+    var fileName = state.docUpload.fileName || '';
+    var picker = '<label class="file-drop" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border:1.5px dashed var(--line); border-radius:12px; background:var(--bg); cursor:pointer;">' +
+      '<span style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">Выбрать файл</span>' +
+      '<span style="min-width:0; flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран · PDF или фото') + '</span>' +
+      '<input id="doc-file" data-file-input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="display:none;">' +
+    '</label>';
     var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
 
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:440px; width:100%; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + title + '</h3>' +
         '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
       '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 18px;">' + desc + '</p>' +
-      statusNote + tmpl +
-      '<input id="doc-file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="width:100%; font-size:13.5px; padding:12px; border:1px dashed var(--line); border-radius:11px; background:var(--bg); cursor:pointer;">' +
-      err +
+      statusNote + tmpl + picker + err +
       '<button data-action="submitDoc"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Отправка…' : 'Отправить на проверку') + '</button>' +
       '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
     '</div>';
@@ -937,7 +943,15 @@
       }
     });
     root.addEventListener('input', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value; });
-    root.addEventListener('change', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value; });
+    root.addEventListener('change', function (e) {
+      // выбор файла в модалке загрузки документа
+      if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-file-input')) {
+        pendingDocFile = (e.target.files && e.target.files[0]) || null;
+        setState({ docUpload: { loading: false, error: '', fileName: pendingDocFile ? pendingDocFile.name : '' } });
+        return;
+      }
+      var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value;
+    });
     render();
   }
 
