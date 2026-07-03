@@ -41,6 +41,7 @@
     tgAuth: { loading: false, error: '' },
     profileSave: { loading: false, error: '' },
     docUpload: { loading: false, error: '', fileName: '' },
+    extrasSave: { loading: false, error: '', ok: false },
     _statsRan: false
   };
 
@@ -367,6 +368,13 @@
     var opts = ['', 'Студент вуза (18+)', 'Студент колледжа (18+)', 'Школьник, 10–11 класс (до 18)', 'Лицей, 1–2 курс (до 18)'];
     return opts.map(function (o) { var sel = state.form.status === o ? ' selected' : ''; return '<option' + sel + '>' + (o || 'Выберите…') + '</option>'; }).join('');
   }
+  var SPECIALTIES = ['Разработка / программирование', 'Дизайн (UI/UX, графика)', 'Маркетинг', 'SMM и контент', 'Аналитика данных', 'Тестирование (QA)', 'Копирайтинг', 'Проектный менеджмент'];
+  function specialtyOptions(selected) {
+    return ['', ].concat(SPECIALTIES).map(function (o) {
+      var sel = selected === o ? ' selected' : '';
+      return '<option value="' + esc(o) + '"' + sel + '>' + (o || 'Выберите специальность…') + '</option>';
+    }).join('');
+  }
   function stepDot(n, label, active) {
     var c = active ? 'background:var(--accent); color:#fff;' : 'background:#fff; border:1.5px solid var(--line); color:var(--muted);';
     return '<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; text-align:center;"><span style="width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:14px; flex-shrink:0; ' + c + '">' + n + '</span><span style="font-size:12px; font-weight:600; line-height:1.3;">' + label + '</span></div>';
@@ -499,6 +507,18 @@
       row('ИИ-тест навыков', todoBtn('Пройти тест')) +
       (minor ? docRow('Согласие родителя', 'consent') : '') + '</div>';
 
+    var es = state.extrasSave;
+    var esNote = es.error ? '<span style="font-size:12.5px; color:#b3261e; font-weight:600;">' + esc(es.error) + '</span>'
+      : (es.ok ? '<span style="font-size:12.5px; color:#16a34a; font-weight:600;">Сохранено ✓</span>' : '');
+    var inputStyle = 'width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);';
+    var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">Специальность и о себе</div>' +
+      '<label style="display:block; margin-bottom:16px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:7px;">Специальность</span>' +
+        '<select id="spec-input" style="' + inputStyle + '">' + specialtyOptions(sp.specialty || '') + '</select>' +
+        '<span style="display:block; font-size:12px; color:var(--muted); margin-top:7px; line-height:1.45;">На основе выбранной специальности будет сформирован один ИИ-тест на навыки.</span></label>' +
+      '<label style="display:block;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:7px;">О себе <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' +
+        '<textarea id="desc-input" rows="4" placeholder="Коротко о себе: опыт, интересы, чем хотите заниматься…" style="' + inputStyle + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(sp.description || '') + '</textarea></label>' +
+      '<div style="display:flex; align-items:center; gap:14px; margin-top:16px;"><button data-action="saveProfileExtras"' + (es.loading ? ' disabled' : '') + ' style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + (es.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (es.loading ? 'Сохранение…' : 'Сохранить') + '</button>' + esNote + '</div></div>';
+
     var documents = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:8px;">Документы</div>' +
       '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 16px;">Официальный документ о практике станет доступен после завершения первого проекта.</p>' +
       '<button disabled style="width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Скачать документ о практике</button></div>';
@@ -507,6 +527,7 @@
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет</h1>' +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + contacts + verification + '</div>' +
+      '<div style="margin-top:20px;">' + about + '</div>' +
       '<div style="margin-top:20px;">' + documents + '</div>' +
       '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:13.5px; font-weight:600; color:#b3261e; background:#fff; border:1px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
@@ -536,10 +557,17 @@
       '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:13px; color:var(--muted); line-height:1.5;">Размещение задач откроется после подтверждения профиля — обычно 1–2 дня.</div>' +
       '<button data-action="goStartupForm" style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button></div>';
 
+    var es = state.extrasSave;
+    var esNote = es.ok ? '<span style="font-size:12.5px; color:#16a34a; font-weight:600;">Сохранено ✓</span>' : '';
+    var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:10px;">Описание компании <span style="color:var(--muted); font-weight:500; font-size:13px;">(необязательно)</span></div>' +
+      '<textarea id="cdesc-input" rows="4" placeholder="Чем занимается компания, какие задачи и стажировки предлагаете…" style="width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); resize:vertical; font-family:inherit; line-height:1.5;">' + esc(cp.description || '') + '</textarea>' +
+      '<div style="display:flex; align-items:center; gap:14px; margin-top:14px;"><button data-action="saveCompanyExtras" style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + '">Сохранить</button>' + esNote + '</div></div>';
+
     return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет компании</h1>' +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + details + checks + '</div>' +
+      '<div style="margin-top:20px;">' + about + '</div>' +
       '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:13.5px; font-weight:600; color:#b3261e; background:#fff; border:1px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
   }
@@ -596,7 +624,7 @@
     goStudent: function () { setState({ view: 'student', studentStep: 'login' }); top(); },
     goStartupForm: function () { setState({ view: 'company' }); top(); },
     goCatalog: function () { setState({ view: 'catalog' }); top(); },
-    goCabinet: function () { setState({ view: 'cabinet' }); top(); },
+    goCabinet: function () { setState({ view: 'cabinet', extrasSave: { loading: false, error: '', ok: false } }); top(); },
     goResponses: function () { setState({ view: 'responses' }); top(); },
     goVacancies: function () { setState({ view: 'vacancies' }); top(); },
     // Меню открывается/закрывается без полной перерисовки — иначе тело страницы «дёргается» (повтор анимаций).
@@ -717,7 +745,7 @@
       if (!first || !last) { setState({ profileSave: { loading: false, error: 'Укажите имя и фамилию' } }); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите корректный email' } }); return; }
       var minor = /до 18/.test(status);
-      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor };
+      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor, specialty: '', description: '' };
       // Документы (справка/согласие) загружаются уже в кабинете — сюда всегда 'done'.
       if (!supabase || !currentUserId()) {
         setState({ authRole: 'student', studentStep: 'done' }); top(); return;
@@ -727,6 +755,27 @@
         if (res.error) { setState({ profileSave: { loading: false, error: 'Не удалось сохранить профиль: ' + res.error.message } }); return; }
         setState({ authRole: 'student', studentStep: 'done', profileSave: { loading: false, error: '' } }); top();
       });
+    },
+    // Сохранение специальности и описания из кабинета студента
+    saveProfileExtras: function () {
+      if (!state.studentProfile) return;
+      var specEl = document.getElementById('spec-input');
+      var descEl = document.getElementById('desc-input');
+      state.studentProfile.specialty = specEl ? specEl.value : (state.studentProfile.specialty || '');
+      state.studentProfile.description = (descEl ? descEl.value : (state.studentProfile.description || '')).slice(0, 1000);
+      if (!supabase || !currentUserId()) { setState({ extrasSave: { loading: false, error: '', ok: true } }); return; }
+      setState({ extrasSave: { loading: true, error: '', ok: false } });
+      saveProfileToDb().then(function (res) {
+        if (res.error) { setState({ extrasSave: { loading: false, error: 'Не удалось сохранить: ' + res.error.message, ok: false } }); return; }
+        setState({ extrasSave: { loading: false, error: '', ok: true } });
+      });
+    },
+    // Сохранение описания компании (в памяти — у компаний пока нет аккаунта)
+    saveCompanyExtras: function () {
+      if (!state.companyProfile) return;
+      var descEl = document.getElementById('cdesc-input');
+      state.companyProfile.description = (descEl ? descEl.value : (state.companyProfile.description || '')).slice(0, 1000);
+      setState({ extrasSave: { loading: false, error: '', ok: true } });
     },
     // Модальные окна загрузки документов
     openStudyDoc: function () { pendingDocFile = null; setState({ modal: 'study', docUpload: { loading: false, error: '', fileName: '' } }); },
@@ -784,6 +833,7 @@
         tgAuth: { loading: false, error: '' },
         profileSave: { loading: false, error: '' },
         docUpload: { loading: false, error: '', fileName: '' },
+        extrasSave: { loading: false, error: '', ok: false },
         menuOpen: false, modal: null,
         form: {}, view: 'home', catalogTab: 'students'
       });
@@ -850,7 +900,7 @@
     var userId = currentUserId();
     if (!supabase || !userId || !state.studentProfile) return Promise.resolve({ error: null });
     var p = state.studentProfile;
-    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, docStatus: state.docStatus };
+    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', description: p.description || '', docStatus: state.docStatus };
     return supabase.from('profiles')
       .upsert({ id: userId, role: 'student', data: data, updated_at: new Date().toISOString() })
       .then(function (r) { return { error: r.error }; });
@@ -865,7 +915,7 @@
       var row = r && r.data;
       if (row && row.role === 'student' && row.data) {
         var d = row.data;
-        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor };
+        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor, specialty: d.specialty || '', description: d.description || '' };
         // статусы документов (совместимость со старым флагом consentUploaded)
         state.docStatus = d.docStatus || { study: 'none', consent: d.consentUploaded ? 'pending' : 'none' };
         state.authRole = 'student';
