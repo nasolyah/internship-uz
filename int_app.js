@@ -37,6 +37,8 @@
     tgDraft: false,
     menuOpen: false,
     modal: null,               // null | 'study' | 'consent'
+    testView: null,            // null | 'intro' | 'running' | 'result'
+    testResult: null,
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
     profileSave: { loading: false, error: '' },
@@ -502,9 +504,13 @@
       }
       return row(label, right);
     };
+    var at = sp.aiTest;
+    var testRight = at
+      ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:12px; font-weight:700; color:' + levelColor(at.level) + ';">' + esc(at.level) + '</span><button data-action="openTest" style="font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer;">Заново</button></span>'
+      : '<button data-action="openTest" style="font-size:12px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">Пройти тест</button>';
     var verification = '<div style="' + card + '"><div style="' + cardTitle + '">Верификация</div>' +
       docRow('Место учёбы (справка)', 'study') +
-      row('ИИ-тест навыков', todoBtn('Пройти тест')) +
+      row('ИИ-тест навыков', testRight) +
       (minor ? docRow('Согласие родителя', 'consent') : '') + '</div>';
 
     var es = state.extrasSave;
@@ -745,7 +751,7 @@
       if (!first || !last) { setState({ profileSave: { loading: false, error: 'Укажите имя и фамилию' } }); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите корректный email' } }); return; }
       var minor = /до 18/.test(status);
-      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor, specialty: '', description: '' };
+      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor, specialty: '', description: '', aiTest: null };
       // Документы (справка/согласие) загружаются уже в кабинете — сюда всегда 'done'.
       if (!supabase || !currentUserId()) {
         setState({ authRole: 'student', studentStep: 'done' }); top(); return;
@@ -776,6 +782,38 @@
       var descEl = document.getElementById('cdesc-input');
       state.companyProfile.description = (descEl ? descEl.value : (state.companyProfile.description || '')).slice(0, 1000);
       setState({ extrasSave: { loading: false, error: '', ok: true } });
+    },
+    // ИИ-тест
+    openTest: function () {
+      var spec = state.studentProfile && state.studentProfile.specialty;
+      if (!spec) { setState({ view: 'cabinet', extrasSave: { loading: false, error: 'Сначала выберите специальность выше и сохраните', ok: false } }); top(); return; }
+      setState({ testView: 'intro', testResult: null });
+    },
+    startTest: function () {
+      if (!testBankFor()) return;
+      setState({ testView: 'running' });
+      startTestTimer();  // после setState DOM отрисован, #test-timer существует
+    },
+    submitTest: function () {
+      stopTestTimer();
+      var bank = testBankFor();
+      if (!bank) { setState({ testView: null }); return; }
+      var correct = 0, total = bank.mcq.length;
+      for (var i = 0; i < total; i++) {
+        var sel = document.querySelector('input[name="q' + i + '"]:checked');
+        if (sel && Number(sel.value) === bank.mcq[i].c) correct++;
+      }
+      var openEl = document.getElementById('test-open');
+      var level = levelFor(correct, total);
+      var at = new Date().toISOString();
+      state.studentProfile.aiTest = { specialty: state.studentProfile.specialty, level: level, correct: correct, total: total, at: at };
+      var result = { specialty: state.studentProfile.specialty, level: level, correct: correct, total: total, open: (openEl ? openEl.value : '').slice(0, 2000), at: at };
+      setState({ testView: 'result', testResult: result });
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    closeTest: function () {
+      stopTestTimer();
+      setState({ testView: null, testResult: null });
     },
     // Модальные окна загрузки документов
     openStudyDoc: function () { pendingDocFile = null; setState({ modal: 'study', docUpload: { loading: false, error: '', fileName: '' } }); },
@@ -826,6 +864,7 @@
     logout: function () {
       if (supabase && state.session) supabase.auth.signOut();
       pendingDocFile = null;
+      stopTestTimer();
       setState({
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', docStatus: { study: 'none', consent: 'none' }, tgDraft: false,
@@ -834,7 +873,7 @@
         profileSave: { loading: false, error: '' },
         docUpload: { loading: false, error: '', fileName: '' },
         extrasSave: { loading: false, error: '', ok: false },
-        menuOpen: false, modal: null,
+        menuOpen: false, modal: null, testView: null, testResult: null,
         form: {}, view: 'home', catalogTab: 'students'
       });
       top();
@@ -900,7 +939,7 @@
     var userId = currentUserId();
     if (!supabase || !userId || !state.studentProfile) return Promise.resolve({ error: null });
     var p = state.studentProfile;
-    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', description: p.description || '', docStatus: state.docStatus };
+    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', description: p.description || '', aiTest: p.aiTest || null, docStatus: state.docStatus };
     return supabase.from('profiles')
       .upsert({ id: userId, role: 'student', data: data, updated_at: new Date().toISOString() })
       .then(function (r) { return { error: r.error }; });
@@ -915,7 +954,7 @@
       var row = r && r.data;
       if (row && row.role === 'student' && row.data) {
         var d = row.data;
-        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor, specialty: d.specialty || '', description: d.description || '' };
+        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor, specialty: d.specialty || '', description: d.description || '', aiTest: d.aiTest || null };
         // статусы документов (совместимость со старым флагом consentUploaded)
         state.docStatus = d.docStatus || { study: 'none', consent: d.consentUploaded ? 'pending' : 'none' };
         state.authRole = 'student';
@@ -977,8 +1016,95 @@
       '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
+  /* ---------- AI skills test ---------- */
+  var TEST_MIN = 15;                 // длительность теста в минутах
+  var testTimer = null;              // id интервала
+  var testEndTime = 0;               // время окончания (ms)
+  function testBankFor() {
+    var spec = state.studentProfile && state.studentProfile.specialty;
+    return (window.AI_TEST_BANK && spec) ? window.AI_TEST_BANK[spec] : null;
+  }
+  function fmtTime(sec) { var m = Math.floor(sec / 60), s = sec % 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
+  function testTick() {
+    var left = Math.max(0, Math.round((testEndTime - Date.now()) / 1000));
+    var el = document.getElementById('test-timer');
+    if (el) { el.textContent = fmtTime(left); if (left <= 30) el.style.color = '#b3261e'; }
+    if (left <= 0) { stopTestTimer(); actions.submitTest(); }
+  }
+  function startTestTimer() {
+    stopTestTimer();
+    testEndTime = Date.now() + TEST_MIN * 60 * 1000;
+    testTick();
+    testTimer = setInterval(testTick, 1000);
+  }
+  function stopTestTimer() { if (testTimer) { clearInterval(testTimer); testTimer = null; } }
+  function levelFor(correct, total) {
+    var r = total ? correct / total : 0;
+    if (r >= 0.85) return 'Продвинутый';
+    if (r >= 0.5) return 'Уверенный';
+    return 'Базовый';
+  }
+  function levelColor(level) { return { 'Продвинутый': '#16a34a', 'Уверенный': '#b26b12', 'Базовый': '#5b616e' }[level] || 'var(--muted)'; }
+
+  function testModalHtml() {
+    if (!state.testView) return '';
+    var spec = (state.studentProfile && state.studentProfile.specialty) || '';
+    var bank = testBankFor();
+    var dialogStyle = 'pointer-events:auto; background:#fff; border-radius:18px; width:100%; max-width:760px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 30px 70px -20px rgba(0,0,0,0.5); overflow:hidden;';
+    var inner;
+
+    if (state.testView === 'intro') {
+      var li = function (t) { return '<li style="margin-bottom:9px; line-height:1.5;">' + t + '</li>'; };
+      inner = '<div style="padding:30px 32px; overflow-y:auto;">' +
+        '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:24px; letter-spacing:-0.01em; margin:0;">ИИ-тест навыков</h2><button data-action="closeTest" style="background:none; border:none; font-size:26px; line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
+        '<p style="color:var(--muted); font-size:15px; margin:8px 0 18px;">Специальность: <strong style="color:var(--ink);">' + esc(spec) + '</strong></p>' +
+        '<div style="background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:18px 20px;"><div style="font-weight:700; font-size:14px; margin-bottom:12px;">Как проходит тест</div><ul style="margin:0; padding-left:20px; font-size:14px; color:var(--ink);">' +
+          li('<strong>8 вопросов с вариантами</strong> ответа + <strong>1 открытый</strong> практический вопрос.') +
+          li('На весь тест — <strong>' + TEST_MIN + ' минут</strong>, идёт обратный отсчёт. По истечении тест завершится автоматически.') +
+          li('<strong>Одна попытка.</strong> Если закрыть окно — тест сбросится и его нужно будет начать заново.') +
+          li('По результату вы получите <strong>уровень</strong> (Базовый / Уверенный / Продвинутый).') +
+        '</ul></div>' +
+        (bank ? '' : '<div style="margin-top:16px; padding:12px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:13px; color:#b3261e;">Для этой специальности пока нет вопросов.</div>') +
+        '<div style="display:flex; gap:12px; margin-top:22px;"><button data-action="startTest"' + (bank ? '' : ' disabled') + ' style="' + S.primary.replace('padding:15px', 'padding:13px 26px') + (bank ? '' : ' opacity:0.5; cursor:not-allowed;') + '">Начать тест</button><button data-action="closeTest" style="' + S.ghost + '">Отмена</button></div>' +
+      '</div>';
+    } else if (state.testView === 'running' && bank) {
+      var q = bank.mcq.map(function (item, i) {
+        var opts = item.a.map(function (opt, j) {
+          return '<label style="display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px; cursor:pointer; font-size:14px; line-height:1.4;"><input type="radio" name="q' + i + '" value="' + j + '" style="margin-top:2px;">' + esc(opt) + '</label>';
+        }).join('');
+        return '<div style="margin-bottom:22px;"><div style="font-weight:600; font-size:15px; margin-bottom:11px;">' + (i + 1) + '. ' + esc(item.q) + '</div>' + opts + '</div>';
+      }).join('');
+      var openBlock = '<div style="margin-bottom:8px;"><div style="font-weight:600; font-size:15px; margin-bottom:6px;">9. ' + esc(bank.open) + '</div>' +
+        '<textarea id="test-open" rows="5" placeholder="Ваш ответ…" style="width:100%; font-size:14px; padding:12px; border:1px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;"></textarea></div>';
+      inner =
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 24px; border-bottom:1px solid var(--line); flex-shrink:0;">' +
+          '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:17px;">ИИ-тест · ' + esc(spec) + '</div></div>' +
+          '<div style="display:flex; align-items:center; gap:14px;"><span style="font-size:13px; color:var(--muted);">Осталось</span><span id="test-timer" style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:20px; min-width:64px; text-align:center;">' + fmtTime(TEST_MIN * 60) + '</span><button data-action="closeTest" title="Закрыть (тест сбросится)" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
+        '</div>' +
+        '<div style="padding:22px 24px; overflow-y:auto;">' + q + openBlock + '</div>' +
+        '<div style="padding:16px 24px; border-top:1px solid var(--line); flex-shrink:0;"><button data-action="submitTest" style="width:100%; ' + S.primary + '">Завершить тест</button></div>';
+    } else if (state.testView === 'result' && state.testResult) {
+      var r = state.testResult;
+      inner = '<div style="padding:34px 32px; overflow-y:auto; text-align:center;">' +
+        '<div style="width:64px; height:64px; border-radius:18px; background:color-mix(in srgb, ' + levelColor(r.level) + ' 14%, #fff); color:' + levelColor(r.level) + '; display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 18px;">✓</div>' +
+        '<h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:24px; margin:0 0 6px;">Тест завершён</h2>' +
+        '<div style="font-size:15px; color:var(--muted); margin-bottom:20px;">Специальность: ' + esc(r.specialty) + '</div>' +
+        '<div style="display:inline-flex; flex-direction:column; gap:6px; background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:18px 30px; margin-bottom:20px;">' +
+          '<span style="font-size:13px; color:var(--muted);">Ваш уровень</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:26px; color:' + levelColor(r.level) + ';">' + r.level + '</span>' +
+          '<span style="font-size:13px; color:var(--muted);">Верных ответов: ' + r.correct + ' из ' + r.total + '</span></div>' +
+        '<p style="font-size:13px; color:var(--muted); line-height:1.5; max-width:420px; margin:0 auto 22px;">Открытый ответ в полной версии оценивается ИИ (Claude) по ясности, логике и релевантности. Сейчас засчитаны вопросы с вариантами.</p>' +
+        '<button data-action="closeTest" style="' + S.primary.replace('padding:15px', 'padding:13px 30px') + '">Готово</button>' +
+      '</div>';
+    } else {
+      inner = '<div style="padding:30px; text-align:center; color:var(--muted);">Что-то пошло не так.<div style="margin-top:16px;"><button data-action="closeTest" style="' + S.ghost + '">Закрыть</button></div></div>';
+    }
+
+    return '<div data-action="closeTest" style="position:fixed; inset:0; z-index:80; background:rgba(18,20,26,0.55);"></div>' +
+      '<div style="position:fixed; inset:0; z-index:81; display:flex; align-items:center; justify-content:center; padding:16px; pointer-events:none;"><div style="' + dialogStyle + '">' + inner + '</div></div>';
+  }
+
   function render() {
-    root.innerHTML = header() + viewHtml() + footer() + modalHtml();
+    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + testModalHtml();
     setupReveal();
     if (state.view === 'home') startStats();
   }
