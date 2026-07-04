@@ -110,6 +110,19 @@
   function docColor(status) {
     return { pending: '#b26b12', approved: '#16a34a', rejected: '#b3261e', none: 'var(--muted)' }[status] || 'var(--muted)';
   }
+  // Динамический тег доступности студента: looking | team | hired.
+  function availLabel(v) {
+    return { looking: 'Ищу проекты', team: 'В команде', hired: 'Нанят(а)' }[v] || 'Статус не указан';
+  }
+  function availColor(v) {
+    return { looking: 'var(--accent)', team: '#b26b12', hired: '#16a34a' }[v] || 'var(--muted)';
+  }
+  function availOptions(selected) {
+    return [['', 'Указать статус'], ['looking', 'Ищу проекты'], ['team', 'В команде'], ['hired', 'Нанят(а)']].map(function (o) {
+      var sel = (selected || '') === o[0] ? ' selected' : '';
+      return '<option value="' + o[0] + '"' + sel + '>' + o[1] + '</option>';
+    }).join('');
+  }
   // Короткий статус верификации для шапки/меню.
   function verifyStatus() {
     if (state.authRole === 'company') return 'На подтверждении';
@@ -480,13 +493,17 @@
     var val = function (v) { return '<span style="font-size:13.5px; font-weight:600; text-align:right; word-break:break-word;">' + esc(v || '—') + '</span>'; };
     var todoBtn = function (label) { return '<button style="font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer;">' + label + '</button>'; };
 
-    var profile = '<div style="' + card + ' display:flex; align-items:center; gap:18px;">' +
+    var availTag = '<span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:' + availColor(sp.availability) + '; background:color-mix(in srgb, ' + availColor(sp.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(sp.availability) + ';"></span>' + esc(availLabel(sp.availability)) + '</span>' +
+      '<select data-select-action="setAvailability" style="font-size:12px; font-weight:600; color:var(--muted); background:#fff; border:1px solid var(--line); padding:5px 8px; border-radius:8px; cursor:pointer;">' + availOptions(sp.availability) + '</select>';
+
+    var profile = '<div style="' + card + ' display:flex; align-items:center; gap:18px; flex-wrap:wrap;">' +
       '<span style="width:64px; height:64px; border-radius:18px; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:24px; flex-shrink:0;">' + esc(studentInitials()) + '</span>' +
-      '<div style="min-width:0;"><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(studentName()) + '</div>' +
-      '<div style="display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:' + statusColor + '; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:' + statusColor + ';"></span>' + esc(verifyStatus()) + '</div></div></div>';
+      '<div style="min-width:0; flex:1;"><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(studentName()) + '</div>' +
+      '<div style="display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:' + statusColor + '; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:' + statusColor + ';"></span>' + esc(verifyStatus()) + (sp.institution ? ' · ' + esc(sp.institution) : '') + '</div>' +
+      '<div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">' + availTag + '</div></div></div>';
 
     var contacts = '<div style="' + card + '"><div style="' + cardTitle + '">Контакты и статус</div>' +
-      row('Email', val(sp.email)) + row('Telegram', val(sp.tg)) + row('Статус', val(sp.status)) + '</div>';
+      row('Email', val(sp.email)) + row('Telegram', val(sp.tg)) + row('Статус', val(sp.status)) + row('Место учёбы', val(sp.institution)) + '</div>';
 
     // строка документа со статусом и кнопкой загрузки (открывает модалку)
     var docRow = function (label, type) {
@@ -518,6 +535,8 @@
       : (es.ok ? '<span style="font-size:12.5px; color:#16a34a; font-weight:600;">Сохранено ✓</span>' : '');
     var inputStyle = 'width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);';
     var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">Специальность и о себе</div>' +
+      '<label style="display:block; margin-bottom:16px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:7px;">Место учёбы <span style="color:var(--muted); font-weight:500;">(вуз, колледж, лицей, школа)</span></span>' +
+        '<input id="inst-input" value="' + esc(sp.institution || '') + '" placeholder="Например, ТУИТ, 2 курс" style="' + inputStyle + '"></label>' +
       '<label style="display:block; margin-bottom:16px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:7px;">Специальность</span>' +
         '<select id="spec-input" style="' + inputStyle + '">' + specialtyOptions(sp.specialty || '') + '</select>' +
         '<span style="display:block; font-size:12px; color:var(--muted); margin-top:7px; line-height:1.45;">На основе выбранной специальности будет сформирован один ИИ-тест на навыки.</span></label>' +
@@ -525,15 +544,92 @@
         '<textarea id="desc-input" rows="4" placeholder="Коротко о себе: опыт, интересы, чем хотите заниматься…" style="' + inputStyle + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(sp.description || '') + '</textarea></label>' +
       '<div style="display:flex; align-items:center; gap:14px; margin-top:16px;"><button data-action="saveProfileExtras"' + (es.loading ? ' disabled' : '') + ' style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + (es.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (es.loading ? 'Сохранение…' : 'Сохранить') + '</button>' + esNote + '</div></div>';
 
-    var documents = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:8px;">Документы</div>' +
+    // ---- Матрица навыков: hard skills + языки ----
+    var skillChip = function (sk, i) {
+      return '<span style="display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:4px 8px 4px 10px; border-radius:6px;">' + esc(sk) +
+        '<button data-action="removeHardSkill" data-index="' + i + '" style="border:none; background:none; color:var(--muted); cursor:pointer; font-size:13px; line-height:1; padding:0;">×</button></span>';
+    };
+    var hardSkills = (sp.hardSkills || []);
+    var langRow = function (l, i) {
+      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--line);">' +
+        '<span style="font-size:13.5px;"><strong style="font-weight:600;">' + esc(l.name) + '</strong>' + (l.level ? ' — ' + esc(l.level) : '') + '</span>' +
+        '<button data-action="removeLanguage" data-index="' + i + '" style="border:none; background:none; color:var(--muted); cursor:pointer; font-size:13px; padding:0;">×</button></div>';
+    };
+    var languages = (sp.languages || []);
+    var skillMatrix = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">Матрица навыков</div>' +
+      '<div style="font-size:13px; font-weight:600; margin-bottom:9px;">Hard skills</div>' +
+      '<div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px;">' + (hardSkills.length ? hardSkills.map(skillChip).join('') : '<span style="font-size:13px; color:var(--muted);">Пока не добавлено ни одного навыка</span>') + '</div>' +
+      '<div style="display:flex; gap:8px; margin-bottom:24px;"><input id="skill-input" placeholder="Например, Frontend, Figma, Python" style="' + inputStyle + '"><button data-action="addHardSkill" style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:0 16px; border-radius:10px; cursor:pointer;">Добавить</button></div>' +
+      '<div style="font-size:13px; font-weight:600; margin-bottom:9px;">Знание языков</div>' +
+      (languages.length ? languages.map(langRow).join('') : '<div style="font-size:13px; color:var(--muted); padding:4px 0;">Языки ещё не указаны</div>') +
+      '<div style="display:flex; gap:8px; margin-top:14px;"><input id="lang-name-input" placeholder="Язык (например, Английский)" style="' + inputStyle + '"><input id="lang-level-input" placeholder="Уровень (например, IELTS 8.0 / Родной)" style="' + inputStyle + '"><button data-action="addLanguage" style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:0 16px; border-radius:10px; cursor:pointer;">Добавить</button></div>' +
+      '</div>';
+
+    // ---- Проекты (Proof of Work) ----
+    var projectCard = function (p, i) {
+      var stack = (p.stack || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean).map(function (s) {
+        return '<span style="font-size:11px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:3px 8px; border-radius:6px;">' + esc(s) + '</span>';
+      }).join('');
+      var links = (p.github ? '<a href="' + esc(p.github) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--ink);">GitHub ↗</a>' : '') +
+        (p.demo ? '<a href="' + esc(p.demo) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent); margin-left:14px;">Демо ↗</a>' : '');
+      return '<div style="border:1px solid var(--line); border-radius:14px; padding:18px; position:relative;">' +
+        '<button data-action="removeProject" data-index="' + i + '" style="position:absolute; top:12px; right:12px; border:none; background:none; color:var(--muted); cursor:pointer; font-size:15px;">×</button>' +
+        '<div style="font-weight:600; font-size:15.5px; padding-right:20px;">' + esc(p.name) + '</div>' +
+        (stack ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;">' + stack + '</div>' : '') +
+        (p.desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.5; margin:10px 0 0;">' + esc(p.desc) + '</p>' : '') +
+        (links ? '<div style="margin-top:12px;">' + links + '</div>' : '') + '</div>';
+    };
+    var projects = (sp.projects || []);
+    var projectsSection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">Проекты <span style="color:var(--muted); font-weight:500; font-size:13px;">(проверенные работы)</span></div>' +
+      (projects.length ? '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-bottom:20px;">' + projects.map(projectCard).join('') + '</div>' : '<p style="font-size:13.5px; color:var(--muted); margin:0 0 18px;">Добавьте проекты, которые вы реально сделали — с кодом и демо.</p>') +
+      '<div style="border-top:1px solid var(--line); padding-top:16px; display:flex; flex-direction:column; gap:10px;">' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><input id="proj-name-input" placeholder="Название проекта" style="' + inputStyle + '"><input id="proj-stack-input" placeholder="Стек (через запятую)" style="' + inputStyle + '"></div>' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><input id="proj-github-input" placeholder="Ссылка на GitHub" style="' + inputStyle + '"><input id="proj-demo-input" placeholder="Ссылка на демо" style="' + inputStyle + '"></div>' +
+        '<textarea id="proj-desc-input" rows="2" placeholder="Коротко (1–2 предложения), что именно вы сделали" style="' + inputStyle + ' resize:vertical; font-family:inherit; line-height:1.5;"></textarea>' +
+        '<button data-action="addProject" style="align-self:flex-start; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:10px 18px; border-radius:10px; cursor:pointer;">Добавить проект</button>' +
+      '</div></div>';
+
+    // ---- История на платформе (завершённые стажировки) ----
+    var history = (sp.platformHistory || []);
+    var historyItem = function (h) {
+      var review = h.review ? '<div style="margin-top:8px; padding:11px 13px; background:var(--bg); border-radius:10px; font-size:13px; color:var(--muted); line-height:1.5;">' +
+        (h.review.score ? '<strong style="color:var(--ink);">Оценка: ' + esc(h.review.score) + '</strong><br>' : '') +
+        (h.review.text ? esc(h.review.text) : '') + (h.review.founder ? ' <span style="color:var(--ink); font-weight:600;">— ' + esc(h.review.founder) + '</span>' : '') + '</div>' : '';
+      return '<div style="display:flex; gap:14px; padding:16px 0; border-top:1px solid var(--line);">' +
+        '<div style="width:9px; height:9px; border-radius:50%; background:var(--accent); margin-top:6px; flex-shrink:0;"></div>' +
+        '<div style="flex:1; min-width:0;"><div style="font-weight:600; font-size:14.5px;">' + esc(h.title) + '</div>' +
+        '<div style="font-size:12.5px; color:var(--muted); margin-top:2px;">' + esc(h.company || '') + (h.period ? ' · ' + esc(h.period) : '') + '</div>' + review + '</div></div>';
+    };
+    var historySection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">История на платформе</div>' +
+      '<p style="font-size:13px; color:var(--muted); margin:0 0 4px;">Завершённые стажировки, подтверждённые компаниями через internship.uz.</p>' +
+      (history.length ? history.map(historyItem).join('') : '<p style="font-size:13.5px; color:var(--muted); padding:14px 0 0;">Пока нет завершённых стажировок — они появятся здесь автоматически после подтверждения проекта стартапом.</p>') + '</div>';
+
+    // ---- Верифицированные документы и достижения ----
+    var achRow = function (a, i) {
+      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-top:1px solid var(--line);">' +
+        '<div style="min-width:0;"><div style="font-size:13.5px; font-weight:600;">' + esc(a.title) + '</div><div style="font-size:12px; color:var(--muted); margin-top:2px;">' + esc(a.issuer || '') + (a.date ? ' · ' + esc(a.date) : '') + '</div></div>' +
+        '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">' + (a.link ? '<a href="' + esc(a.link) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent);">Открыть ↗</a>' : '') +
+        '<button data-action="removeAchievement" data-index="' + i + '" style="border:none; background:none; color:var(--muted); cursor:pointer; font-size:13px;">×</button></div></div>';
+    };
+    var achievements = (sp.achievements || []);
+    var documents = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:8px;">Верифицированные документы и достижения</div>' +
       '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 16px;">Официальный документ о практике станет доступен после завершения первого проекта.</p>' +
-      '<button disabled style="width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Скачать документ о практике</button></div>';
+      '<button disabled style="width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed; margin-bottom:8px;">Скачать документ о практике</button>' +
+      (achievements.length ? achievements.map(achRow).join('') : '') +
+      '<div style="border-top:1px solid var(--line); margin-top:14px; padding-top:16px; display:flex; flex-direction:column; gap:10px;">' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><input id="ach-title-input" placeholder="Название (сертификат, олимпиада…)" style="' + inputStyle + '"><input id="ach-issuer-input" placeholder="Кем выдано" style="' + inputStyle + '"></div>' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><input id="ach-date-input" placeholder="Дата (например, 2026)" style="' + inputStyle + '"><input id="ach-link-input" placeholder="Ссылка на файл (необязательно)" style="' + inputStyle + '"></div>' +
+        '<button data-action="addAchievement" style="align-self:flex-start; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:10px 18px; border-radius:10px; cursor:pointer;">Добавить</button>' +
+      '</div></div>';
 
     return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет</h1>' +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + contacts + verification + '</div>' +
       '<div style="margin-top:20px;">' + about + '</div>' +
+      '<div style="margin-top:20px;">' + skillMatrix + '</div>' +
+      '<div style="margin-top:20px;">' + projectsSection + '</div>' +
+      '<div style="margin-top:20px;">' + historySection + '</div>' +
       '<div style="margin-top:20px;">' + documents + '</div>' +
       '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:13.5px; font-weight:600; color:#b3261e; background:#fff; border:1px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
@@ -751,7 +847,7 @@
       if (!first || !last) { setState({ profileSave: { loading: false, error: 'Укажите имя и фамилию' } }); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите корректный email' } }); return; }
       var minor = /до 18/.test(status);
-      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor, specialty: '', description: '', aiTest: null };
+      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor, specialty: '', description: '', aiTest: null, availability: '', institution: '', hardSkills: [], languages: [], projects: [], achievements: [], platformHistory: [] };
       // Документы (справка/согласие) загружаются уже в кабинете — сюда всегда 'done'.
       if (!supabase || !currentUserId()) {
         setState({ authRole: 'student', studentStep: 'done' }); top(); return;
@@ -767,14 +863,105 @@
       if (!state.studentProfile) return;
       var specEl = document.getElementById('spec-input');
       var descEl = document.getElementById('desc-input');
+      var instEl = document.getElementById('inst-input');
       state.studentProfile.specialty = specEl ? specEl.value : (state.studentProfile.specialty || '');
       state.studentProfile.description = (descEl ? descEl.value : (state.studentProfile.description || '')).slice(0, 1000);
+      state.studentProfile.institution = (instEl ? instEl.value : (state.studentProfile.institution || '')).trim().slice(0, 200);
       if (!supabase || !currentUserId()) { setState({ extrasSave: { loading: false, error: '', ok: true } }); return; }
       setState({ extrasSave: { loading: true, error: '', ok: false } });
       saveProfileToDb().then(function (res) {
         if (res.error) { setState({ extrasSave: { loading: false, error: 'Не удалось сохранить: ' + res.error.message, ok: false } }); return; }
         setState({ extrasSave: { loading: false, error: '', ok: true } });
       });
+    },
+    // Динамический тег доступности — сохраняется сразу при выборе.
+    setAvailability: function (val) {
+      if (!state.studentProfile) return;
+      state.studentProfile.availability = val;
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    addHardSkill: function () {
+      var el = document.getElementById('skill-input');
+      var v = el ? el.value.trim() : '';
+      if (!v || !state.studentProfile) return;
+      state.studentProfile.hardSkills = (state.studentProfile.hardSkills || []).concat([v.slice(0, 40)]);
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    removeHardSkill: function (t) {
+      if (!state.studentProfile) return;
+      var i = Number(t.getAttribute('data-index'));
+      state.studentProfile.hardSkills = (state.studentProfile.hardSkills || []).filter(function (_, idx) { return idx !== i; });
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    addLanguage: function () {
+      var nameEl = document.getElementById('lang-name-input');
+      var levelEl = document.getElementById('lang-level-input');
+      var name = nameEl ? nameEl.value.trim() : '';
+      if (!name || !state.studentProfile) return;
+      var level = levelEl ? levelEl.value.trim() : '';
+      state.studentProfile.languages = (state.studentProfile.languages || []).concat([{ name: name.slice(0, 40), level: level.slice(0, 60) }]);
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    removeLanguage: function (t) {
+      if (!state.studentProfile) return;
+      var i = Number(t.getAttribute('data-index'));
+      state.studentProfile.languages = (state.studentProfile.languages || []).filter(function (_, idx) { return idx !== i; });
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    addProject: function () {
+      if (!state.studentProfile) return;
+      var nameEl = document.getElementById('proj-name-input');
+      var name = nameEl ? nameEl.value.trim() : '';
+      if (!name) return;
+      var stackEl = document.getElementById('proj-stack-input');
+      var githubEl = document.getElementById('proj-github-input');
+      var demoEl = document.getElementById('proj-demo-input');
+      var descEl = document.getElementById('proj-desc-input');
+      state.studentProfile.projects = (state.studentProfile.projects || []).concat([{
+        name: name.slice(0, 80),
+        stack: stackEl ? stackEl.value.trim().slice(0, 200) : '',
+        github: githubEl ? githubEl.value.trim().slice(0, 300) : '',
+        demo: demoEl ? demoEl.value.trim().slice(0, 300) : '',
+        desc: descEl ? descEl.value.trim().slice(0, 280) : ''
+      }]);
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    removeProject: function (t) {
+      if (!state.studentProfile) return;
+      var i = Number(t.getAttribute('data-index'));
+      state.studentProfile.projects = (state.studentProfile.projects || []).filter(function (_, idx) { return idx !== i; });
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    addAchievement: function () {
+      if (!state.studentProfile) return;
+      var titleEl = document.getElementById('ach-title-input');
+      var title = titleEl ? titleEl.value.trim() : '';
+      if (!title) return;
+      var issuerEl = document.getElementById('ach-issuer-input');
+      var dateEl = document.getElementById('ach-date-input');
+      var linkEl = document.getElementById('ach-link-input');
+      state.studentProfile.achievements = (state.studentProfile.achievements || []).concat([{
+        title: title.slice(0, 100),
+        issuer: issuerEl ? issuerEl.value.trim().slice(0, 100) : '',
+        date: dateEl ? dateEl.value.trim().slice(0, 30) : '',
+        link: linkEl ? linkEl.value.trim().slice(0, 300) : ''
+      }]);
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    removeAchievement: function (t) {
+      if (!state.studentProfile) return;
+      var i = Number(t.getAttribute('data-index'));
+      state.studentProfile.achievements = (state.studentProfile.achievements || []).filter(function (_, idx) { return idx !== i; });
+      setState({});
+      if (supabase && currentUserId()) saveProfileToDb();
     },
     // Сохранение описания компании (в памяти — у компаний пока нет аккаунта)
     saveCompanyExtras: function () {
@@ -939,7 +1126,8 @@
     var userId = currentUserId();
     if (!supabase || !userId || !state.studentProfile) return Promise.resolve({ error: null });
     var p = state.studentProfile;
-    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', description: p.description || '', aiTest: p.aiTest || null, docStatus: state.docStatus };
+    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', description: p.description || '', aiTest: p.aiTest || null, docStatus: state.docStatus,
+      availability: p.availability || '', institution: p.institution || '', hardSkills: p.hardSkills || [], languages: p.languages || [], projects: p.projects || [], achievements: p.achievements || [], platformHistory: p.platformHistory || [] };
     return supabase.from('profiles')
       .upsert({ id: userId, role: 'student', data: data, updated_at: new Date().toISOString() })
       .then(function (r) { return { error: r.error }; });
@@ -954,7 +1142,8 @@
       var row = r && r.data;
       if (row && row.role === 'student' && row.data) {
         var d = row.data;
-        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor, specialty: d.specialty || '', description: d.description || '', aiTest: d.aiTest || null };
+        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor, specialty: d.specialty || '', description: d.description || '', aiTest: d.aiTest || null,
+          availability: d.availability || '', institution: d.institution || '', hardSkills: d.hardSkills || [], languages: d.languages || [], projects: d.projects || [], achievements: d.achievements || [], platformHistory: d.platformHistory || [] };
         // статусы документов (совместимость со старым флагом consentUploaded)
         state.docStatus = d.docStatus || { study: 'none', consent: d.consentUploaded ? 'pending' : 'none' };
         state.authRole = 'student';
@@ -1138,6 +1327,9 @@
         setState({ docUpload: { loading: false, error: '', fileName: pendingDocFile ? pendingDocFile.name : '' } });
         return;
       }
+      // select с немедленным действием (например, тег доступности в кабинете студента)
+      var sa = e.target.getAttribute && e.target.getAttribute('data-select-action');
+      if (sa && actions[sa]) { actions[sa](e.target.value); return; }
       var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value;
     });
     render();
