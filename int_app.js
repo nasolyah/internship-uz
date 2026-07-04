@@ -544,6 +544,10 @@
       (selected && list.indexOf(selected) === -1 ? '<option value="' + esc(selected) + '" selected>' + esc(selected) + '</option>' : '');
   }
   var SPECIALTIES = ['Разработка / программирование', 'Дизайн (UI/UX, графика)', 'Маркетинг', 'SMM и контент', 'Аналитика данных', 'Тестирование (QA)', 'Копирайтинг', 'Проектный менеджмент'];
+  // Профиль компании: направления для мэтчинга со студентами в каталоге.
+  var FOCUS_AREAS = ['Frontend', 'Backend', 'Full-stack', 'UI/UX Дизайн', 'Мобильная разработка', 'Маркетинг / SMM', 'Аналитика данных', 'Тестирование (QA)'];
+  var MEETING_CADENCE_OPTIONS = [['none', 'Без созвонов (только текст)'], ['weekly', 'Раз в неделю'], ['daily', 'Ежедневные созвоны']];
+  var DURATION_OPTIONS = [['2w', '2 недели'], ['1m', '1 месяц'], ['3m', '3 месяца']];
   function stepDot(n, label, active) {
     var c = active ? 'background:var(--accent); color:#fff;' : 'background:#fff; border:1.5px solid var(--line); color:var(--muted);';
     return '<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; text-align:center;"><span style="width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:14px; flex-shrink:0; ' + c + '">' + n + '</span><span style="font-size:12px; font-weight:600; line-height:1.3;">' + label + '</span></div>';
@@ -889,17 +893,88 @@
       '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:13px; color:var(--muted); line-height:1.5;">Размещение задач откроется после подтверждения профиля — обычно 1–2 дня.</div>' +
       '<button data-action="goStartupForm" style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button></div>';
 
+    // Прямая привязка к state.companyProfile[field] на каждое нажатие (data-company-field) —
+    // без неё любой мгновенный экшен рядом (переключение направления, выбор в select) вызывает
+    // setState() и полный re-render, который стирает ещё не сохранённый текст в этих полях.
+    var textInput = function (field, label, val, ph, hint, maxlen) {
+      return '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + label + '</span>' +
+        '<input data-company-field="' + field + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '"' + (maxlen ? ' maxlength="' + maxlen + '"' : '') + ' style="' + S.field + '">' +
+        (hint ? '<span style="display:block; font-size:12px; color:var(--muted); margin-top:5px;">' + hint + '</span>' : '') + '</label>';
+    };
+
+    var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:10px;">Описание компании <span style="color:var(--muted); font-weight:500; font-size:13px;">(необязательно)</span></div>' +
+      '<textarea data-company-field="description" rows="4" maxlength="1000" placeholder="Чем занимается компания, какие задачи и стажировки предлагаете…" style="width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); resize:vertical; font-family:inherit; line-height:1.5;">' + esc(cp.description || '') + '</textarea></div>';
+
+    // ---- Мэтчинг и поиск (технический профиль) ----
+    var focusAreas = cp.focusAreas || [];
+    var focusPill = function (area) {
+      var active = focusAreas.indexOf(area) !== -1;
+      return '<button type="button" data-action="toggleFocusArea" data-focus="' + esc(area) + '" style="font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer; ' +
+        (active ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1px solid var(--line);') + '">' + esc(area) + '</button>';
+    };
+    var techStack = cp.techStack || [];
+    var techChips = techStack.map(function (t) {
+      return '<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:4px 6px 4px 10px; border-radius:999px;">' + esc(t) +
+        '<button type="button" data-action="removeTechTag" data-tag="' + esc(t) + '" style="border:none; background:none; color:var(--muted); cursor:pointer; padding:0; display:flex;">' + icon('x', 11) + '</button></span>';
+    }).join('');
+    var techProfile = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Технический профиль</div>' +
+      '<p style="font-size:13px; color:var(--muted); margin:0 0 14px;">Используется для подбора студентов в каталоге — чем точнее, тем лучше совпадения.</p>' +
+      '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Основные направления</div>' +
+      '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;">' + FOCUS_AREAS.map(focusPill).join('') + '</div>' +
+      '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Технологический стек</div>' +
+      (techChips ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">' + techChips + '</div>' : '') +
+      '<div style="display:flex; gap:8px;"><input id="tech-tag-input" placeholder="Например, React, Supabase, Figma" style="' + S.field + '"><button type="button" data-action="addTechTag" style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:0 16px; border-radius:9px; cursor:pointer;">+</button></div></div>';
+
+    // ---- Формат работы (онлайн-правила, авто-применяются ко всем будущим задачам) ----
+    var commStyle = cp.commStyle || 'async';
+    var commBtn = function (val, label) {
+      var active = commStyle === val;
+      return '<button type="button" data-action="setCommStyle" data-comm="' + val + '" style="flex:1; font-size:13px; font-weight:600; padding:11px; border-radius:10px; cursor:pointer; ' +
+        (active ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1px solid var(--line);') + '">' + label + '</button>';
+    };
+    var cadenceSelect = '<select data-select-action="setMeetingCadence" style="' + S.field + '">' + MEETING_CADENCE_OPTIONS.map(function (o) {
+      var sel = (cp.meetingCadence || 'weekly') === o[0] ? ' selected' : '';
+      return '<option value="' + o[0] + '"' + sel + '>' + o[1] + '</option>';
+    }).join('') + '</select>';
+    var workspaceRules = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Формат работы</div>' +
+      '<p style="font-size:13px; color:var(--muted); margin:0 0 14px;">Работа идёт полностью онлайн — эти настройки применяются автоматически ко всем будущим задачам.</p>' +
+      '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Стиль коммуникации</div>' +
+      '<div style="display:flex; gap:8px; margin-bottom:16px;">' + commBtn('async', 'Асинхронно (гибкие часы)') + commBtn('sync', 'Синхронно (фикс. часы)') + '</div>' +
+      (commStyle === 'sync' ? textInput('syncHours', 'Рабочие часы', cp.syncHours, 'Например, 10:00–15:00') : '') +
+      '<label style="display:block; margin:2px 0 12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Периодичность созвонов</span>' + cadenceSelect + '</label>' +
+      textInput('meetingLink', 'Постоянная ссылка на созвон', cp.meetingLink, 'https://meet.google.com/xxx-xxxx-xxx', 'Откроется автоматически, когда вы наймёте студента') +
+      '</div>';
+
+    // ---- Шаблон вакансии (подставляется при размещении новой задачи) ----
+    var durationSelect = '<select data-select-action="setDefaultDuration" style="' + S.field + '">' + DURATION_OPTIONS.map(function (o) {
+      var sel = (cp.defaultDuration || '1m') === o[0] ? ' selected' : '';
+      return '<option value="' + o[0] + '"' + sel + '>' + o[1] + '</option>';
+    }).join('') + '</select>';
+    var jobTemplate = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Шаблон вакансии</div>' +
+      '<p style="font-size:13px; color:var(--muted); margin:0 0 14px;">Заполните один раз — эти данные будут подставляться в каждую новую задачу, которую вы размещаете.</p>' +
+      textInput('pitch', 'Питч компании (до 200 симв.)', cp.pitch, 'Коротко — чем занимается компания', '', 200) +
+      '<label style="display:block; margin:2px 0 12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Длительность проекта по умолчанию</span>' + durationSelect + '</label>' +
+      '<div style="font-size:13px; font-weight:600; margin:14px 0 8px;">Куратор для стажёров</div>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">' +
+      textInput('mentorName', 'Имя куратора', cp.mentorName, 'Например, Данил Темиргалиев') +
+      textInput('mentorRole', 'Роль', cp.mentorRole, 'Например, Lead Engineer') +
+      '</div>' +
+      textInput('mentorContact', 'Telegram куратора', cp.mentorContact, '@username') +
+      '</div>';
+
     var es = state.extrasSave;
     var esNote = es.ok ? '<span style="font-size:12.5px; color:#16a34a; font-weight:600;">Сохранено ✓</span>' : '';
-    var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:10px;">Описание компании <span style="color:var(--muted); font-weight:500; font-size:13px;">(необязательно)</span></div>' +
-      '<textarea id="cdesc-input" rows="4" placeholder="Чем занимается компания, какие задачи и стажировки предлагаете…" style="width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); resize:vertical; font-family:inherit; line-height:1.5;">' + esc(cp.description || '') + '</textarea>' +
-      '<div style="display:flex; align-items:center; gap:14px; margin-top:14px;"><button data-action="saveCompanyExtras" style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + '">Сохранить</button>' + esNote + '</div></div>';
+    var saveBar = '<div style="display:flex; align-items:center; gap:14px; margin-top:20px;"><button data-action="saveCompanyExtras" style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + '">Сохранить настройки</button>' + esNote + '</div>';
 
     return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет компании</h1>' +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + details + checks + '</div>' +
       '<div style="margin-top:20px;">' + about + '</div>' +
+      '<div style="margin-top:20px;">' + techProfile + '</div>' +
+      '<div style="margin-top:20px;">' + workspaceRules + '</div>' +
+      '<div style="margin-top:20px;">' + jobTemplate + '</div>' +
+      saveBar +
       '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:13.5px; font-weight:600; color:#b3261e; background:#fff; border:1px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
   }
@@ -1421,12 +1496,58 @@
       setState({ fieldEdit: null, fieldEditConfirm: null, fieldEditError: '' });
       if (supabase && currentUserId()) saveProfileToDb();
     },
-    // Сохранение описания компании (в памяти — у компаний пока нет аккаунта)
+    // Поля выше (data-company-field) пишутся в state.companyProfile сразу при вводе —
+    // кнопка "Сохранить" здесь только подтверждает пользователю, что всё применено.
     saveCompanyExtras: function () {
       if (!state.companyProfile) return;
-      var descEl = document.getElementById('cdesc-input');
-      state.companyProfile.description = (descEl ? descEl.value : (state.companyProfile.description || '')).slice(0, 1000);
+      var cp = state.companyProfile;
+      cp.meetingLink = (cp.meetingLink || '').trim();
+      cp.mentorName = (cp.mentorName || '').trim();
+      cp.mentorRole = (cp.mentorRole || '').trim();
+      cp.mentorContact = (cp.mentorContact || '').trim();
       setState({ extrasSave: { loading: false, error: '', ok: true } });
+    },
+    // Направления для мэтчинга (Frontend/Backend/и т.п.) — переключается сразу.
+    toggleFocusArea: function (t) {
+      if (!state.companyProfile) return;
+      var area = t.getAttribute('data-focus');
+      var list = (state.companyProfile.focusAreas || []).slice();
+      var idx = list.indexOf(area);
+      if (idx === -1) list.push(area); else list.splice(idx, 1);
+      state.companyProfile.focusAreas = list;
+      setState({});
+    },
+    addTechTag: function () {
+      var el = document.getElementById('tech-tag-input');
+      var v = el ? el.value.trim() : '';
+      if (!v || !state.companyProfile) return;
+      var list = (state.companyProfile.techStack || []).slice();
+      if (list.indexOf(v) === -1) list.push(v.slice(0, 24));
+      state.companyProfile.techStack = list;
+      if (el) el.value = '';
+      setState({});
+    },
+    removeTechTag: function (t) {
+      if (!state.companyProfile) return;
+      var tag = t.getAttribute('data-tag');
+      state.companyProfile.techStack = (state.companyProfile.techStack || []).filter(function (x) { return x !== tag; });
+      setState({});
+    },
+    // Стиль коммуникации / периодичность созвонов / длительность проекта — сохраняются сразу при выборе.
+    setCommStyle: function (t) {
+      if (!state.companyProfile) return;
+      state.companyProfile.commStyle = t.getAttribute('data-comm');
+      setState({});
+    },
+    setMeetingCadence: function (val) {
+      if (!state.companyProfile) return;
+      state.companyProfile.meetingCadence = val;
+      setState({});
+    },
+    setDefaultDuration: function (val) {
+      if (!state.companyProfile) return;
+      state.companyProfile.defaultDuration = val;
+      setState({});
     },
     // ИИ-тест
     openTest: function () {
@@ -1511,7 +1632,19 @@
         domain: (state.form.corpEmail || '').split('@')[1] || '',
         linkedin: state.form.linkedin || '',
         contact: state.form.contact || '',
-        phone: state.form.phone || ''
+        phone: state.form.phone || '',
+        description: '',
+        focusAreas: [],
+        techStack: [],
+        commStyle: 'async',
+        syncHours: '',
+        meetingCadence: 'weekly',
+        meetingLink: '',
+        pitch: '',
+        defaultDuration: '1m',
+        mentorName: '',
+        mentorRole: '',
+        mentorContact: ''
       };
       setState({ authRole: 'company' }); top();
     },
@@ -2111,6 +2244,7 @@
     root.addEventListener('input', function (e) {
       var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value;
       var itf = e.target.getAttribute && e.target.getAttribute('data-item-field'); if (itf) { state.itemForm = state.itemForm || {}; state.itemForm[itf] = e.target.value; }
+      var cf = e.target.getAttribute && e.target.getAttribute('data-company-field'); if (cf && state.companyProfile) state.companyProfile[cf] = e.target.value;
       applyItemArrayField(e.target);
     });
     root.addEventListener('change', function (e) {
