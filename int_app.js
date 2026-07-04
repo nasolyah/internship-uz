@@ -19,6 +19,10 @@
 
   /* ---------- документы студента ---------- */
   var SUBMIT_DOC_FN = SUPABASE_URL + '/functions/v1/submit-doc';
+  // ИИ-тест: генерация новых вопросов через Claude (см. supabase/functions/generate-test).
+  // Если функция ещё не задеплоена/недоступна, клиент тихо остаётся на статическом банке
+  // из ai_test_bank.js — см. tryGenerateAiTest() и activeTestBank().
+  var GENERATE_TEST_FN = SUPABASE_URL + '/functions/v1/generate-test';
   var DOC_BUCKET = 'student-docs';
   // Путь к шаблону согласия (статика Netlify). Положите файл в /templates/.
   var CONSENT_TEMPLATE_URL = 'templates/parental-consent-template.pdf';
@@ -48,6 +52,15 @@
     itemForm: {},
     itemUpload: { loading: false, error: '', fileName: '' },
     avatarUpload: { loading: false, error: '' },
+    fieldEdit: null,           // null | 'email' | 'status' | 'institution'
+    fieldEditConfirm: null,    // null | { field, value, warning }
+    fieldEditError: '',
+    skillDetail: null,         // null | index — просмотр детальной карточки навыка
+    mediaPreview: null,        // null | { url, name, isImage } — просмотр фото/файла на месте
+    testFlags: 0,              // счётчик подозрительной активности во время ИИ-теста (переключение окна/выход из fullscreen)
+    testFullscreenWarn: false,
+    dynamicBank: null,         // {mcq, open} — вопросы, сгенерированные ИИ (generate-test); null = используется статический банк
+    testGenLoading: false,
     _statsRan: false
   };
 
@@ -131,6 +144,25 @@
   function collectionKey(type) {
     return { skill: 'hardSkills', language: 'languages', project: 'projects', achievement: 'achievements' }[type];
   }
+  // Типы элементов, где допустимо несколько файлов (проекты) — остальные хранят один файл.
+  function isMultiFileType(type) { return type === 'project'; }
+  function isImageFile(file) {
+    if (!file) return false;
+    if (file.type && file.type.indexOf('image/') === 0) return true;
+    return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(file.name || '');
+  }
+  function fmtBytes(n) {
+    if (!n) return '';
+    if (n < 1024) return n + ' Б';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' КБ';
+    return (n / (1024 * 1024)).toFixed(1) + ' МБ';
+  }
+  function confidenceColor(n) {
+    if (n == null) return 'var(--muted)';
+    if (n >= 8) return '#16a34a';
+    if (n >= 5) return '#b26b12';
+    return '#b3261e';
+  }
   // Рекомендуемые hard skills по специальности — подсказки при выборе специальностей.
   var SPECIALTY_SKILLS = {
     'Разработка / программирование': ['Frontend', 'Backend', 'JavaScript', 'Python', 'SQL', 'Git'],
@@ -153,11 +185,40 @@
     });
     return out;
   }
-  function starRating(score) {
+  // Векторные иконки (не эмодзи) — единый набор для всего приложения.
+  var ICON_PATHS = {
+    pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    x: '<path d="M18 6 6 18"/><path d="M6 6l12 12"/>',
+    plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+    camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/>',
+    paperclip: '<path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.48"/>',
+    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/>',
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+    warn: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+  };
+  function icon(name, size, extraAttrs) {
+    var s = size || 14;
+    return '<svg' + (extraAttrs || '') + ' width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; vertical-align:middle;">' + (ICON_PATHS[name] || '') + '</svg>';
+  }
+  // Рейтинг — фирменный стиль платформы: спасательные круги вместо звёзд.
+  function lifeRing(size, filled) {
+    var s = size || 30;
+    var c = filled ? '#e2a53a' : 'var(--line)';
+    return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">' +
+      '<circle cx="12" cy="12" r="9.5" stroke="' + c + '" stroke-width="3"/>' +
+      '<circle cx="12" cy="12" r="3.5" stroke="' + c + '" stroke-width="2" fill="#fff"/>' +
+      '<line x1="12" y1="1.3" x2="12" y2="7.5" stroke="' + c + '" stroke-width="3"/>' +
+      '<line x1="12" y1="16.5" x2="12" y2="22.7" stroke="' + c + '" stroke-width="3"/>' +
+      '<line x1="1.3" y1="12" x2="7.5" y2="12" stroke="' + c + '" stroke-width="3"/>' +
+      '<line x1="16.5" y1="12" x2="22.7" y2="12" stroke="' + c + '" stroke-width="3"/>' +
+    '</svg>';
+  }
+  function starRating(score, size) {
     var full = Math.round(score);
-    var out = '';
-    for (var i = 1; i <= 5; i++) out += '<span style="color:' + (i <= full ? '#e2a53a' : 'var(--line)') + '; font-size:16px; line-height:1;">★</span>';
-    return out;
+    var out = '<span style="display:inline-flex; gap:4px; align-items:center;">';
+    for (var i = 1; i <= 5; i++) out += lifeRing(size || 30, i <= full);
+    return out + '</span>';
   }
   function pluralRu(n, one, few, many) {
     var mod10 = n % 10, mod100 = n % 100;
@@ -240,7 +301,7 @@
     var auth, overlay = '';
     if (role === 'student' || role === 'company') {
       var avatar = role === 'student'
-        ? '<span style="width:30px; height:30px; border-radius:50%; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:13px; flex-shrink:0;">' + esc(studentInitials()) + '</span>'
+        ? avatarHtml(30, 15)
         : '<span style="width:30px; height:30px; border-radius:8px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0;">◆</span>';
       var name = role === 'student' ? studentName() : companyName();
       var caret = '<span style="color:var(--muted); font-size:10px;' + (state.menuOpen ? ' transform:rotate(180deg);' : '') + '">▾</span>';
@@ -450,9 +511,31 @@
     }
     return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
   }
-  function statusOptions() {
-    var opts = ['', 'Студент вуза (18+)', 'Студент колледжа (18+)', 'Школьник, 10–11 класс (до 18)', 'Лицей, 1–2 курс (до 18)'];
-    return opts.map(function (o) { var sel = state.form.status === o ? ' selected' : ''; return '<option' + sel + '>' + (o || 'Выберите…') + '</option>'; }).join('');
+  var STATUS_OPTS = ['', 'Студент вуза (18+)', 'Студент колледжа (18+)', 'Школьник, 10–11 класс (до 18)', 'Лицей, 1–2 курс (до 18)'];
+  function statusOptions(selected) {
+    var sel0 = selected == null ? state.form.status : selected;
+    return STATUS_OPTS.map(function (o) { var sel = sel0 === o ? ' selected' : ''; return '<option' + sel + '>' + (o || 'Выберите…') + '</option>'; }).join('');
+  }
+  // Категория учебного заведения по статусу — определяет список мест учёбы и сброс справки при смене.
+  function statusCategory(status) {
+    if (/вуза/.test(status || '')) return 'university';
+    if (/колледжа/.test(status || '')) return 'college';
+    if (/Школьник/.test(status || '')) return 'school';
+    if (/Лицей/.test(status || '')) return 'lyceum';
+    return '';
+  }
+  var INSTITUTIONS_BY_CATEGORY = {
+    university: ['ТУИТ (Университет информационных технологий)', 'Национальный университет Узбекистана (НУУз)', 'Ташкентский государственный экономический университет', 'INHA University in Tashkent', 'Westminster International University in Tashkent', 'УзГУМЯ', 'Turin Polytechnic University in Tashkent', 'Ташкентский финансовый институт', 'Webster University in Tashkent', 'Amity University Tashkent', 'Другой вуз'],
+    college: ['IT-колледж', 'Технический колледж', 'Экономический колледж', 'Медицинский колледж', 'Педагогический колледж', 'Другой колледж'],
+    school: ['Школа №1', 'Школа №6', 'Школа №64', 'Школа №110', 'Школа №157', 'Специализированная школа', 'Другая школа'],
+    lyceum: ['Президентский лицей', 'Академический лицей при вузе', 'IT-лицей', 'Другой лицей']
+  };
+  function institutionOptions(status, selected) {
+    var cat = statusCategory(status);
+    var list = INSTITUTIONS_BY_CATEGORY[cat] || [];
+    return '<option value=""' + (selected ? '' : ' selected') + '>Выберите…</option>' +
+      list.map(function (o) { return '<option value="' + esc(o) + '"' + (selected === o ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') +
+      (selected && list.indexOf(selected) === -1 ? '<option value="' + esc(selected) + '" selected>' + esc(selected) + '</option>' : '');
   }
   var SPECIALTIES = ['Разработка / программирование', 'Дизайн (UI/UX, графика)', 'Маркетинг', 'SMM и контент', 'Аналитика данных', 'Тестирование (QA)', 'Копирайтинг', 'Проектный менеджмент'];
   function stepDot(n, label, active) {
@@ -523,7 +606,7 @@
     // sidebar
     var sidebar;
     if (role === 'student') {
-      sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:17px;">' + esc(studentInitials()) + '</div><div><div style="font-weight:600; font-size:15px;">' + esc(studentName()) + '</div><div style="font-size:12px; color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
+      sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:15px;">' + esc(studentName()) + '</div><div style="font-size:12px; color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
     } else if (role === 'company') {
       sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;">◆</div><div><div style="font-weight:600; font-size:15px;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#b26b12; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:#e2a53a;"></span>На подтверждении</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Что дальше</div><div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div><button data-action="goStartupForm" style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button><button data-action="goCabinet" style="margin-top:10px; width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
     } else {
@@ -556,20 +639,21 @@
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid var(--line);"><span style="font-size:13.5px; color:var(--muted);">' + label + '</span>' + right + '</div>';
     };
     var val = function (v) { return '<span style="font-size:13.5px; font-weight:600; text-align:right; word-break:break-word;">' + esc(v || '—') + '</span>'; };
-    var editBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + S.iconBtn + '">✎</button>'; };
-    var removeBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + S.iconBtn + ' color:#b3261e;">×</button>'; };
-    var addBtn = function (type, label) { return '<button data-action="openItemModal" data-item-type="' + type + '" style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:9px; cursor:pointer;"><span>+</span>' + label + '</button>'; };
-    var chipIconStyle = 'width:18px; height:18px; border-radius:6px; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:11px; flex-shrink:0; padding:0;';
-    var chipEditBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted);">✎</button>'; };
-    var chipRemoveBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + chipIconStyle + ' color:#b3261e; font-size:13px;">×</button>'; };
-    var fileBadge = function (file) { return (file && file.url) ? '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" title="' + esc(file.name || 'файл') + '" style="font-size:13px; text-decoration:none;">📎</a>' : ''; };
+    var editBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + S.iconBtn + '">' + icon('pencil', 13) + '</button>'; };
+    var removeBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + S.iconBtn + ' color:#b3261e;">' + icon('x', 13) + '</button>'; };
+    var addBtn = function (type, label) { return '<button data-action="openItemModal" data-item-type="' + type + '" style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:9px; cursor:pointer;">' + icon('plus', 13) + label + '</button>'; };
+    var chipIconStyle = 'width:20px; height:20px; border-radius:6px; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;';
+    var chipEditBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted);">' + icon('pencil', 12) + '</button>'; };
+    var chipRemoveBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + chipIconStyle + ' color:#b3261e;">' + icon('x', 12) + '</button>'; };
+    var fileBadge = function (file) { return (file && file.url) ? '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" title="' + esc(file.name || 'файл') + '" style="color:var(--muted); display:inline-flex;">' + icon('paperclip', 13) + '</a>' : ''; };
+    var editFieldBtn = function (field) { return '<button data-action="startFieldEdit" data-field-edit="' + field + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted); margin-left:6px;">' + icon('pencil', 12) + '</button>'; };
 
     var availTag = '<span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:' + availColor(sp.availability) + '; background:color-mix(in srgb, ' + availColor(sp.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(sp.availability) + ';"></span>' + esc(availLabel(sp.availability)) + '</span>' +
       '<select data-select-action="setAvailability" style="font-size:12px; font-weight:600; color:var(--muted); background:#fff; border:1px solid var(--line); padding:5px 8px; border-radius:8px; cursor:pointer;">' + availOptions(sp.availability) + '</select>';
 
     var avatarUp = state.avatarUpload;
     var avatarBlock = '<div style="position:relative; flex-shrink:0;">' + avatarHtml(64, 18) +
-      '<label title="Изменить фото" style="position:absolute; right:-6px; bottom:-6px; width:24px; height:24px; border-radius:50%; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; border:2px solid #fff;">📷' +
+      '<label title="Изменить фото" style="position:absolute; right:-6px; bottom:-6px; width:24px; height:24px; border-radius:50%; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; border:2px solid #fff;">' + icon('camera', 12) +
         '<input data-avatar-input type="file" accept="image/*" style="display:none;"></label></div>';
 
     var profile = '<div style="' + card + ' display:flex; align-items:center; gap:18px; flex-wrap:wrap;">' +
@@ -580,8 +664,29 @@
       (avatarUp.loading ? '<div style="font-size:12px; color:var(--muted); margin-top:4px;">Загрузка фото…</div>' : '') +
       '<div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">' + availTag + '</div></div></div>';
 
+    // Строка с инлайн-редактированием (карандаш): email, статус, место учёбы.
+    var editableRow = function (field, label, kind) {
+      if (state.fieldEditConfirm && state.fieldEditConfirm.field === field) {
+        return '<div style="padding:12px 0; border-top:1px solid var(--line);">' +
+          '<div style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; color:#b26b12; font-weight:600; margin-bottom:10px;">' + icon('warn', 15) + '<span>' + esc(state.fieldEditConfirm.warning) + '</span></div>' +
+          '<div style="display:flex; gap:8px;"><button data-action="confirmFieldEdit" style="font-size:12.5px; font-weight:600; color:#fff; background:#b26b12; border:none; padding:7px 14px; border-radius:8px; cursor:pointer;">Подтвердить</button>' +
+          '<button data-action="cancelFieldEditConfirm" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:7px 14px; border-radius:8px; cursor:pointer;">Отмена</button></div></div>';
+      }
+      if (state.fieldEdit === field) {
+        var inputHtml;
+        if (kind === 'status') inputHtml = '<select id="field-edit-input" style="' + S.field + '">' + statusOptions(sp.status) + '</select>';
+        else if (kind === 'institution') inputHtml = (statusCategory(sp.status) ? '<select id="field-edit-input" style="' + S.field + '">' + institutionOptions(sp.status, sp.institution) + '</select>' : '<div style="font-size:12.5px; color:var(--muted);">Сначала укажите статус.</div>');
+        else inputHtml = '<input id="field-edit-input" value="' + esc(sp[field] || '') + '" style="' + S.field + '">';
+        return '<div style="padding:12px 0; border-top:1px solid var(--line);"><div style="font-size:13px; color:var(--muted); margin-bottom:7px;">' + label + '</div>' +
+          '<div style="display:flex; gap:8px; align-items:center;">' + inputHtml +
+          '<button data-action="saveFieldEdit" title="Сохранить" style="' + chipIconStyle + ' color:#16a34a;">' + icon('check', 14) + '</button>' +
+          '<button data-action="cancelFieldEdit" title="Отмена" style="' + chipIconStyle + '">' + icon('x', 14) + '</button></div>' +
+          (state.fieldEditError ? '<div style="font-size:12px; color:#b3261e; margin-top:6px;">' + esc(state.fieldEditError) + '</div>' : '') + '</div>';
+      }
+      return row(label, '<span style="display:inline-flex; align-items:center;">' + val(sp[field]) + editFieldBtn(field) + '</span>');
+    };
     var contacts = '<div style="' + card + '"><div style="' + cardTitle + '">Контакты и статус</div>' +
-      row('Email', val(sp.email)) + row('Telegram', val(sp.tg)) + row('Статус', val(sp.status)) + row('Место учёбы', val(sp.institution)) + '</div>';
+      editableRow('email', 'Email', 'text') + row('Telegram', val(sp.tg)) + editableRow('status', 'Статус', 'status') + editableRow('institution', 'Место учёбы', 'institution') + '</div>';
 
     // строка документа со статусом и кнопкой загрузки (открывает модалку)
     var docRow = function (label, type) {
@@ -622,20 +727,31 @@
     var es = state.extrasSave;
     var esNote = es.error ? '<span style="font-size:12.5px; color:#b3261e; font-weight:600;">' + esc(es.error) + '</span>'
       : (es.ok ? '<span style="font-size:12.5px; color:#16a34a; font-weight:600;">Сохранено ✓</span>' : '');
-    var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">Место учёбы и о себе</div>' +
-      '<label style="display:block; margin-bottom:16px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:7px;">Место учёбы <span style="color:var(--muted); font-weight:500;">(вуз, колледж, лицей, школа)</span></span>' +
-        '<input id="inst-input" value="' + esc(sp.institution || '') + '" placeholder="Например, ТУИТ" style="' + S.field + '"></label>' +
+    var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">О себе</div>' +
       '<label style="display:block;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:7px;">О себе <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' +
         '<textarea id="desc-input" rows="4" placeholder="Коротко о себе: опыт, интересы, чем хотите заниматься…" style="' + S.field + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(sp.description || '') + '</textarea></label>' +
       '<div style="display:flex; align-items:center; gap:14px; margin-top:16px;"><button data-action="saveProfileExtras"' + (es.loading ? ' disabled' : '') + ' style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + (es.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (es.loading ? 'Сохранение…' : 'Сохранить') + '</button>' + esNote + '</div></div>';
 
-    // ---- Матрица навыков: hard skills + языки ----
+    // ---- Матрица навыков: hard skills (карточка + сертификат) + языки ----
     var hardSkills = (sp.hardSkills || []);
-    var skillChip = function (sk, i) {
+    var fileTile = function (file, type, index) {
+      if (!file) return '';
+      var isImg = isImageFile(file);
+      var thumb = isImg
+        ? '<img src="' + esc(file.url) + '" style="width:32px; height:32px; border-radius:7px; object-fit:cover; flex-shrink:0;">'
+        : '<div style="width:32px; height:32px; border-radius:7px; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); flex-shrink:0;">' + icon('file', 15) + '</div>';
+      return '<div data-action="openMediaPreview" data-preview-url="' + esc(file.url) + '" data-preview-name="' + esc(file.name) + '" data-preview-image="' + (isImg ? '1' : '0') + '" style="display:flex; align-items:center; gap:8px; margin-top:9px; padding:6px 9px; background:var(--bg); border-radius:9px; cursor:pointer;">' + thumb +
+        '<div style="min-width:0;"><div style="font-size:12px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(file.name) + '</div>' + (file.size ? '<div style="font-size:11px; color:var(--muted);">' + fmtBytes(file.size) + '</div>' : '') + '</div></div>';
+    };
+    var skillCard = function (sk, i) {
       var name = typeof sk === 'string' ? sk : sk.name;
       var file = typeof sk === 'string' ? null : sk.file;
-      return '<span style="display:inline-flex; align-items:center; gap:2px; font-size:12px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:5px 6px 5px 11px; border-radius:8px;">' + esc(name) + fileBadge(file) +
-        chipEditBtn('skill', i) + chipRemoveBtn('skill', i) + '</span>';
+      var conf = typeof sk === 'object' ? sk.confidence : null;
+      return '<div style="border:1px solid var(--line); border-radius:12px; padding:13px 14px; cursor:pointer; position:relative;" data-action="openSkillDetail" data-item-index="' + i + '">' +
+        '<div style="position:absolute; top:9px; right:9px; display:flex; gap:4px;">' + chipEditBtn('skill', i) + chipRemoveBtn('skill', i) + '</div>' +
+        '<div style="display:flex; align-items:center; gap:8px; padding-right:50px;"><span style="font-weight:600; font-size:14px;">' + esc(name) + '</span>' +
+        (typeof conf === 'number' ? '<span style="font-size:11px; font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div>' +
+        fileTile(file) + '</div>';
     };
     var suggestions = suggestedSkills(specialties, hardSkills);
     var suggestRow = suggestions.length ? '<div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px;">' +
@@ -650,29 +766,34 @@
     var skillMatrix = '<div style="' + card + '"><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;"><div style="' + cardTitle + '">Матрица навыков</div></div>' +
       '<div style="display:flex; align-items:center; justify-content:space-between; margin:12px 0 9px;"><span style="font-size:13px; font-weight:600;">Hard skills</span>' + addBtn('skill', 'Навык') + '</div>' +
       (suggestions.length ? '<div style="font-size:11.5px; color:var(--muted); margin-bottom:7px;">Рекомендации по вашим специальностям:</div>' + suggestRow : '') +
-      '<div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:20px;">' + (hardSkills.length ? hardSkills.map(skillChip).join('') : '<span style="font-size:13px; color:var(--muted);">Пока не добавлено ни одного навыка</span>') + '</div>' +
+      (hardSkills.length ? '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:20px;">' + hardSkills.map(skillCard).join('') + '</div>' : '<div style="font-size:13px; color:var(--muted); margin-bottom:20px;">Пока не добавлено ни одного навыка</div>') +
       '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding-top:4px; border-top:1px solid var(--line);"><span style="font-size:13px; font-weight:600; margin-top:14px;">Знание языков</span><span style="margin-top:10px;">' + addBtn('language', 'Язык') + '</span></div>' +
       (languages.length ? languages.map(langRow).join('') : '<div style="font-size:13px; color:var(--muted); padding:10px 0 0;">Языки ещё не указаны</div>') +
       '</div>';
 
-    // ---- Проекты (Proof of Work) ----
+    // ---- Проекты — свободная форма: любые специальности, несколько файлов/фото ----
     var projects = (sp.projects || []);
     var projectCard = function (p, i) {
-      var stack = (p.stack || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean).map(function (s) {
-        return '<span style="font-size:11px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:3px 8px; border-radius:6px;">' + esc(s) + '</span>';
+      var links = (p.links || []).filter(function (l) { return l.url; }).map(function (l) {
+        return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent); margin-right:14px;">' + esc(l.label || 'Ссылка') + ' ↗</a>';
       }).join('');
-      var links = (p.github ? '<a href="' + esc(p.github) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--ink);">GitHub ↗</a>' : '') +
-        (p.demo ? '<a href="' + esc(p.demo) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent); margin-left:14px;">Демо ↗</a>' : '') +
-        (p.file ? '<a href="' + esc(p.file.url) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--muted); margin-left:14px;">📎 ' + esc(p.file.name) + '</a>' : '');
+      var files = p.files || [];
+      var gallery = files.length ? '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">' + files.map(function (fl) {
+        var isImg = isImageFile(fl);
+        if (isImg) return '<img src="' + esc(fl.url) + '" data-action="openMediaPreview" data-preview-url="' + esc(fl.url) + '" data-preview-name="' + esc(fl.name) + '" data-preview-image="1" style="width:56px; height:56px; border-radius:8px; object-fit:cover; cursor:pointer; border:1px solid var(--line);">';
+        return '<div data-action="openMediaPreview" data-preview-url="' + esc(fl.url) + '" data-preview-name="' + esc(fl.name) + '" data-preview-image="0" title="' + esc(fl.name) + '" style="width:56px; height:56px; border-radius:8px; background:var(--bg); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); cursor:pointer;">' + icon('file', 20) + '</div>';
+      }).join('') + '</div>' : '';
+      var specTag = p.specialty ? '<span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px; margin-top:8px; display:inline-block;">' + esc(p.specialty) + '</span>' : '';
       return '<div style="border:1px solid var(--line); border-radius:14px; padding:18px; position:relative;">' +
         '<div style="position:absolute; top:12px; right:12px; display:flex; gap:6px;">' + editBtn('project', i) + removeBtn('project', i) + '</div>' +
         '<div style="font-weight:600; font-size:15.5px; padding-right:56px;">' + esc(p.name) + '</div>' +
-        (stack ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;">' + stack + '</div>' : '') +
+        specTag +
         (p.desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.5; margin:10px 0 0;">' + esc(p.desc) + '</p>' : '') +
-        (links ? '<div style="margin-top:12px;">' + links + '</div>' : '') + '</div>';
+        (links ? '<div style="margin-top:12px;">' + links + '</div>' : '') +
+        gallery + '</div>';
     };
     var addProjectCard = '<button data-action="openItemModal" data-item-type="project" style="border:1.5px dashed var(--line); border-radius:14px; padding:18px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted); min-height:96px;"><span style="font-size:20px;">+</span><span style="font-size:13px; font-weight:600;">Добавить проект</span></button>';
-    var projectsSection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">Проекты <span style="color:var(--muted); font-weight:500; font-size:13px;">(проверенные работы)</span></div>' +
+    var projectsSection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">Проекты <span style="color:var(--muted); font-weight:500; font-size:13px;">(любые специальности — код, дизайн, маркетинг…)</span></div>' +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px;">' + projects.map(projectCard).join('') + addProjectCard + '</div></div>';
 
     // ---- История на платформе (завершённые стажировки) ----
@@ -815,7 +936,7 @@
   /* ---------- actions ---------- */
   var root;
   var pendingDocFile = null;  // выбранный в модалке файл (хранится вне DOM, чтобы переживать перерисовку)
-  var pendingItemFile = null; // выбранный файл в модалке добавления/редактирования элемента профиля
+  var pendingItemFiles = []; // выбранные файлы в модалке добавления/редактирования элемента профиля (проекты — несколько)
   function setState(patch) { for (var k in patch) state[k] = patch[k]; render(); }
   function top() { try { window.scrollTo(0, 0); } catch (e) {} }
 
@@ -954,7 +1075,7 @@
       if (!first || !last) { setState({ profileSave: { loading: false, error: 'Укажите имя и фамилию' } }); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите корректный email' } }); return; }
       var minor = /до 18/.test(status);
-      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor, specialty: '', specialties: [], description: '', aiTest: null, availability: '', institution: '', photoPath: '', photoUrl: '', hardSkills: [], languages: [], projects: [], achievements: [], platformHistory: [] };
+      state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor, specialty: '', specialties: [], description: '', aiTest: null, aiTestSeenQuestions: [], availability: '', institution: '', photoPath: '', photoUrl: '', hardSkills: [], languages: [], projects: [], achievements: [], platformHistory: [] };
       // Документы (справка/согласие) загружаются уже в кабинете — сюда всегда 'done'.
       if (!supabase || !currentUserId()) {
         setState({ authRole: 'student', studentStep: 'done' }); top(); return;
@@ -969,9 +1090,7 @@
     saveProfileExtras: function () {
       if (!state.studentProfile) return;
       var descEl = document.getElementById('desc-input');
-      var instEl = document.getElementById('inst-input');
       state.studentProfile.description = (descEl ? descEl.value : (state.studentProfile.description || '')).slice(0, 1000);
-      state.studentProfile.institution = (instEl ? instEl.value : (state.studentProfile.institution || '')).trim().slice(0, 200);
       if (!supabase || !currentUserId()) { setState({ extrasSave: { loading: false, error: '', ok: true } }); return; }
       setState({ extrasSave: { loading: true, error: '', ok: false } });
       saveProfileToDb().then(function (res) {
@@ -1013,16 +1132,32 @@
       var sp = state.studentProfile;
       var list = sp ? (sp[collectionKey(type)] || []) : [];
       var existing = index != null ? list[index] : null;
-      pendingItemFile = null;
+      pendingItemFiles = [];
       var form = {};
-      if (existing) { for (var k in existing) if (k !== 'file') form[k] = existing[k]; }
+      if (existing) { for (var k in existing) if (k !== 'file' && k !== 'files') form[k] = existing[k]; }
       if (type === 'skill' && existing) form.name = typeof existing === 'string' ? existing : existing.name;
+      if (type === 'project' && existing) {
+        var links = existing.links || [];
+        form.link1Label = links[0] ? links[0].label : ''; form.link1Url = links[0] ? links[0].url : '';
+        form.link2Label = links[1] ? links[1].label : ''; form.link2Url = links[1] ? links[1].url : '';
+      }
       state.itemForm = form;
-      setState({ itemModal: { type: type, index: index }, itemUpload: { loading: false, error: '', fileName: existing && existing.file ? existing.file.name : '' } });
+      var fname = existing && existing.file ? existing.file.name : (existing && existing.files ? existing.files.map(function (x) { return x.name; }).join(', ') : '');
+      setState({ itemModal: { type: type, index: index }, skillDetail: null, itemUpload: { loading: false, error: '', fileName: fname } });
     },
     closeItemModal: function () {
-      pendingItemFile = null;
+      pendingItemFiles = [];
       setState({ itemModal: null, itemForm: {}, itemUpload: { loading: false, error: '', fileName: '' } });
+    },
+    toggleItemFormArrayValue: function (t) {
+      var field = t.getAttribute('data-arr-field');
+      var val = t.getAttribute('data-arr-value');
+      state.itemForm = state.itemForm || {};
+      var arr = (state.itemForm[field] || []).slice();
+      var idx = arr.indexOf(val);
+      if (idx === -1) arr.push(val); else arr.splice(idx, 1);
+      state.itemForm[field] = arr;
+      setState({});
     },
     saveItemModal: function () {
       var im = state.itemModal;
@@ -1031,7 +1166,7 @@
       if (type === 'skill') {
         var skName = (f.name || '').trim();
         if (!skName) { setState({ itemUpload: { loading: false, error: 'Укажите название навыка', fileName: state.itemUpload.fileName } }); return; }
-        item = { name: skName.slice(0, 40) };
+        item = { name: skName.slice(0, 40), description: (f.description || '').trim().slice(0, 500), confidence: f.confidence != null && f.confidence !== '' ? Math.max(1, Math.min(10, Number(f.confidence))) : null, relatedProjects: f.relatedProjects || [] };
       } else if (type === 'language') {
         var lname = (f.name || '').trim();
         if (!lname) { setState({ itemUpload: { loading: false, error: 'Укажите язык', fileName: state.itemUpload.fileName } }); return; }
@@ -1039,7 +1174,10 @@
       } else if (type === 'project') {
         var pname = (f.name || '').trim();
         if (!pname) { setState({ itemUpload: { loading: false, error: 'Укажите название проекта', fileName: state.itemUpload.fileName } }); return; }
-        item = { name: pname.slice(0, 80), stack: (f.stack || '').trim().slice(0, 200), github: (f.github || '').trim().slice(0, 300), demo: (f.demo || '').trim().slice(0, 300), desc: (f.desc || '').trim().slice(0, 280) };
+        var links = [];
+        if ((f.link1Url || '').trim()) links.push({ label: (f.link1Label || '').trim().slice(0, 30) || 'Ссылка', url: f.link1Url.trim().slice(0, 300) });
+        if ((f.link2Url || '').trim()) links.push({ label: (f.link2Label || '').trim().slice(0, 30) || 'Ссылка', url: f.link2Url.trim().slice(0, 300) });
+        item = { name: pname.slice(0, 80), specialty: (f.specialty || '').trim(), desc: (f.desc || '').trim().slice(0, 280), links: links };
       } else if (type === 'achievement') {
         var title = (f.title || '').trim();
         if (!title) { setState({ itemUpload: { loading: false, error: 'Укажите название', fileName: state.itemUpload.fileName } }); return; }
@@ -1048,7 +1186,9 @@
 
       var key = collectionKey(type);
       var existingList = state.studentProfile[key] || [];
-      if (im.index != null && existingList[im.index] && existingList[im.index].file) item.file = existingList[im.index].file;
+      var prevItem = im.index != null ? existingList[im.index] : null;
+      if (prevItem && prevItem.file) item.file = prevItem.file;
+      if (prevItem && prevItem.files) item.files = prevItem.files;
 
       function commit() {
         var list = (state.studentProfile[key] || []).slice();
@@ -1058,26 +1198,38 @@
         if (supabase && currentUserId()) saveProfileToDb();
       }
 
-      var file = pendingItemFile;
-      if (file && supabase && currentUserId()) {
-        if (file.size > 10 * 1024 * 1024) { setState({ itemUpload: { loading: false, error: 'Файл больше 10 МБ', fileName: file.name } }); return; }
+      var files = pendingItemFiles;
+      if (files.length && supabase && currentUserId()) {
+        for (var i = 0; i < files.length; i++) {
+          if (files[i].size > 10 * 1024 * 1024) { setState({ itemUpload: { loading: false, error: 'Файл «' + files[i].name + '» больше 10 МБ', fileName: state.itemUpload.fileName } }); return; }
+        }
         var userId = currentUserId();
-        var ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
-        var path = userId + '/extra/' + type + '-' + Date.now() + '.' + ext;
-        setState({ itemUpload: { loading: true, error: '', fileName: file.name } });
-        supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' }).then(function (up) {
-          if (up.error) { setState({ itemUpload: { loading: false, error: 'Ошибка загрузки: ' + up.error.message, fileName: file.name } }); return; }
-          return supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 60 * 60 * 24 * 365).then(function (su) {
-            item.file = { name: file.name, path: path, url: (su && su.data && su.data.signedUrl) || '' };
-            pendingItemFile = null;
-            commit();
+        setState({ itemUpload: { loading: true, error: '', fileName: state.itemUpload.fileName } });
+        Promise.all(files.map(function (file) {
+          var ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+          var path = userId + '/extra/' + type + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+          return supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' }).then(function (up) {
+            if (up.error) throw new Error(up.error.message);
+            return supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 60 * 60 * 24 * 365).then(function (su) {
+              return { name: file.name, path: path, url: (su && su.data && su.data.signedUrl) || '', type: file.type || '', size: file.size || 0 };
+            });
           });
+        })).then(function (metas) {
+          if (isMultiFileType(type)) item.files = (item.files || []).concat(metas);
+          else item.file = metas[0];
+          pendingItemFiles = [];
+          commit();
         }).catch(function (err) {
-          setState({ itemUpload: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err), fileName: file.name } });
+          setState({ itemUpload: { loading: false, error: 'Ошибка загрузки: ' + (err && err.message ? err.message : err), fileName: state.itemUpload.fileName } });
         });
         return;
       }
-      if (file) { item.file = { name: file.name, path: '', url: '' }; pendingItemFile = null; }
+      if (files.length) {
+        var localMetas = files.map(function (file) { return { name: file.name, path: '', url: '', type: file.type || '', size: file.size || 0 }; });
+        if (isMultiFileType(type)) item.files = (item.files || []).concat(localMetas);
+        else item.file = localMetas[0];
+        pendingItemFiles = [];
+      }
       commit();
     },
     removeItem: function (t) {
@@ -1116,6 +1268,70 @@
       });
     },
     openReviews: function () { setState({ modal: 'reviews' }); },
+    openSkillDetail: function (t) { setState({ skillDetail: Number(t.getAttribute('data-item-index')) }); },
+    closeSkillDetail: function () { setState({ skillDetail: null }); },
+    openMediaPreview: function (t) {
+      setState({ mediaPreview: { url: t.getAttribute('data-preview-url'), name: t.getAttribute('data-preview-name'), isImage: t.getAttribute('data-preview-image') === '1' } });
+    },
+    closeMediaPreview: function () { setState({ mediaPreview: null }); },
+    // Инлайн-редактирование email / статуса / места учёбы прямо в карточке контактов.
+    startFieldEdit: function (t) {
+      setState({ fieldEdit: t.getAttribute('data-field-edit'), fieldEditConfirm: null, fieldEditError: '' });
+    },
+    cancelFieldEdit: function () { setState({ fieldEdit: null, fieldEditConfirm: null, fieldEditError: '' }); },
+    cancelFieldEditConfirm: function () { setState({ fieldEditConfirm: null }); },
+    saveFieldEdit: function () {
+      var sp = state.studentProfile;
+      if (!sp) return;
+      var field = state.fieldEdit;
+      var el = document.getElementById('field-edit-input');
+      var newVal = el ? el.value.trim() : '';
+      if (field === 'email') {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newVal)) { setState({ fieldEditError: 'Укажите корректный email' }); return; }
+        sp.email = newVal;
+        setState({ fieldEdit: null, fieldEditError: '' });
+        if (supabase && currentUserId()) saveProfileToDb();
+        return;
+      }
+      if (field === 'status') {
+        if (!newVal) { setState({ fieldEditError: 'Выберите статус' }); return; }
+        var oldCat = statusCategory(sp.status), newCat = statusCategory(newVal);
+        if (newCat !== oldCat && (sp.institution || docStat('study') !== 'none')) {
+          var w = 'Смена статуса сбросит выбранное место учёбы' + (docStat('study') !== 'none' ? ' и справку о месте учёбы — её нужно будет загрузить заново.' : '.');
+          setState({ fieldEditConfirm: { field: 'status', value: newVal, warning: w } });
+          return;
+        }
+        sp.status = newVal;
+        sp.minor = /до 18/.test(newVal);
+        setState({ fieldEdit: null, fieldEditError: '' });
+        if (supabase && currentUserId()) saveProfileToDb();
+        return;
+      }
+      if (field === 'institution') {
+        if (newVal !== (sp.institution || '') && docStat('study') !== 'none') {
+          setState({ fieldEditConfirm: { field: 'institution', value: newVal, warning: 'Справка о месте учёбы будет сброшена — её нужно будет загрузить заново.' } });
+          return;
+        }
+        sp.institution = newVal;
+        setState({ fieldEdit: null, fieldEditError: '' });
+        if (supabase && currentUserId()) saveProfileToDb();
+        return;
+      }
+    },
+    confirmFieldEdit: function () {
+      var sp = state.studentProfile, conf = state.fieldEditConfirm;
+      if (!sp || !conf) return;
+      if (conf.field === 'status') {
+        sp.status = conf.value;
+        sp.minor = /до 18/.test(conf.value);
+        sp.institution = '';
+      } else if (conf.field === 'institution') {
+        sp.institution = conf.value;
+      }
+      state.docStatus.study = 'none';
+      setState({ fieldEdit: null, fieldEditConfirm: null, fieldEditError: '' });
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
     // Сохранение описания компании (в памяти — у компаний пока нет аккаунта)
     saveCompanyExtras: function () {
       if (!state.companyProfile) return;
@@ -1127,16 +1343,22 @@
     openTest: function () {
       var spec = state.studentProfile && state.studentProfile.specialty;
       if (!spec) { setState({ view: 'cabinet', extrasSave: { loading: false, error: 'Сначала выберите специальность выше и сохраните', ok: false } }); top(); return; }
-      setState({ testView: 'intro', testResult: null });
+      setState({ testView: 'intro', testResult: null, dynamicBank: null, testGenLoading: false });
+      tryGenerateAiTest();  // фоновая попытка получить свежие вопросы от ИИ; при неудаче — тихий откат на статический банк
     },
     startTest: function () {
-      if (!testBankFor()) return;
+      if (!activeTestBank()) return;
       setState({ testView: 'running' });
+      state.testFlags = 0;
       startTestTimer();  // после setState DOM отрисован, #test-timer существует
+      enterTestFullscreen();
+      attachAntiCheat();
     },
     submitTest: function () {
       stopTestTimer();
-      var bank = testBankFor();
+      detachAntiCheat();
+      exitTestFullscreen();
+      var bank = activeTestBank();
       if (!bank) { setState({ testView: null }); return; }
       var correct = 0, total = bank.mcq.length;
       for (var i = 0; i < total; i++) {
@@ -1146,14 +1368,19 @@
       var openEl = document.getElementById('test-open');
       var level = levelFor(correct, total);
       var at = new Date().toISOString();
-      state.studentProfile.aiTest = { specialty: state.studentProfile.specialty, level: level, correct: correct, total: total, at: at };
-      var result = { specialty: state.studentProfile.specialty, level: level, correct: correct, total: total, open: (openEl ? openEl.value : '').slice(0, 2000), at: at };
-      setState({ testView: 'result', testResult: result });
+      var flags = state.testFlags || 0;
+      var askedTexts = bank.mcq.map(function (q) { return q.q; });
+      state.studentProfile.aiTestSeenQuestions = ((state.studentProfile.aiTestSeenQuestions || []).concat(askedTexts)).slice(-120);
+      state.studentProfile.aiTest = { specialty: state.studentProfile.specialty, level: level, correct: correct, total: total, at: at, flags: flags };
+      var result = { specialty: state.studentProfile.specialty, level: level, correct: correct, total: total, open: (openEl ? openEl.value : '').slice(0, 2000), at: at, flags: flags };
+      setState({ testView: 'result', testResult: result, dynamicBank: null });
       if (supabase && currentUserId()) saveProfileToDb();
     },
     closeTest: function () {
       stopTestTimer();
-      setState({ testView: null, testResult: null });
+      detachAntiCheat();
+      exitTestFullscreen();
+      setState({ testView: null, testResult: null, dynamicBank: null });
     },
     // Модальные окна загрузки документов
     openStudyDoc: function () { pendingDocFile = null; setState({ modal: 'study', docUpload: { loading: false, error: '', fileName: '' } }); },
@@ -1279,7 +1506,7 @@
     var userId = currentUserId();
     if (!supabase || !userId || !state.studentProfile) return Promise.resolve({ error: null });
     var p = state.studentProfile;
-    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', specialties: p.specialties || [], description: p.description || '', aiTest: p.aiTest || null, docStatus: state.docStatus,
+    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', specialties: p.specialties || [], description: p.description || '', aiTest: p.aiTest || null, aiTestSeenQuestions: p.aiTestSeenQuestions || [], docStatus: state.docStatus,
       availability: p.availability || '', institution: p.institution || '', photoPath: p.photoPath || '', photoUrl: p.photoUrl || '', hardSkills: p.hardSkills || [], languages: p.languages || [], projects: p.projects || [], achievements: p.achievements || [], platformHistory: p.platformHistory || [] };
     return supabase.from('profiles')
       .upsert({ id: userId, role: 'student', data: data, updated_at: new Date().toISOString() })
@@ -1295,7 +1522,7 @@
       var row = r && r.data;
       if (row && row.role === 'student' && row.data) {
         var d = row.data;
-        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor, specialty: d.specialty || '', specialties: d.specialties || (d.specialty ? [d.specialty] : []), description: d.description || '', aiTest: d.aiTest || null,
+        state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor, specialty: d.specialty || '', specialties: d.specialties || (d.specialty ? [d.specialty] : []), description: d.description || '', aiTest: d.aiTest || null, aiTestSeenQuestions: d.aiTestSeenQuestions || [],
           availability: d.availability || '', institution: d.institution || '', photoPath: d.photoPath || '', photoUrl: d.photoUrl || '', hardSkills: d.hardSkills || [], languages: d.languages || [], projects: d.projects || [], achievements: d.achievements || [], platformHistory: d.platformHistory || [] };
         // статусы документов (совместимость со старым флагом consentUploaded)
         state.docStatus = d.docStatus || { study: 'none', consent: d.consentUploaded ? 'pending' : 'none' };
@@ -1389,15 +1616,34 @@
     var isEdit = im.index != null;
     var fields;
     if (type === 'skill') {
-      fields = itemField('Навык', 'name', f.name, 'Например, Frontend, Figma, Python');
+      var confVal = f.confidence != null && f.confidence !== '' ? f.confidence : 5;
+      var projs = (state.studentProfile && state.studentProfile.projects) || [];
+      var relSel = f.relatedProjects || [];
+      var projChips = projs.length
+        ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">' + projs.map(function (p) {
+            var on = relSel.indexOf(p.name) !== -1;
+            return '<button data-action="toggleItemFormArrayValue" data-arr-field="relatedProjects" data-arr-value="' + esc(p.name) + '" style="font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:999px; cursor:pointer; ' + (on ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1px solid var(--line);') + '">' + esc(p.name) + '</button>';
+          }).join('') + '</div>'
+        : '<div style="font-size:12.5px; color:var(--muted); margin-top:6px;">Сначала добавьте проекты, чтобы связать их с навыком.</div>';
+      fields = itemField('Навык', 'name', f.name, 'Например, Frontend, Figma, Python') +
+        '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Уверенность: <span style="color:' + confidenceColor(Number(confVal)) + '; font-weight:700;">' + confVal + '/10</span></span>' +
+          '<input type="range" min="1" max="10" step="1" data-item-field="confidence" value="' + esc(confVal) + '" style="width:100%;"></label>' +
+        itemTextarea('Описание навыка', 'description', f.description, 'Например: полтора года пишу на React, делал лендинги и SPA…') +
+        '<div style="margin-bottom:4px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Работы, где применялся навык</span>' + projChips + '</div>';
     } else if (type === 'language') {
       fields = itemField('Язык', 'name', f.name, 'Например, Английский') + itemField('Уровень', 'level', f.level, 'Например, IELTS 8.0 / Родной', true);
     } else if (type === 'project') {
+      var mySpecs = (state.studentProfile && state.studentProfile.specialties) || [];
+      var specSelect = mySpecs.length
+        ? '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Специальность проекта <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span><select data-item-field="specialty" style="' + S.field + '"><option value="">Без привязки</option>' + mySpecs.map(function (s) { return '<option value="' + esc(s) + '"' + (f.specialty === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>'
+        : '';
       fields = itemField('Название проекта', 'name', f.name, 'Название') +
-        itemField('Стек (через запятую)', 'stack', f.stack, 'React, Tailwind', true) +
-        itemField('Ссылка на GitHub', 'github', f.github, 'https://github.com/...', true) +
-        itemField('Ссылка на демо', 'demo', f.demo, 'https://...', true) +
-        itemTextarea('Коротко, что вы сделали', 'desc', f.desc, '1–2 предложения');
+        specSelect +
+        itemTextarea('Коротко, что вы сделали', 'desc', f.desc, '1–2 предложения') +
+        itemField('Ссылка 1 — название', 'link1Label', f.link1Label, 'Например, GitHub, Behance, Портфолио', true) +
+        itemField('Ссылка 1 — URL', 'link1Url', f.link1Url, 'https://...', true) +
+        itemField('Ссылка 2 — название', 'link2Label', f.link2Label, 'Например, Демо, Кейс', true) +
+        itemField('Ссылка 2 — URL', 'link2Url', f.link2Url, 'https://...', true);
     } else if (type === 'achievement') {
       fields = itemField('Название', 'title', f.title, 'Сертификат, олимпиада…') +
         itemField('Кем выдано', 'issuer', f.issuer, 'Организация', true) +
@@ -1405,19 +1651,21 @@
     } else fields = '';
 
     var fileName = state.itemUpload.fileName || '';
+    var multi = isMultiFileType(type);
     var picker = '<label class="file-drop" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border:1.5px dashed var(--line); border-radius:12px; background:var(--bg); cursor:pointer;">' +
-      '<span style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">Выбрать файл</span>' +
+      '<span style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">' + (multi ? 'Выбрать файлы' : 'Выбрать файл') + '</span>' +
       '<span style="min-width:0; flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран') + '</span>' +
-      '<input data-item-file-input type="file" style="display:none;">' +
+      '<input data-item-file-input type="file"' + (multi ? ' multiple accept="image/*,.pdf,.zip,.doc,.docx"' : ' accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf"') + ' style="display:none;">' +
     '</label>';
     var err = state.itemUpload.error ? '<div style="margin-top:8px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.itemUpload.error) + '</div>' : '';
     var loading = state.itemUpload.loading;
+    var aiNote = type === 'achievement' ? '<div style="margin-top:8px; font-size:11.5px; color:var(--muted); line-height:1.4;">Файл проверяется ИИ на релевантность — спам и нечитаемые файлы отклоняются с уведомлением.</div>' : '';
 
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:440px; width:100%; max-height:86vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + (isEdit ? 'Изменить' : 'Добавить') + ': ' + titles[type] + '</h3>' +
         '<button data-action="closeItemModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
       fields +
-      '<label style="display:block; margin-top:4px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Прикрепить файл <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' + picker + '</label>' +
+      '<label style="display:block; margin-top:4px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + (multi ? 'Прикрепить файлы и фото' : 'Прикрепить файл') + ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' + picker + aiNote + '</label>' +
       err +
       '<button data-action="saveItemModal"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Загрузка…' : (isEdit ? 'Сохранить' : 'Добавить')) + '</button>' +
       '<button data-action="closeItemModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
@@ -1435,7 +1683,59 @@
     var spec = state.studentProfile && state.studentProfile.specialty;
     return (window.AI_TEST_BANK && spec) ? window.AI_TEST_BANK[spec] : null;
   }
+  // Действующий банк вопросов: сгенерированный ИИ (если получен), иначе статическая заглушка.
+  function activeTestBank() { return state.dynamicBank || testBankFor(); }
+  // Фоновая попытка получить свежие, неповторяющиеся вопросы через generate-test.
+  // При отсутствии backend/ошибке — тихо остаёмся на статическом банке (никаких сообщений об ошибке).
+  function tryGenerateAiTest() {
+    if (!supabase || !state.session) return;
+    var sp = state.studentProfile;
+    if (!sp) return;
+    var specs = (sp.specialties && sp.specialties.length) ? sp.specialties : (sp.specialty ? [sp.specialty] : []);
+    if (!specs.length) return;
+    setState({ testGenLoading: true });
+    fetch(GENERATE_TEST_FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.session.access_token },
+      body: JSON.stringify({ specialties: specs, seenQuestions: (sp.aiTestSeenQuestions || []).slice(-60) })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.body && res.body.ok && res.body.bank) setState({ dynamicBank: res.body.bank, testGenLoading: false });
+        else setState({ testGenLoading: false });
+      }).catch(function () { setState({ testGenLoading: false }); });
+  }
   function fmtTime(sec) { var m = Math.floor(sec / 60), s = sec % 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
+  // ---- Анти-чит во время ИИ-теста: fullscreen + детект переключения окна/вкладки ----
+  // Полная блокировка скриншотов технически невозможна из браузера — это реалистичный набор
+  // сигналов (выход из fullscreen, потеря фокуса, скрытие вкладки), которые фиксируются как
+  // подозрительная активность и сохраняются вместе с результатом теста.
+  function flagSuspiciousActivity() {
+    state.testFlags = (state.testFlags || 0) + 1;
+    setState({ testFullscreenWarn: true });
+    setTimeout(function () { setState({ testFullscreenWarn: false }); }, 4000);
+  }
+  function onTestVisibilityChange() { if (document.hidden && state.testView === 'running') flagSuspiciousActivity(); }
+  function onTestBlur() { if (state.testView === 'running') flagSuspiciousActivity(); }
+  function onTestFullscreenChange() { if (state.testView === 'running' && !document.fullscreenElement) flagSuspiciousActivity(); }
+  function attachAntiCheat() {
+    document.addEventListener('visibilitychange', onTestVisibilityChange);
+    window.addEventListener('blur', onTestBlur);
+    document.addEventListener('fullscreenchange', onTestFullscreenChange);
+  }
+  function detachAntiCheat() {
+    document.removeEventListener('visibilitychange', onTestVisibilityChange);
+    window.removeEventListener('blur', onTestBlur);
+    document.removeEventListener('fullscreenchange', onTestFullscreenChange);
+  }
+  function enterTestFullscreen() {
+    try {
+      var el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+    } catch (e) {}
+  }
+  function exitTestFullscreen() {
+    try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {}); } catch (e) {}
+  }
   function testTick() {
     var left = Math.max(0, Math.round((testEndTime - Date.now()) / 1000));
     var el = document.getElementById('test-timer');
@@ -1457,10 +1757,58 @@
   }
   function levelColor(level) { return { 'Продвинутый': '#16a34a', 'Уверенный': '#b26b12', 'Базовый': '#5b616e' }[level] || 'var(--muted)'; }
 
+  // Детальная карточка навыка: описание, уверенность, сертификат, связанные работы.
+  function skillDetailModalHtml() {
+    var idx = state.skillDetail;
+    if (idx == null) return '';
+    var sp = state.studentProfile || {};
+    var sk = (sp.hardSkills || [])[idx];
+    if (!sk) return '';
+    var name = typeof sk === 'string' ? sk : sk.name;
+    var conf = typeof sk === 'object' ? sk.confidence : null;
+    var desc = typeof sk === 'object' ? sk.description : '';
+    var file = typeof sk === 'object' ? sk.file : null;
+    var relNames = (typeof sk === 'object' && sk.relatedProjects) || [];
+    var relProjects = (sp.projects || []).filter(function (p) { return relNames.indexOf(p.name) !== -1; });
+    var filePreview = '';
+    if (file) {
+      filePreview = isImageFile(file)
+        ? '<img src="' + esc(file.url) + '" style="width:100%; border-radius:10px; margin-top:14px; max-height:280px; object-fit:contain; background:var(--bg);">'
+        : '<iframe src="' + esc(file.url) + '" style="width:100%; height:320px; border:1px solid var(--line); border-radius:10px; margin-top:14px;"></iframe>';
+    }
+    var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:480px; width:100%; max-height:86vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + esc(name) + '</h3>' +
+        '<button data-action="closeSkillDetail" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      (typeof conf === 'number' ? '<div style="margin-top:16px;"><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;"><span style="font-size:13px; color:var(--muted);">Уверенность</span><span style="font-weight:700; color:' + confidenceColor(conf) + ';">' + conf + '/10</span></div><div style="height:8px; border-radius:999px; background:var(--bg); overflow:hidden;"><div style="width:' + (conf * 10) + '%; height:100%; background:' + confidenceColor(conf) + ';"></div></div></div>' : '') +
+      (desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:14px 0 0;">' + esc(desc) + '</p>' : '') +
+      filePreview +
+      (relProjects.length ? '<div style="margin-top:18px;"><div style="font-size:13px; font-weight:600; margin-bottom:8px;">Работы с этим навыком</div>' + relProjects.map(function (p) { return '<div style="padding:9px 0; border-top:1px solid var(--line); font-size:13.5px;">' + esc(p.name) + '</div>'; }).join('') + '</div>' : '') +
+      '<button data-action="openItemModal" data-item-type="skill" data-item-index="' + idx + '" style="margin-top:20px; width:100%; ' + S.primary.replace('padding:15px', 'padding:12px') + '">Изменить</button>' +
+    '</div>';
+    return '<div data-action="closeSkillDetail" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
+      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+  }
+
+  // Просмотр фото/файла на месте (свой предпросмотр, без ухода с платформы).
+  function mediaPreviewHtml() {
+    var mp = state.mediaPreview;
+    if (!mp) return '';
+    var body = mp.isImage
+      ? '<img src="' + esc(mp.url) + '" style="max-width:100%; max-height:80vh; border-radius:10px; display:block;">'
+      : '<iframe src="' + esc(mp.url) + '" style="width:80vw; max-width:800px; height:80vh; border:none; border-radius:10px; background:#fff;"></iframe>';
+    return '<div data-action="closeMediaPreview" style="position:fixed; inset:0; z-index:90; background:rgba(18,20,26,0.75);"></div>' +
+      '<div style="position:fixed; inset:0; z-index:91; display:flex; align-items:center; justify-content:center; padding:24px; pointer-events:none;">' +
+        '<div style="position:relative; pointer-events:auto;">' + body +
+          '<button data-action="closeMediaPreview" style="position:absolute; top:-14px; right:-14px; width:32px; height:32px; border-radius:50%; background:#fff; border:none; color:var(--ink); font-size:18px; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,0.3);">×</button>' +
+        '</div>' +
+      '</div>';
+  }
+
   function testModalHtml() {
     if (!state.testView) return '';
     var spec = (state.studentProfile && state.studentProfile.specialty) || '';
-    var bank = testBankFor();
+    var bank = activeTestBank();
+    var aiGenerated = !!state.dynamicBank;
     var dialogStyle = 'pointer-events:auto; background:#fff; border-radius:18px; width:100%; max-width:760px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 30px 70px -20px rgba(0,0,0,0.5); overflow:hidden;';
     var inner;
 
@@ -1469,10 +1817,13 @@
       inner = '<div style="padding:30px 32px; overflow-y:auto;">' +
         '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:24px; letter-spacing:-0.01em; margin:0;">ИИ-тест навыков</h2><button data-action="closeTest" style="background:none; border:none; font-size:26px; line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
         '<p style="color:var(--muted); font-size:15px; margin:8px 0 18px;">Специальность: <strong style="color:var(--ink);">' + esc(spec) + '</strong></p>' +
+        (state.testGenLoading ? '<div style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); margin-bottom:14px;">Готовим свежие вопросы…</div>'
+          : aiGenerated ? '<div style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:4px 10px; border-radius:999px; margin-bottom:14px;">Вопросы сгенерированы ИИ специально для вас</div>' : '') +
         '<div style="background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:18px 20px;"><div style="font-weight:700; font-size:14px; margin-bottom:12px;">Как проходит тест</div><ul style="margin:0; padding-left:20px; font-size:14px; color:var(--ink);">' +
           li('<strong>8 вопросов с вариантами</strong> ответа + <strong>1 открытый</strong> практический вопрос.') +
           li('На весь тест — <strong>' + TEST_MIN + ' минут</strong>, идёт обратный отсчёт. По истечении тест завершится автоматически.') +
           li('<strong>Одна попытка.</strong> Если закрыть окно — тест сбросится и его нужно будет начать заново.') +
+          li('Тест проходит в полноэкранном режиме. Переключение окна или выход из полноэкранного режима фиксируется как подозрительная активность.') +
           li('По результату вы получите <strong>уровень</strong> (Базовый / Уверенный / Продвинутый).') +
         '</ul></div>' +
         (bank ? '' : '<div style="margin-top:16px; padding:12px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:13px; color:#b3261e;">Для этой специальности пока нет вопросов.</div>') +
@@ -1487,13 +1838,17 @@
       }).join('');
       var openBlock = '<div style="margin-bottom:8px;"><div style="font-weight:600; font-size:15px; margin-bottom:6px;">9. ' + esc(bank.open) + '</div>' +
         '<textarea id="test-open" rows="5" placeholder="Ваш ответ…" style="width:100%; font-size:14px; padding:12px; border:1px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;"></textarea></div>';
+      var warnBanner = state.testFullscreenWarn ? '<div style="padding:10px 24px; background:color-mix(in srgb, #b3261e 8%, #fff); border-bottom:1px solid color-mix(in srgb, #b3261e 22%, #fff); font-size:12.5px; color:#b3261e; font-weight:600; flex-shrink:0;">Обнаружена подозрительная активность (переключение окна/выход из полноэкранного режима) — это зафиксировано вместе с результатом.</div>' : '';
       inner =
+        '<div oncontextmenu="return false" oncopy="return false" onpaste="return false" style="display:flex; flex-direction:column; min-height:0; flex:1; user-select:none;">' +
         '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 24px; border-bottom:1px solid var(--line); flex-shrink:0;">' +
           '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:17px;">ИИ-тест · ' + esc(spec) + '</div></div>' +
           '<div style="display:flex; align-items:center; gap:14px;"><span style="font-size:13px; color:var(--muted);">Осталось</span><span id="test-timer" style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:20px; min-width:64px; text-align:center;">' + fmtTime(TEST_MIN * 60) + '</span><button data-action="closeTest" title="Закрыть (тест сбросится)" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
         '</div>' +
+        warnBanner +
         '<div style="padding:22px 24px; overflow-y:auto;">' + q + openBlock + '</div>' +
-        '<div style="padding:16px 24px; border-top:1px solid var(--line); flex-shrink:0;"><button data-action="submitTest" style="width:100%; ' + S.primary + '">Завершить тест</button></div>';
+        '<div style="padding:16px 24px; border-top:1px solid var(--line); flex-shrink:0;"><button data-action="submitTest" style="width:100%; ' + S.primary + '">Завершить тест</button></div>' +
+        '</div>';
     } else if (state.testView === 'result' && state.testResult) {
       var r = state.testResult;
       inner = '<div style="padding:34px 32px; overflow-y:auto; text-align:center;">' +
@@ -1503,6 +1858,7 @@
         '<div style="display:inline-flex; flex-direction:column; gap:6px; background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:18px 30px; margin-bottom:20px;">' +
           '<span style="font-size:13px; color:var(--muted);">Ваш уровень</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:26px; color:' + levelColor(r.level) + ';">' + r.level + '</span>' +
           '<span style="font-size:13px; color:var(--muted);">Верных ответов: ' + r.correct + ' из ' + r.total + '</span></div>' +
+        (r.flags ? '<div style="font-size:12.5px; color:#b3261e; font-weight:600; margin-bottom:16px;">Зафиксировано подозрительных действий: ' + r.flags + '</div>' : '') +
         '<p style="font-size:13px; color:var(--muted); line-height:1.5; max-width:420px; margin:0 auto 22px;">Открытый ответ в полной версии оценивается ИИ (Claude) по ясности, логике и релевантности. Сейчас засчитаны вопросы с вариантами.</p>' +
         '<button data-action="closeTest" style="' + S.primary.replace('padding:15px', 'padding:13px 30px') + '">Готово</button>' +
       '</div>';
@@ -1515,7 +1871,7 @@
   }
 
   function render() {
-    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + testModalHtml();
+    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + mediaPreviewHtml() + testModalHtml();
     setupReveal();
     if (state.view === 'home') startStats();
   }
@@ -1552,10 +1908,10 @@
         setState({ docUpload: { loading: false, error: '', fileName: pendingDocFile ? pendingDocFile.name : '' } });
         return;
       }
-      // выбор файла в модалке добавления/редактирования элемента профиля
+      // выбор файла(ов) в модалке добавления/редактирования элемента профиля
       if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-item-file-input')) {
-        pendingItemFile = (e.target.files && e.target.files[0]) || null;
-        setState({ itemUpload: { loading: false, error: '', fileName: pendingItemFile ? pendingItemFile.name : '' } });
+        pendingItemFiles = Array.prototype.slice.call((e.target.files || []));
+        setState({ itemUpload: { loading: false, error: '', fileName: pendingItemFiles.map(function (f) { return f.name; }).join(', ') } });
         return;
       }
       // выбор фото профиля — загружается сразу
