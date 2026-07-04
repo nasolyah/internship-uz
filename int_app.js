@@ -56,6 +56,8 @@
     fieldEditConfirm: null,    // null | { field, value, warning }
     fieldEditError: '',
     skillDetail: null,         // null | index — просмотр детальной карточки навыка
+    projectDetail: null,       // null | index — просмотр детальной карточки проекта
+    projectGalleryIndex: 0,    // текущее фото в галерее проекта
     mediaPreview: null,        // null | { url, name, isImage } — просмотр фото/файла на месте
     testFlags: 0,              // счётчик подозрительной активности во время ИИ-теста (переключение окна/выход из fullscreen)
     testFullscreenWarn: false,
@@ -144,6 +146,8 @@
   function collectionKey(type) {
     return { skill: 'hardSkills', language: 'languages', project: 'projects', achievement: 'achievements' }[type];
   }
+  // Локальный id для элементов динамических списков внутри модалки (разделы, детали, файловые слоты).
+  function newLocalId(prefix) { return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); }
   // Типы элементов, где допустимо несколько файлов (проекты) — остальные хранят один файл.
   function isMultiFileType(type) { return type === 'project'; }
   function isImageFile(file) {
@@ -261,7 +265,9 @@
     ghost: 'font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:14px; border-radius:11px; cursor:pointer;',
     back: 'font-size:14px; color:var(--muted); cursor:pointer; font-weight:500;',
     field: 'width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);',
-    iconBtn: 'width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; flex-shrink:0; padding:0;'
+    iconBtn: 'width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; flex-shrink:0; padding:0;',
+    chipIcon: 'width:20px; height:20px; border-radius:6px; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;',
+    wrap: 'overflow-wrap:anywhere; word-break:break-word;'
   };
 
   function inputField(label, field, ph, hint) {
@@ -638,7 +644,7 @@
     var row = function (label, right) {
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid var(--line);"><span style="font-size:13.5px; color:var(--muted);">' + label + '</span>' + right + '</div>';
     };
-    var val = function (v) { return '<span style="font-size:13.5px; font-weight:600; text-align:right; word-break:break-word;">' + esc(v || '—') + '</span>'; };
+    var val = function (v) { return '<span style="font-size:13.5px; font-weight:600; text-align:right; ' + S.wrap + '">' + esc(v || '—') + '</span>'; };
     var editBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + S.iconBtn + '">' + icon('pencil', 13) + '</button>'; };
     var removeBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + S.iconBtn + ' color:#b3261e;">' + icon('x', 13) + '</button>'; };
     var addBtn = function (type, label) { return '<button data-action="openItemModal" data-item-type="' + type + '" style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:9px; cursor:pointer;">' + icon('plus', 13) + label + '</button>'; };
@@ -749,7 +755,7 @@
       var conf = typeof sk === 'object' ? sk.confidence : null;
       return '<div style="border:1px solid var(--line); border-radius:12px; padding:13px 14px; cursor:pointer; position:relative;" data-action="openSkillDetail" data-item-index="' + i + '">' +
         '<div style="position:absolute; top:9px; right:9px; display:flex; gap:4px;">' + chipEditBtn('skill', i) + chipRemoveBtn('skill', i) + '</div>' +
-        '<div style="display:flex; align-items:center; gap:8px; padding-right:50px;"><span style="font-weight:600; font-size:14px;">' + esc(name) + '</span>' +
+        '<div style="display:flex; align-items:center; gap:8px; padding-right:50px; min-width:0;"><span style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(name) + '</span>' +
         (typeof conf === 'number' ? '<span style="font-size:11px; font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div>' +
         fileTile(file) + '</div>';
     };
@@ -760,7 +766,7 @@
     var languages = (sp.languages || []);
     var langRow = function (l, i) {
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--line);">' +
-        '<span style="font-size:13.5px; display:flex; align-items:center; gap:8px;"><strong style="font-weight:600;">' + esc(l.name) + '</strong>' + (l.level ? '<span style="color:var(--muted);">— ' + esc(l.level) + '</span>' : '') + fileBadge(l.file) + '</span>' +
+        '<span style="font-size:13.5px; display:flex; align-items:center; gap:8px; min-width:0; ' + S.wrap + '"><strong style="font-weight:600;">' + esc(l.name) + '</strong>' + (l.level ? '<span style="color:var(--muted);">— ' + esc(l.level) + '</span>' : '') + fileBadge(l.file) + '</span>' +
         '<span style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' + editBtn('language', i) + removeBtn('language', i) + '</span></div>';
     };
     var skillMatrix = '<div style="' + card + '"><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;"><div style="' + cardTitle + '">Матрица навыков</div></div>' +
@@ -771,30 +777,35 @@
       (languages.length ? languages.map(langRow).join('') : '<div style="font-size:13px; color:var(--muted); padding:10px 0 0;">Языки ещё не указаны</div>') +
       '</div>';
 
-    // ---- Проекты — свободная форма: любые специальности, несколько файлов/фото ----
+    // ---- Проекты — свободная форма: любые специальности, «продуктовая» карточка с обложкой ----
     var projects = (sp.projects || []);
     var projectCard = function (p, i) {
-      var links = (p.links || []).filter(function (l) { return l.url; }).map(function (l) {
-        return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent); margin-right:14px;">' + esc(l.label || 'Ссылка') + ' ↗</a>';
-      }).join('');
       var files = p.files || [];
-      var gallery = files.length ? '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">' + files.map(function (fl) {
-        var isImg = isImageFile(fl);
-        if (isImg) return '<img src="' + esc(fl.url) + '" data-action="openMediaPreview" data-preview-url="' + esc(fl.url) + '" data-preview-name="' + esc(fl.name) + '" data-preview-image="1" style="width:56px; height:56px; border-radius:8px; object-fit:cover; cursor:pointer; border:1px solid var(--line);">';
-        return '<div data-action="openMediaPreview" data-preview-url="' + esc(fl.url) + '" data-preview-name="' + esc(fl.name) + '" data-preview-image="0" title="' + esc(fl.name) + '" style="width:56px; height:56px; border-radius:8px; background:var(--bg); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); cursor:pointer;">' + icon('file', 20) + '</div>';
-      }).join('') + '</div>' : '';
-      var specTag = p.specialty ? '<span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px; margin-top:8px; display:inline-block;">' + esc(p.specialty) + '</span>' : '';
-      return '<div style="border:1px solid var(--line); border-radius:14px; padding:18px; position:relative;">' +
-        '<div style="position:absolute; top:12px; right:12px; display:flex; gap:6px;">' + editBtn('project', i) + removeBtn('project', i) + '</div>' +
-        '<div style="font-weight:600; font-size:15.5px; padding-right:56px;">' + esc(p.name) + '</div>' +
-        specTag +
-        (p.desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.5; margin:10px 0 0;">' + esc(p.desc) + '</p>' : '') +
-        (links ? '<div style="margin-top:12px;">' + links + '</div>' : '') +
-        gallery + '</div>';
+      var cover = files[0];
+      var coverHtml = cover
+        ? (isImageFile(cover)
+            ? '<img src="' + esc(cover.url) + '" style="width:100%; height:140px; object-fit:cover; border-radius:13px 13px 0 0; display:block;">'
+            : '<div style="width:100%; height:140px; background:var(--bg); border-radius:13px 13px 0 0; display:flex; align-items:center; justify-content:center; color:var(--muted);">' + icon('file', 30) + '</div>')
+        : '';
+      var specTag = p.specialty ? '<span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + esc(p.specialty) + '</span>' : '';
+      var tagChips = (p.tags || []).slice(0, 3).map(function (t) { return '<span style="font-size:10.5px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:2px 7px; border-radius:999px;">#' + esc(t) + '</span>'; }).join('');
+      var photoCount = files.length > 1 ? '<div style="margin-top:8px; font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px;">' + icon('image', 12) + files.length + ' фото</div>' : '';
+      return '<div style="border:1px solid var(--line); border-radius:14px; overflow:hidden; cursor:pointer;" data-action="openProjectDetail" data-item-index="' + i + '">' +
+        coverHtml +
+        '<div style="padding:14px 16px; position:relative;">' +
+          '<div style="position:absolute; top:12px; right:12px; display:flex; gap:6px;">' + editBtn('project', i) + removeBtn('project', i) + '</div>' +
+          '<div style="font-weight:600; font-size:15px; padding-right:56px; ' + S.wrap + '">' + esc(p.name) + '</div>' +
+          (specTag ? '<div style="margin-top:6px;">' + specTag + '</div>' : '') +
+          (p.desc ? '<p style="font-size:13px; color:var(--muted); line-height:1.5; margin:8px 0 0; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
+          (tagChips ? '<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;">' + tagChips + '</div>' : '') +
+          photoCount +
+        '</div></div>';
     };
-    var addProjectCard = '<button data-action="openItemModal" data-item-type="project" style="border:1.5px dashed var(--line); border-radius:14px; padding:18px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted); min-height:96px;"><span style="font-size:20px;">+</span><span style="font-size:13px; font-weight:600;">Добавить проект</span></button>';
-    var projectsSection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">Проекты <span style="color:var(--muted); font-weight:500; font-size:13px;">(любые специальности — код, дизайн, маркетинг…)</span></div>' +
-      '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px;">' + projects.map(projectCard).join('') + addProjectCard + '</div></div>';
+    var addProjectCard = '<button data-action="openItemModal" data-item-type="project" style="border:1.5px dashed var(--line); border-radius:14px; padding:18px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted); min-height:180px;"><span style="font-size:20px;">+</span><span style="font-size:13px; font-weight:600;">Добавить проект</span></button>';
+    var projectsHint = projects.length ? '' : '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 16px;">Пет-проект, учебное задание, работа на хакатоне или курсовая — подойдёт всё, что вы реально сделали. Не обязательно быть «фрилансером»: даже один разобранный по шагам пример уже показывает, как вы работаете.</p>';
+    var projectsSection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Проекты <span style="color:var(--muted); font-weight:500; font-size:13px;">(учебные, пет-проекты, хакатоны — всё считается)</span></div>' +
+      projectsHint +
+      '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-top:' + (projects.length ? '14px' : '0') + ';">' + projects.map(projectCard).join('') + addProjectCard + '</div></div>';
 
     // ---- История на платформе (завершённые стажировки) ----
     var history = (sp.platformHistory || []);
@@ -819,9 +830,9 @@
       return '<div style="scroll-snap-align:start; flex-shrink:0; width:230px; border:1px solid var(--line); border-radius:14px; padding:16px; position:relative;">' +
         '<div style="position:absolute; top:10px; right:10px; display:flex; gap:6px;">' + editBtn('achievement', i) + removeBtn('achievement', i) + '</div>' +
         '<div style="width:34px; height:34px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:12px;">★</div>' +
-        '<div style="font-weight:600; font-size:14px; padding-right:40px;">' + esc(a.title) + '</div>' +
-        '<div style="font-size:12px; color:var(--muted); margin-top:4px;">' + esc(a.issuer || '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
-        (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; font-size:12.5px; font-weight:600; color:var(--accent);">📎 ' + esc(fileLabel || 'Открыть') + ' ↗</a>' : '') + '</div>';
+        '<div style="font-weight:600; font-size:14px; padding-right:40px; ' + S.wrap + '">' + esc(a.title) + '</div>' +
+        '<div style="font-size:12px; color:var(--muted); margin-top:4px; ' + S.wrap + '">' + esc(a.issuer || '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
+        (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; font-size:12.5px; font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' + esc(fileLabel || 'Открыть') + ' ↗</a>' : '') + '</div>';
     };
     var addAchCard = '<button data-action="openItemModal" data-item-type="achievement" style="scroll-snap-align:start; flex-shrink:0; width:230px; border:1.5px dashed var(--line); border-radius:14px; padding:16px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted);"><span style="font-size:20px;">+</span><span style="font-size:13px; font-weight:600;">Добавить сертификат</span></button>';
     var documents = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:8px;">Верифицированные документы и достижения</div>' +
@@ -936,7 +947,6 @@
   /* ---------- actions ---------- */
   var root;
   var pendingDocFile = null;  // выбранный в модалке файл (хранится вне DOM, чтобы переживать перерисовку)
-  var pendingItemFiles = []; // выбранные файлы в модалке добавления/редактирования элемента профиля (проекты — несколько)
   function setState(patch) { for (var k in patch) state[k] = patch[k]; render(); }
   function top() { try { window.scrollTo(0, 0); } catch (e) {} }
 
@@ -1132,21 +1142,26 @@
       var sp = state.studentProfile;
       var list = sp ? (sp[collectionKey(type)] || []) : [];
       var existing = index != null ? list[index] : null;
-      pendingItemFiles = [];
       var form = {};
       if (existing) { for (var k in existing) if (k !== 'file' && k !== 'files') form[k] = existing[k]; }
       if (type === 'skill' && existing) form.name = typeof existing === 'string' ? existing : existing.name;
-      if (type === 'project' && existing) {
-        var links = existing.links || [];
+      if (type === 'project') {
+        var links = (existing && existing.links) || [];
         form.link1Label = links[0] ? links[0].label : ''; form.link1Url = links[0] ? links[0].url : '';
         form.link2Label = links[1] ? links[1].label : ''; form.link2Url = links[1] ? links[1].url : '';
+        form.sections = existing && existing.sections ? existing.sections.map(function (s) { return { id: s.id || newLocalId('sec'), title: s.title || '', text: s.text || '' }; }) : [];
+        form.details = existing && existing.details ? existing.details.map(function (d) { return { id: d.id || newLocalId('det'), label: d.label || '', value: d.value || '' }; }) : [];
+        form.tags = existing && existing.tags ? existing.tags.slice() : [];
       }
+      // слоты файлов: уже загруженные (kind:'existing') + новые, ещё не загруженные (kind:'staged')
+      var slots = [];
+      if (existing && existing.file) slots.push({ id: newLocalId('slot'), kind: 'existing', name: existing.file.name, url: existing.file.url, path: existing.file.path, type: existing.file.type, size: existing.file.size });
+      if (existing && existing.files) existing.files.forEach(function (fl) { slots.push({ id: newLocalId('slot'), kind: 'existing', name: fl.name, url: fl.url, path: fl.path, type: fl.type, size: fl.size }); });
+      form.fileSlots = slots;
       state.itemForm = form;
-      var fname = existing && existing.file ? existing.file.name : (existing && existing.files ? existing.files.map(function (x) { return x.name; }).join(', ') : '');
-      setState({ itemModal: { type: type, index: index }, skillDetail: null, itemUpload: { loading: false, error: '', fileName: fname } });
+      setState({ itemModal: { type: type, index: index }, skillDetail: null, projectDetail: null, itemUpload: { loading: false, error: '', fileName: '' } });
     },
     closeItemModal: function () {
-      pendingItemFiles = [];
       setState({ itemModal: null, itemForm: {}, itemUpload: { loading: false, error: '', fileName: '' } });
     },
     toggleItemFormArrayValue: function (t) {
@@ -1157,6 +1172,69 @@
       var idx = arr.indexOf(val);
       if (idx === -1) arr.push(val); else arr.splice(idx, 1);
       state.itemForm[field] = arr;
+      setState({});
+    },
+    // Файлы/фото проекта (и вложение для навыка/языка/достижения) — добавляются кликом или перетаскиванием.
+    addFileSlots: function (files) {
+      var im = state.itemModal;
+      if (!im) return;
+      var multi = isMultiFileType(im.type);
+      var arr = Array.prototype.slice.call(files || []);
+      if (!multi) arr = arr.slice(0, 1);
+      if (!arr.length) return;
+      state.itemForm = state.itemForm || {};
+      var slots = multi ? (state.itemForm.fileSlots || []).slice() : [];
+      arr.forEach(function (f) {
+        var isImg = isImageFile(f);
+        slots.push({ id: newLocalId('slot'), kind: 'staged', name: f.name, size: f.size, type: f.type, fileObj: f, previewUrl: isImg ? URL.createObjectURL(f) : '' });
+      });
+      state.itemForm.fileSlots = slots;
+      setState({});
+    },
+    removeFileSlot: function (t) {
+      var id = t.getAttribute('data-slot-id');
+      state.itemForm = state.itemForm || {};
+      state.itemForm.fileSlots = (state.itemForm.fileSlots || []).filter(function (s) { return s.id !== id; });
+      setState({});
+    },
+    addProjectSection: function () {
+      state.itemForm = state.itemForm || {};
+      var list = (state.itemForm.sections || []).slice();
+      list.push({ id: newLocalId('sec'), title: '', text: '' });
+      state.itemForm.sections = list;
+      setState({});
+    },
+    removeProjectSection: function (t) {
+      var id = t.getAttribute('data-sec-id');
+      state.itemForm.sections = (state.itemForm.sections || []).filter(function (s) { return s.id !== id; });
+      setState({});
+    },
+    addProjectDetail: function () {
+      state.itemForm = state.itemForm || {};
+      var list = (state.itemForm.details || []).slice();
+      list.push({ id: newLocalId('det'), label: '', value: '' });
+      state.itemForm.details = list;
+      setState({});
+    },
+    removeProjectDetail: function (t) {
+      var id = t.getAttribute('data-det-id');
+      state.itemForm.details = (state.itemForm.details || []).filter(function (d) { return d.id !== id; });
+      setState({});
+    },
+    addProjectTag: function () {
+      var el = document.getElementById('proj-tag-input');
+      var v = el ? el.value.trim().replace(/^#/, '') : '';
+      if (!v) return;
+      state.itemForm = state.itemForm || {};
+      var tags = (state.itemForm.tags || []).slice();
+      if (tags.indexOf(v) === -1) tags.push(v.slice(0, 24));
+      state.itemForm.tags = tags;
+      if (el) el.value = '';
+      setState({});
+    },
+    removeProjectTag: function (t) {
+      var tag = t.getAttribute('data-tag');
+      state.itemForm.tags = (state.itemForm.tags || []).filter(function (x) { return x !== tag; });
       setState({});
     },
     saveItemModal: function () {
@@ -1177,7 +1255,10 @@
         var links = [];
         if ((f.link1Url || '').trim()) links.push({ label: (f.link1Label || '').trim().slice(0, 30) || 'Ссылка', url: f.link1Url.trim().slice(0, 300) });
         if ((f.link2Url || '').trim()) links.push({ label: (f.link2Label || '').trim().slice(0, 30) || 'Ссылка', url: f.link2Url.trim().slice(0, 300) });
-        item = { name: pname.slice(0, 80), specialty: (f.specialty || '').trim(), desc: (f.desc || '').trim().slice(0, 280), links: links };
+        var sections = (f.sections || []).filter(function (s) { return (s.title || '').trim() || (s.text || '').trim(); }).map(function (s) { return { title: (s.title || '').trim().slice(0, 80), text: (s.text || '').trim().slice(0, 1000) }; });
+        var details = (f.details || []).filter(function (d) { return (d.label || '').trim() || (d.value || '').trim(); }).map(function (d) { return { label: (d.label || '').trim().slice(0, 40), value: (d.value || '').trim().slice(0, 80) }; });
+        var tags = (f.tags || []).slice(0, 15);
+        item = { name: pname.slice(0, 80), specialty: (f.specialty || '').trim(), desc: (f.desc || '').trim().slice(0, 280), links: links, sections: sections, details: details, tags: tags };
       } else if (type === 'achievement') {
         var title = (f.title || '').trim();
         if (!title) { setState({ itemUpload: { loading: false, error: 'Укажите название', fileName: state.itemUpload.fileName } }); return; }
@@ -1185,10 +1266,20 @@
       } else return;
 
       var key = collectionKey(type);
-      var existingList = state.studentProfile[key] || [];
-      var prevItem = im.index != null ? existingList[im.index] : null;
-      if (prevItem && prevItem.file) item.file = prevItem.file;
-      if (prevItem && prevItem.files) item.files = prevItem.files;
+      var slots = (f.fileSlots || []).slice();
+      var staged = [];
+      slots.forEach(function (s, i) { if (s.kind === 'staged') staged.push({ index: i, file: s.fileObj }); });
+
+      function finalizeFiles(resolvedMetas) {
+        resolvedMetas.forEach(function (meta, k) {
+          var slotIdx = staged[k].index;
+          slots[slotIdx] = { id: slots[slotIdx].id, kind: 'existing', name: meta.name, url: meta.url, path: meta.path, type: meta.type, size: meta.size };
+        });
+        var metas = slots.map(function (s) { return { name: s.name, url: s.url, path: s.path, type: s.type, size: s.size }; });
+        if (isMultiFileType(type)) item.files = metas;
+        else if (metas.length) item.file = metas[0];
+        commit();
+      }
 
       function commit() {
         var list = (state.studentProfile[key] || []).slice();
@@ -1198,14 +1289,14 @@
         if (supabase && currentUserId()) saveProfileToDb();
       }
 
-      var files = pendingItemFiles;
-      if (files.length && supabase && currentUserId()) {
-        for (var i = 0; i < files.length; i++) {
-          if (files[i].size > 10 * 1024 * 1024) { setState({ itemUpload: { loading: false, error: 'Файл «' + files[i].name + '» больше 10 МБ', fileName: state.itemUpload.fileName } }); return; }
+      if (staged.length && supabase && currentUserId()) {
+        for (var i = 0; i < staged.length; i++) {
+          if (staged[i].file.size > 10 * 1024 * 1024) { setState({ itemUpload: { loading: false, error: 'Файл «' + staged[i].file.name + '» больше 10 МБ', fileName: state.itemUpload.fileName } }); return; }
         }
         var userId = currentUserId();
         setState({ itemUpload: { loading: true, error: '', fileName: state.itemUpload.fileName } });
-        Promise.all(files.map(function (file) {
+        Promise.all(staged.map(function (entry) {
+          var file = entry.file;
           var ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
           var path = userId + '/extra/' + type + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
           return supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' }).then(function (up) {
@@ -1214,23 +1305,16 @@
               return { name: file.name, path: path, url: (su && su.data && su.data.signedUrl) || '', type: file.type || '', size: file.size || 0 };
             });
           });
-        })).then(function (metas) {
-          if (isMultiFileType(type)) item.files = (item.files || []).concat(metas);
-          else item.file = metas[0];
-          pendingItemFiles = [];
-          commit();
-        }).catch(function (err) {
+        })).then(finalizeFiles).catch(function (err) {
           setState({ itemUpload: { loading: false, error: 'Ошибка загрузки: ' + (err && err.message ? err.message : err), fileName: state.itemUpload.fileName } });
         });
         return;
       }
-      if (files.length) {
-        var localMetas = files.map(function (file) { return { name: file.name, path: '', url: '', type: file.type || '', size: file.size || 0 }; });
-        if (isMultiFileType(type)) item.files = (item.files || []).concat(localMetas);
-        else item.file = localMetas[0];
-        pendingItemFiles = [];
+      if (staged.length) {
+        finalizeFiles(staged.map(function (entry) { return { name: entry.file.name, url: entry.file ? (slots[entry.index].previewUrl || '') : '', path: '', type: entry.file.type || '', size: entry.file.size || 0 }; }));
+        return;
       }
-      commit();
+      finalizeFiles([]);
     },
     removeItem: function (t) {
       if (!state.studentProfile) return;
@@ -1270,6 +1354,11 @@
     openReviews: function () { setState({ modal: 'reviews' }); },
     openSkillDetail: function (t) { setState({ skillDetail: Number(t.getAttribute('data-item-index')) }); },
     closeSkillDetail: function () { setState({ skillDetail: null }); },
+    openProjectDetail: function (t) { setState({ projectDetail: Number(t.getAttribute('data-item-index')), projectGalleryIndex: 0 }); },
+    closeProjectDetail: function () { setState({ projectDetail: null, projectGalleryIndex: 0 }); },
+    projectGalleryPrev: function () { setState({ projectGalleryIndex: Math.max(0, (state.projectGalleryIndex || 0) - 1) }); },
+    projectGalleryNext: function (t) { var max = Number(t.getAttribute('data-max')) || 0; setState({ projectGalleryIndex: Math.min(max, (state.projectGalleryIndex || 0) + 1) }); },
+    projectGalleryGoto: function (t) { setState({ projectGalleryIndex: Number(t.getAttribute('data-idx')) }); },
     openMediaPreview: function (t) {
       setState({ mediaPreview: { url: t.getAttribute('data-preview-url'), name: t.getAttribute('data-preview-name'), isImage: t.getAttribute('data-preview-image') === '1' } });
     },
@@ -1637,35 +1726,37 @@
       var specSelect = mySpecs.length
         ? '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Специальность проекта <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span><select data-item-field="specialty" style="' + S.field + '"><option value="">Без привязки</option>' + mySpecs.map(function (s) { return '<option value="' + esc(s) + '"' + (f.specialty === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>'
         : '';
-      fields = itemField('Название проекта', 'name', f.name, 'Название') +
-        specSelect +
-        itemTextarea('Коротко, что вы сделали', 'desc', f.desc, '1–2 предложения') +
-        itemField('Ссылка 1 — название', 'link1Label', f.link1Label, 'Например, GitHub, Behance, Портфолио', true) +
-        itemField('Ссылка 1 — URL', 'link1Url', f.link1Url, 'https://...', true) +
-        itemField('Ссылка 2 — название', 'link2Label', f.link2Label, 'Например, Демо, Кейс', true) +
-        itemField('Ссылка 2 — URL', 'link2Url', f.link2Url, 'https://...', true);
+      fields = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' +
+          '<div>' + itemField('Название проекта', 'name', f.name, 'Название') + specSelect + '</div>' +
+          '<div>' + itemTextarea('Коротко, что вы сделали', 'desc', f.desc, 'Короткая подпись под карточкой — 1–2 предложения') + '</div>' +
+        '</div>' +
+        '<div style="border-top:1px solid var(--line); margin:16px 0 14px; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Разделы (по желанию)</span><span style="display:block; font-size:12px; color:var(--muted); margin:-6px 0 10px;">Например: «Задача», «Что сделал(а)», «Что получилось», «Что узнал(а)».</span>' + sectionsEditorHtml(f.sections || []) + '</div>' +
+        '<div style="border-top:1px solid var(--line); margin:14px 0; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Детали проекта (по желанию)</span>' + detailsEditorHtml(f.details || []) + '</div>' +
+        '<div style="border-top:1px solid var(--line); margin:14px 0; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Хэштеги / маркеры</span>' + tagsEditorHtml(f.tags || []) + '</div>' +
+        '<div style="border-top:1px solid var(--line); margin:14px 0; padding-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:14px;">' +
+          itemField('Ссылка 1 — название', 'link1Label', f.link1Label, 'Например, GitHub, Behance, Портфолио', true) +
+          itemField('Ссылка 1 — URL', 'link1Url', f.link1Url, 'https://...', true) +
+          itemField('Ссылка 2 — название', 'link2Label', f.link2Label, 'Например, Демо, Кейс', true) +
+          itemField('Ссылка 2 — URL', 'link2Url', f.link2Url, 'https://...', true) +
+        '</div>';
     } else if (type === 'achievement') {
       fields = itemField('Название', 'title', f.title, 'Сертификат, олимпиада…') +
         itemField('Кем выдано', 'issuer', f.issuer, 'Организация', true) +
         itemField('Дата', 'date', f.date, 'Например, 2026', true);
     } else fields = '';
 
-    var fileName = state.itemUpload.fileName || '';
     var multi = isMultiFileType(type);
-    var picker = '<label class="file-drop" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border:1.5px dashed var(--line); border-radius:12px; background:var(--bg); cursor:pointer;">' +
-      '<span style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">' + (multi ? 'Выбрать файлы' : 'Выбрать файл') + '</span>' +
-      '<span style="min-width:0; flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран') + '</span>' +
-      '<input data-item-file-input type="file"' + (multi ? ' multiple accept="image/*,.pdf,.zip,.doc,.docx"' : ' accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf"') + ' style="display:none;">' +
-    '</label>';
+    var picker = filesDropzoneHtml(type, f.fileSlots || []);
     var err = state.itemUpload.error ? '<div style="margin-top:8px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.itemUpload.error) + '</div>' : '';
     var loading = state.itemUpload.loading;
     var aiNote = type === 'achievement' ? '<div style="margin-top:8px; font-size:11.5px; color:var(--muted); line-height:1.4;">Файл проверяется ИИ на релевантность — спам и нечитаемые файлы отклоняются с уведомлением.</div>' : '';
 
-    var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:440px; width:100%; max-height:86vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + (isEdit ? 'Изменить' : 'Добавить') + ': ' + titles[type] + '</h3>' +
+    var dialogWidth = type === 'project' ? '720px' : '440px';
+    var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:28px; max-width:' + dialogWidth + '; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + (isEdit ? 'Изменить' : 'Добавить') + ': ' + titles[type] + '</h3>' +
         '<button data-action="closeItemModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
       fields +
-      '<label style="display:block; margin-top:4px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + (multi ? 'Прикрепить файлы и фото' : 'Прикрепить файл') + ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' + picker + aiNote + '</label>' +
+      '<label style="display:block; margin-top:8px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + (multi ? 'Фото и файлы проекта' : 'Прикрепить файл') + ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' + picker + aiNote + '</label>' +
       err +
       '<button data-action="saveItemModal"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Загрузка…' : (isEdit ? 'Сохранить' : 'Добавить')) + '</button>' +
       '<button data-action="closeItemModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
@@ -1673,6 +1764,62 @@
 
     return '<div data-action="closeItemModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
       '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+  }
+  // Динамический список «разделов» проекта (заголовок + текст) внутри модалки.
+  function sectionsEditorHtml(sections) {
+    var rows = sections.map(function (s) {
+      return '<div style="border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:8px; position:relative;">' +
+        '<button type="button" data-action="removeProjectSection" data-sec-id="' + esc(s.id) + '" title="Удалить раздел" style="position:absolute; top:8px; right:8px; ' + S.chipIcon + ' color:#b3261e;">' + icon('x', 12) + '</button>' +
+        '<input data-item-array-field="sections" data-item-array-id="' + esc(s.id) + '" data-item-array-key="title" value="' + esc(s.title) + '" placeholder="Название раздела" style="' + S.field + ' margin-bottom:6px; font-weight:600; padding-right:32px;">' +
+        '<textarea data-item-array-field="sections" data-item-array-id="' + esc(s.id) + '" data-item-array-key="text" rows="2" placeholder="Подробности…" style="' + S.field + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(s.text) + '</textarea>' +
+      '</div>';
+    }).join('');
+    return rows + '<button type="button" data-action="addProjectSection" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px dashed var(--line); padding:8px 14px; border-radius:9px; cursor:pointer;">+ Добавить раздел</button>';
+  }
+  // Динамический список «деталей» проекта (метка + значение) — роль, срок, команда и т.п.
+  function detailsEditorHtml(details) {
+    var rows = details.map(function (d) {
+      return '<div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">' +
+        '<input data-item-array-field="details" data-item-array-id="' + esc(d.id) + '" data-item-array-key="label" value="' + esc(d.label) + '" placeholder="Например, Роль" style="' + S.field + ' flex:1;">' +
+        '<input data-item-array-field="details" data-item-array-id="' + esc(d.id) + '" data-item-array-key="value" value="' + esc(d.value) + '" placeholder="Например, Frontend" style="' + S.field + ' flex:1;">' +
+        '<button type="button" data-action="removeProjectDetail" data-det-id="' + esc(d.id) + '" title="Удалить" style="' + S.chipIcon + ' color:#b3261e; flex-shrink:0;">' + icon('x', 12) + '</button>' +
+      '</div>';
+    }).join('');
+    return rows + '<button type="button" data-action="addProjectDetail" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px dashed var(--line); padding:8px 14px; border-radius:9px; cursor:pointer;">+ Добавить деталь</button>';
+  }
+  // Хэштеги/маркеры проекта — свободные теги для поиска и категоризации.
+  function tagsEditorHtml(tags) {
+    var chips = tags.map(function (t) {
+      return '<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:4px 6px 4px 10px; border-radius:999px;">#' + esc(t) +
+        '<button type="button" data-action="removeProjectTag" data-tag="' + esc(t) + '" style="border:none; background:none; color:var(--muted); cursor:pointer; padding:0; display:flex;">' + icon('x', 11) + '</button></span>';
+    }).join('');
+    return (chips ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">' + chips + '</div>' : '') +
+      '<div style="display:flex; gap:8px;"><input id="proj-tag-input" placeholder="Например, react, хакатон, командный" style="' + S.field + '"><button type="button" data-action="addProjectTag" style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:0 16px; border-radius:9px; cursor:pointer;">+</button></div>';
+  }
+  // Зона загрузки файлов/фото: клик или drag-and-drop; каждый файл — отдельный удаляемый тайл.
+  function filesDropzoneHtml(type, slots) {
+    var multi = isMultiFileType(type);
+    var tiles = slots.map(function (s, i) {
+      var isImg = isImageFile(s);
+      var thumbSrc = s.kind === 'staged' ? s.previewUrl : s.url;
+      var big = multi && i === 0;
+      var sizeStyle = big ? 'grid-column: span 2; grid-row: span 2;' : '';
+      var body = (isImg && thumbSrc)
+        ? '<img src="' + esc(thumbSrc) + '" style="width:100%; height:100%; object-fit:cover; border-radius:9px; display:block;">'
+        : '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); background:#fff; border-radius:9px;">' + icon('file', big ? 26 : 16) + '</div>';
+      return '<div style="position:relative; aspect-ratio:1; ' + sizeStyle + '">' + body +
+        '<button type="button" data-action="removeFileSlot" data-slot-id="' + esc(s.id) + '" title="Удалить" style="position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%; background:rgba(18,20,26,0.65); border:none; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;">' + icon('x', 12) + '</button>' +
+        (big ? '<span style="position:absolute; bottom:6px; left:6px; font-size:10.5px; font-weight:700; color:#fff; background:rgba(18,20,26,0.55); padding:2px 7px; border-radius:999px;">Обложка</span>' : '') +
+      '</div>';
+    }).join('');
+    var grid = tiles ? '<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:10px;">' + tiles + '</div>' : '';
+    return '<label data-dropzone style="display:block; cursor:pointer;">' + grid +
+      '<div style="border:1.5px dashed var(--line); border-radius:12px; padding:16px; text-align:center; background:var(--bg);">' +
+        '<div style="font-size:13px; font-weight:600; color:var(--ink);">' + (multi ? 'Перетащите фото или файлы сюда, или нажмите, чтобы выбрать' : 'Перетащите файл сюда, или нажмите, чтобы выбрать') + '</div>' +
+        (multi ? '<div style="font-size:11.5px; color:var(--muted); margin-top:4px;">Можно добавлять по одному. Первое фото станет обложкой карточки проекта.</div>' : '') +
+      '</div>' +
+      '<input data-item-file-input type="file"' + (multi ? ' multiple accept="image/*,.pdf,.zip,.doc,.docx"' : ' accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf"') + ' style="display:none;">' +
+    '</label>';
   }
 
   /* ---------- AI skills test ---------- */
@@ -1777,15 +1924,67 @@
         : '<iframe src="' + esc(file.url) + '" style="width:100%; height:320px; border:1px solid var(--line); border-radius:10px; margin-top:14px;"></iframe>';
     }
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:480px; width:100%; max-height:86vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + esc(name) + '</h3>' +
-        '<button data-action="closeSkillDetail" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0; ' + S.wrap + '">' + esc(name) + '</h3>' +
+        '<button data-action="closeSkillDetail" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0; flex-shrink:0;">×</button></div>' +
       (typeof conf === 'number' ? '<div style="margin-top:16px;"><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;"><span style="font-size:13px; color:var(--muted);">Уверенность</span><span style="font-weight:700; color:' + confidenceColor(conf) + ';">' + conf + '/10</span></div><div style="height:8px; border-radius:999px; background:var(--bg); overflow:hidden;"><div style="width:' + (conf * 10) + '%; height:100%; background:' + confidenceColor(conf) + ';"></div></div></div>' : '') +
-      (desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:14px 0 0;">' + esc(desc) + '</p>' : '') +
+      (desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:14px 0 0; ' + S.wrap + '">' + esc(desc) + '</p>' : '') +
       filePreview +
-      (relProjects.length ? '<div style="margin-top:18px;"><div style="font-size:13px; font-weight:600; margin-bottom:8px;">Работы с этим навыком</div>' + relProjects.map(function (p) { return '<div style="padding:9px 0; border-top:1px solid var(--line); font-size:13.5px;">' + esc(p.name) + '</div>'; }).join('') + '</div>' : '') +
+      (relProjects.length ? '<div style="margin-top:18px;"><div style="font-size:13px; font-weight:600; margin-bottom:8px;">Работы с этим навыком</div>' + relProjects.map(function (p) { return '<div style="padding:9px 0; border-top:1px solid var(--line); font-size:13.5px; ' + S.wrap + '">' + esc(p.name) + '</div>'; }).join('') + '</div>' : '') +
       '<button data-action="openItemModal" data-item-type="skill" data-item-index="' + idx + '" style="margin-top:20px; width:100%; ' + S.primary.replace('padding:15px', 'padding:12px') + '">Изменить</button>' +
     '</div>';
     return '<div data-action="closeSkillDetail" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
+      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+  }
+
+  // Детальная карточка проекта: обложка/галерея (свайп/стрелки), полное описание, разделы, детали, теги, ссылки.
+  function projectDetailModalHtml() {
+    var idx = state.projectDetail;
+    if (idx == null) return '';
+    var sp = state.studentProfile || {};
+    var p = (sp.projects || [])[idx];
+    if (!p) return '';
+    var files = p.files || [];
+    var gi = Math.max(0, Math.min(files.length - 1, state.projectGalleryIndex || 0));
+    var gallery = '';
+    if (files.length) {
+      var cur = files[gi];
+      var body = isImageFile(cur)
+        ? '<img src="' + esc(cur.url) + '" style="width:100%; height:280px; object-fit:cover; border-radius:12px; display:block;">'
+        : '<div style="width:100%; height:280px; border-radius:12px; background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--muted);">' + icon('file', 40) + '</div>';
+      var arrows = files.length > 1
+        ? (gi > 0 ? '<button data-action="projectGalleryPrev" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.92); border:none; cursor:pointer; font-size:16px;">‹</button>' : '') +
+          (gi < files.length - 1 ? '<button data-action="projectGalleryNext" data-max="' + (files.length - 1) + '" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.92); border:none; cursor:pointer; font-size:16px;">›</button>' : '')
+        : '';
+      var dots = files.length > 1 ? '<div style="display:flex; justify-content:center; gap:6px; margin-top:8px;">' + files.map(function (_, i) {
+        return '<button data-action="projectGalleryGoto" data-idx="' + i + '" style="width:7px; height:7px; border-radius:50%; border:none; padding:0; cursor:pointer; background:' + (i === gi ? 'var(--ink)' : 'var(--line)') + ';"></button>';
+      }).join('') + '</div>' : '';
+      gallery = '<div data-swipe data-max="' + (files.length - 1) + '" style="position:relative;">' + body + arrows + '</div>' + dots +
+        (cur.name ? '<div style="text-align:center; font-size:11.5px; color:var(--muted); margin-top:6px;">' + esc(cur.name) + '</div>' : '');
+    }
+    var tags = (p.tags || []).map(function (t) { return '<span style="font-size:11.5px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 9px; border-radius:999px;">#' + esc(t) + '</span>'; }).join(' ');
+    var details = (p.details || []).filter(function (d) { return d.label || d.value; }).map(function (d) {
+      return '<div style="display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--line); font-size:13px;"><span style="color:var(--muted); ' + S.wrap + '">' + esc(d.label) + '</span><span style="font-weight:600; text-align:right; ' + S.wrap + '">' + esc(d.value) + '</span></div>';
+    }).join('');
+    var sections = (p.sections || []).filter(function (s) { return s.title || s.text; }).map(function (s) {
+      return '<div style="margin-top:14px;"><div style="font-weight:600; font-size:14px; margin-bottom:4px; ' + S.wrap + '">' + esc(s.title) + '</div><p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0; white-space:pre-wrap; ' + S.wrap + '">' + esc(s.text) + '</p></div>';
+    }).join('');
+    var links = (p.links || []).filter(function (l) { return l.url; }).map(function (l) {
+      return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent); margin-right:14px;">' + esc(l.label || 'Ссылка') + ' ↗</a>';
+    }).join('');
+
+    var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:520px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; margin:0; ' + S.wrap + '">' + esc(p.name) + '</h3>' +
+        '<button data-action="closeProjectDetail" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0; flex-shrink:0;">×</button></div>' +
+      (p.specialty ? '<span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px; display:inline-block; margin-top:8px;">' + esc(p.specialty) + '</span>' : '') +
+      (gallery ? '<div style="margin-top:14px;">' + gallery + '</div>' : '') +
+      (p.desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:14px 0 0; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
+      (tags ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">' + tags + '</div>' : '') +
+      (links ? '<div style="margin-top:14px;">' + links + '</div>' : '') +
+      (details ? '<div style="margin-top:16px;">' + details + '</div>' : '') +
+      sections +
+      '<button data-action="openItemModal" data-item-type="project" data-item-index="' + idx + '" style="margin-top:20px; width:100%; ' + S.primary.replace('padding:15px', 'padding:12px') + '">Изменить</button>' +
+    '</div>';
+    return '<div data-action="closeProjectDetail" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
       '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
@@ -1871,7 +2070,7 @@
   }
 
   function render() {
-    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + mediaPreviewHtml() + testModalHtml();
+    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml();
     setupReveal();
     if (state.view === 'home') startStats();
   }
@@ -1897,9 +2096,22 @@
         actions[name](t);
       }
     });
+    function applyItemArrayField(target) {
+      var arrField = target.getAttribute && target.getAttribute('data-item-array-field');
+      if (!arrField) return false;
+      var arrId = target.getAttribute('data-item-array-id');
+      var arrKey = target.getAttribute('data-item-array-key');
+      state.itemForm = state.itemForm || {};
+      var list = state.itemForm[arrField] || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === arrId) { list[i][arrKey] = target.value; break; }
+      }
+      return true;
+    }
     root.addEventListener('input', function (e) {
       var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value;
       var itf = e.target.getAttribute && e.target.getAttribute('data-item-field'); if (itf) { state.itemForm = state.itemForm || {}; state.itemForm[itf] = e.target.value; }
+      applyItemArrayField(e.target);
     });
     root.addEventListener('change', function (e) {
       // выбор файла в модалке загрузки документа
@@ -1910,8 +2122,8 @@
       }
       // выбор файла(ов) в модалке добавления/редактирования элемента профиля
       if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-item-file-input')) {
-        pendingItemFiles = Array.prototype.slice.call((e.target.files || []));
-        setState({ itemUpload: { loading: false, error: '', fileName: pendingItemFiles.map(function (f) { return f.name; }).join(', ') } });
+        actions.addFileSlots(e.target.files);
+        e.target.value = '';
         return;
       }
       // выбор фото профиля — загружается сразу
@@ -1925,7 +2137,35 @@
       if (sa && actions[sa]) { actions[sa](e.target.value); return; }
       var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value;
       var itf = e.target.getAttribute && e.target.getAttribute('data-item-field'); if (itf) { state.itemForm = state.itemForm || {}; state.itemForm[itf] = e.target.value; }
+      applyItemArrayField(e.target);
     });
+    // Drag-and-drop файлов/фото в зону загрузки (data-dropzone) — click-to-select обрабатывается обычным <label>+<input>.
+    root.addEventListener('dragover', function (e) { if (e.target.closest && e.target.closest('[data-dropzone]')) e.preventDefault(); });
+    root.addEventListener('drop', function (e) {
+      var dz = e.target.closest && e.target.closest('[data-dropzone]');
+      if (!dz) return;
+      e.preventDefault();
+      var files = (e.dataTransfer && e.dataTransfer.files) || [];
+      if (files.length) actions.addFileSlots(files);
+    });
+    // Свайп по галерее фото проекта (touch) — клик по стрелкам работает и без этого.
+    var swipeStartX = null;
+    root.addEventListener('touchstart', function (e) {
+      var sw = e.target.closest && e.target.closest('[data-swipe]');
+      if (sw && e.touches && e.touches[0]) swipeStartX = e.touches[0].clientX;
+    }, { passive: true });
+    root.addEventListener('touchend', function (e) {
+      var sw = e.target.closest && e.target.closest('[data-swipe]');
+      if (!sw || swipeStartX == null) return;
+      var endX = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : swipeStartX;
+      var dx = endX - swipeStartX;
+      swipeStartX = null;
+      if (Math.abs(dx) < 40) return;
+      var max = Number(sw.getAttribute('data-max')) || 0;
+      var cur = state.projectGalleryIndex || 0;
+      if (dx < 0) setState({ projectGalleryIndex: Math.min(max, cur + 1) });
+      else setState({ projectGalleryIndex: Math.max(0, cur - 1) });
+    }, { passive: true });
     render();
   }
 
