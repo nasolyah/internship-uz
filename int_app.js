@@ -27,6 +27,10 @@
   // Путь к шаблону согласия (статика Netlify). Положите файл в /templates/.
   var CONSENT_TEMPLATE_URL = 'templates/parental-consent-template.pdf';
 
+  /* ---------- заявки компаний ---------- */
+  var SUBMIT_COMPANY_FN = SUPABASE_URL + '/functions/v1/submit-company';
+  var COMPANY_STATUS_FN = SUPABASE_URL + '/functions/v1/company-status';
+
   /* ---------- state ---------- */
   var state = {
     view: 'home',
@@ -48,6 +52,7 @@
     profileSave: { loading: false, error: '' },
     docUpload: { loading: false, error: '', fileName: '' },
     extrasSave: { loading: false, error: '', ok: false },
+    companySubmit: { loading: false, error: '' },
     itemModal: null,           // null | { type: 'skill'|'language'|'project'|'achievement', index: null|number }
     itemForm: {},
     itemUpload: { loading: false, error: '', fileName: '' },
@@ -238,9 +243,15 @@
     }
     return '<span style="width:' + size + 'px; height:' + size + 'px; border-radius:' + radius + 'px; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:' + Math.round(size * 0.37) + 'px; flex-shrink:0;">' + esc(studentInitials()) + '</span>';
   }
+  function companyStatus() { return (state.companyProfile && state.companyProfile.status) || 'pending'; }
   // Короткий статус верификации для шапки/меню.
   function verifyStatus() {
-    if (state.authRole === 'company') return 'На подтверждении';
+    if (state.authRole === 'company') {
+      var cs = companyStatus();
+      if (cs === 'approved') return 'Профиль подтверждён';
+      if (cs === 'rejected') return 'Заявка отклонена';
+      return 'На подтверждении';
+    }
     if (state.authRole === 'student') {
       if (isMinor()) {
         var c = docStat('consent');
@@ -565,11 +576,12 @@
         '<div style="display:flex; flex-direction:column; gap:18px;">' +
           inputField('Название компании', 'company', 'Напр. GreenTech Tashkent LLC') +
           '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('ИНН <span style="color:var(--muted); font-weight:500;">(госреестр)</span>', 'inn', '9 цифр') + inputField('Руководитель', 'director', 'ФИО по реестру') + '</div>' +
-          inputField('Корпоративная почта <span style="color:var(--muted); font-weight:500;">(@домен компании)</span>', 'corpEmail', 'you@company.uz') +
-          inputField('LinkedIn или соцсети компании', 'linkedin', 'Ссылка на профиль представителя или страницу') +
+          inputField('Корпоративная почта <span style="color:var(--muted); font-weight:500;">(@домен, необязательно)</span>', 'corpEmail', 'you@company.uz') +
+          inputField('LinkedIn или соцсети компании <span style="color:var(--muted); font-weight:500;">(необязательно)</span>', 'linkedin', 'Ссылка на профиль представителя или страницу') +
           '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('Контактное лицо', 'contact', 'Имя') + inputField('Телефон для созвона', 'phone', '+998 ...') + '</div>' +
           '<div style="display:flex; gap:11px; align-items:flex-start; padding:14px 16px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px;"><span style="color:var(--accent); font-weight:700;">ⓘ</span><span style="font-size:13px; color:var(--muted); line-height:1.5;">Для первых компаний обязателен короткий созвон с командой платформы — это даёт максимальное доверие для студентов. Занимает 10–15 минут.</span></div>' +
-          '<button data-action="submitCompany" style="margin-top:4px; ' + S.primary + '">Отправить заявку</button>' +
+          (state.companySubmit.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.companySubmit.error) + '</span>' : '') +
+          '<button data-action="submitCompany"' + (state.companySubmit.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.companySubmit.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.companySubmit.loading ? 'Отправка…' : 'Отправить заявку') + '</button>' +
           '<p style="font-size:12.5px; color:var(--muted); text-align:center; margin:0;">Участие бесплатно на старте. Задачи можно размещать после подтверждения профиля.</p>' +
         '</div></div>';
     } else {
@@ -878,20 +890,30 @@
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid var(--line);"><span style="font-size:13.5px; color:var(--muted);">' + label + '</span><span style="font-size:13.5px; font-weight:600; text-align:right; word-break:break-word;">' + esc(v || '—') + '</span></div>';
     };
 
+    var cs = companyStatus();
+    var stColor = cs === 'approved' ? '#16a34a' : cs === 'rejected' ? '#b3261e' : '#b26b12';
+    var stText = cs === 'approved' ? 'Профиль подтверждён' : cs === 'rejected' ? 'Заявка отклонена' : 'На подтверждении';
     var profile = '<div style="' + card + ' display:flex; align-items:center; gap:18px;">' +
       '<span style="width:64px; height:64px; border-radius:16px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0;">◆</span>' +
       '<div style="min-width:0;"><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(companyName()) + '</div>' +
-      '<div style="display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:#b26b12; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:#e2a53a;"></span>На подтверждении</div></div></div>';
+      '<div style="display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:' + stColor + '; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:' + stColor + ';"></span>' + stText + '</div></div></div>';
 
     var details = '<div style="' + card + '"><div style="' + cardTitle + '">Реквизиты компании</div>' +
       row('ИНН', cp.inn) + row('Руководитель', cp.director) + row('Корпоративная почта', cp.corpEmail) +
       row('Домен', companyDomain()) + row('Контактное лицо', cp.contact) + row('Телефон', cp.phone) +
       row('LinkedIn / соцсети', cp.linkedin) + '</div>';
 
+    var checksNote = cs === 'approved'
+      ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #16a34a 8%, #fff); border:1px solid color-mix(in srgb, #16a34a 24%, #fff); border-radius:12px; font-size:13px; color:#16a34a; line-height:1.5;">Профиль подтверждён — можно размещать задачи.</div>'
+      : cs === 'rejected'
+        ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 24%, #fff); border-radius:12px; font-size:13px; color:#b3261e; line-height:1.5;">Заявка отклонена. Свяжитесь с командой платформы для уточнения.</div>'
+        : '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:13px; color:var(--muted); line-height:1.5;">Заявка на проверке. Размещение задач откроется после подтверждения профиля админом.</div>';
+    var postBtn = cs === 'approved'
+      ? '<button data-action="goStartupForm" style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
+      : '<button disabled style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
     var checks = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:12px;">Статус проверки</div>' +
       '<div style="font-size:13.5px; color:var(--muted); line-height:1.6;">Госреестр · корпоративный домен · созвон с командой</div>' +
-      '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:13px; color:var(--muted); line-height:1.5;">Размещение задач откроется после подтверждения профиля — обычно 1–2 дня.</div>' +
-      '<button data-action="goStartupForm" style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button></div>';
+      checksNote + postBtn + '</div>';
 
     // Прямая привязка к state.companyProfile[field] на каждое нажатие (data-company-field) —
     // без неё любой мгновенный экшен рядом (переключение направления, выбор в select) вызывает
@@ -1624,29 +1646,39 @@
       });
     },
     submitCompany: function () {
-      state.companyProfile = {
-        name: state.form.company || 'Ваша компания',
-        inn: state.form.inn || '',
-        director: state.form.director || '',
-        corpEmail: state.form.corpEmail || '',
-        domain: (state.form.corpEmail || '').split('@')[1] || '',
-        linkedin: state.form.linkedin || '',
-        contact: state.form.contact || '',
-        phone: state.form.phone || '',
-        description: '',
-        focusAreas: [],
-        techStack: [],
-        commStyle: 'async',
-        syncHours: '',
-        meetingCadence: 'weekly',
-        meetingLink: '',
-        pitch: '',
-        defaultDuration: '1m',
-        mentorName: '',
-        mentorRole: '',
-        mentorContact: ''
+      var f = state.form;
+      // Обязательные поля (кроме корпоративной почты и LinkedIn)
+      var name = (f.company || '').trim(), inn = (f.inn || '').trim(), director = (f.director || '').trim();
+      var contact = (f.contact || '').trim(), phone = (f.phone || '').trim();
+      if (!name) { setState({ companySubmit: { loading: false, error: 'Укажите название компании' } }); return; }
+      if (!inn) { setState({ companySubmit: { loading: false, error: 'Укажите ИНН' } }); return; }
+      if (!director) { setState({ companySubmit: { loading: false, error: 'Укажите руководителя' } }); return; }
+      if (!contact) { setState({ companySubmit: { loading: false, error: 'Укажите контактное лицо' } }); return; }
+      if (!phone) { setState({ companySubmit: { loading: false, error: 'Укажите телефон для созвона' } }); return; }
+      var corpEmail = (f.corpEmail || '').trim();
+      var profile = {
+        name: name, inn: inn, director: director,
+        corpEmail: corpEmail, domain: corpEmail.split('@')[1] || '',
+        linkedin: (f.linkedin || '').trim(), contact: contact, phone: phone,
+        status: 'pending',
+        description: '', focusAreas: [], techStack: [], commStyle: 'async', syncHours: '',
+        meetingCadence: 'weekly', meetingLink: '', pitch: '', defaultDuration: '1m',
+        mentorName: '', mentorRole: '', mentorContact: ''
       };
-      setState({ authRole: 'company' }); top();
+      if (!supabase) { setState({ companySubmit: { loading: false, error: 'Supabase не настроен' } }); return; }
+      setState({ companySubmit: { loading: true, error: '' } });
+      fetch(SUBMIT_COMPANY_FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        body: JSON.stringify({ name: name, inn: inn, director: director, corpEmail: corpEmail, domain: profile.domain, linkedin: profile.linkedin, contact: contact, phone: phone })
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); }).then(function (res) {
+        if (!res.ok || !res.body || !res.body.id) { setState({ companySubmit: { loading: false, error: (res.body && res.body.error) || 'Не удалось отправить заявку' } }); return; }
+        try { localStorage.setItem('company_app_id', res.body.id); } catch (e) {}
+        state.companyProfile = profile;
+        setState({ authRole: 'company', companySubmit: { loading: false, error: '' } }); top();
+      }).catch(function (err) {
+        setState({ companySubmit: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
+      });
     },
     scrollHow: function () { scrollToId('sec-how'); },
     scrollVerify: function () { scrollToId('sec-verify'); },
@@ -1654,6 +1686,7 @@
       if (supabase && state.session) supabase.auth.signOut();
       pendingDocFile = null;
       stopTestTimer();
+      try { localStorage.removeItem('company_app_id'); } catch (e) {}
       setState({
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', docStatus: { study: 'none', consent: 'none' }, tgDraft: false,
@@ -1662,6 +1695,7 @@
         profileSave: { loading: false, error: '' },
         docUpload: { loading: false, error: '', fileName: '' },
         extrasSave: { loading: false, error: '', ok: false },
+        companySubmit: { loading: false, error: '' },
         menuOpen: false, modal: null, testView: null, testResult: null,
         form: {}, view: 'home', catalogTab: 'students'
       });
@@ -1767,6 +1801,31 @@
         render();
       });
     });
+  }
+  // Восстановление компании по сохранённому id заявки (у компаний нет Supabase-сессии).
+  function restoreCompany() {
+    var id;
+    try { id = localStorage.getItem('company_app_id'); } catch (e) {}
+    if (!id || !supabase) return;
+    fetch(COMPANY_STATUS_FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+      body: JSON.stringify({ id: id })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (state.authRole || !j || !j.data) return;  // не перекрываем студента; нет записи — игнор
+      var d = j.data;
+      state.companyProfile = {
+        name: d.name || '', inn: d.inn || '', director: d.director || '', corpEmail: d.corpEmail || '',
+        domain: d.domain || '', linkedin: d.linkedin || '', contact: d.contact || '', phone: d.phone || '',
+        status: j.status || 'pending',
+        description: '', focusAreas: [], techStack: [], commStyle: 'async', syncHours: '',
+        meetingCadence: 'weekly', meetingLink: '', pitch: '', defaultDuration: '1m',
+        mentorName: '', mentorRole: '', mentorContact: ''
+      };
+      state.authRole = 'company';
+      if (state.view === 'home') state.view = 'catalog';
+      render();
+    }).catch(function () {});
   }
 
   /* ---------- document upload modal ---------- */
@@ -2219,6 +2278,7 @@
     root = document.getElementById('root');
     loadTelegramScript();
     restoreSession();
+    restoreCompany();
     root.addEventListener('click', function (e) {
       var t = e.target.closest('[data-action]');
       if (t && actions[t.getAttribute('data-action')]) {

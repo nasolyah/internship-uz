@@ -2,10 +2,14 @@
 // Вебхук Telegram. Обрабатывает нажатия inline-кнопок ✅/❌ под документами в группе проверки:
 // обновляет profiles.data.docStatus и редактирует сообщение с решением.
 //
+// Обрабатывает и заявки компаний (callback_data company:<id>:approve|reject) — меняет
+// company_applications.status.
+//
 // Секреты:
 //   TELEGRAM_BOT_TOKEN  — токен бота
 //   TG_STUDY_CHAT_ID    — id группы проверки справок
 //   TG_CONSENT_CHAT_ID  — id группы проверки согласий
+//   TG_COMPANY_CHAT_ID  — id группы проверки заявок компаний
 //   TG_WEBHOOK_SECRET   — секрет, который Telegram шлёт в заголовке (задаётся при setWebhook)
 // Авто: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //
@@ -27,7 +31,7 @@ async function tg(method: string, body: unknown, botToken: string) {
 Deno.serve(async (req) => {
   try {
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
-    const allowedChats = [Deno.env.get('TG_STUDY_CHAT_ID'), Deno.env.get('TG_CONSENT_CHAT_ID')].filter(Boolean).map(String);
+    const allowedChats = [Deno.env.get('TG_STUDY_CHAT_ID'), Deno.env.get('TG_CONSENT_CHAT_ID'), Deno.env.get('TG_COMPANY_CHAT_ID')].filter(Boolean).map(String);
     const secret = Deno.env.get('TG_WEBHOOK_SECRET');
 
     // Защита эндпоинта: Telegram шлёт секрет в этом заголовке (см. setWebhook).
@@ -57,22 +61,33 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: prof } = await admin.from('profiles').select('data').eq('id', userId).maybeSingle();
-    const d: Record<string, unknown> = (prof?.data as Record<string, unknown>) || {};
-    const docStatus = (d.docStatus as Record<string, string>) || {};
-    docStatus[type] = status;
-    d.docStatus = docStatus;
-    await admin.from('profiles').update({ data: d, updated_at: new Date().toISOString() }).eq('id', userId);
-
-    // Отмечаем решение в сообщении и убираем кнопки.
     const who = cb.from.username ? '@' + cb.from.username : (cb.from.first_name || 'админ');
     const mark = status === 'approved' ? '✅ Подтверждено' : '❌ Отклонено';
-    const baseCaption = (cb.message.caption || LABELS[type] || 'Документ').split('\nСтатус:')[0];
-    await tg('editMessageCaption', {
-      chat_id: cb.message.chat.id,
-      message_id: cb.message.message_id,
-      caption: `${baseCaption}\nСтатус: ${mark} · ${who}`,
-    }, botToken);
+
+    if (type === 'company') {
+      // userId здесь — это id заявки компании; сообщение текстовое (sendMessage).
+      await admin.from('company_applications').update({ status }).eq('id', userId);
+      const baseText = String(cb.message.text || 'Заявка компании').split('\nСтатус:')[0];
+      await tg('editMessageText', {
+        chat_id: cb.message.chat.id,
+        message_id: cb.message.message_id,
+        text: `${baseText}\nСтатус: ${mark} · ${who}`,
+      }, botToken);
+    } else {
+      // документы студента (study/consent): сообщение с документом (sendDocument, caption).
+      const { data: prof } = await admin.from('profiles').select('data').eq('id', userId).maybeSingle();
+      const d: Record<string, unknown> = (prof?.data as Record<string, unknown>) || {};
+      const docStatus = (d.docStatus as Record<string, string>) || {};
+      docStatus[type] = status;
+      d.docStatus = docStatus;
+      await admin.from('profiles').update({ data: d, updated_at: new Date().toISOString() }).eq('id', userId);
+      const baseCaption = String(cb.message.caption || LABELS[type] || 'Документ').split('\nСтатус:')[0];
+      await tg('editMessageCaption', {
+        chat_id: cb.message.chat.id,
+        message_id: cb.message.message_id,
+        caption: `${baseCaption}\nСтатус: ${mark} · ${who}`,
+      }, botToken);
+    }
     await tg('answerCallbackQuery', { callback_query_id: cb.id, text: mark }, botToken);
 
     return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
