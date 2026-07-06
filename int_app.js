@@ -103,20 +103,9 @@
     { icon: '◇', title: 'ИИ-тест навыков', desc: 'Объективная оценка уровня перед откликом.', tag: 'Автоматически' },
     { icon: '§', title: 'Документ о практике', desc: 'Учебная практика, а не трудоустройство.', tag: 'Официально' }
   ];
-  var catalogStudents = [
-    { initials: 'АК', name: 'Азиз Каримов', school: 'Университет ИНХА · 2 курс', skills: ['UI/UX', 'Figma', 'Прототипы'], score: '82' },
-    { initials: 'МН', name: 'Мадина Нурова', school: 'УзГУМЯ · 3 курс', skills: ['Копирайтинг', 'SMM', 'Контент'], score: '76' },
-    { initials: 'ТИ', name: 'Тимур Исмаилов', school: 'ТУИТ · 1 курс', skills: ['Python', 'Аналитика', 'SQL'], score: '88' },
-    { initials: 'ДС', name: 'Дилноза Саидова', school: 'Школа №64 · 11 класс', skills: ['Дизайн', 'Иллюстрация'], score: '71' },
-    { initials: 'РА', name: 'Рустам Ахмедов', school: 'Westminster · 2 курс', skills: ['Frontend', 'React'], score: '84' },
-    { initials: 'ЗК', name: 'Зарина Камолова', school: 'ИНХА · 3 курс', skills: ['Маркетинг', 'Таргет'], score: '79' }
-  ];
-  var catalogGigs = [
-    { initials: 'GT', title: 'Дизайн лендинга для запуска', company: 'GreenTech Tashkent · EdTech', desc: 'Нужен лендинг под запуск бета-версии: макет + вёрстка простой страницы.', format: 'Удалённо', duration: '2 недели', slots: '1' },
-    { initials: 'FP', title: 'Тестирование мобильного приложения', company: 'FinPay · Fintech', desc: 'Ручное тестирование, поиск багов, оформление отчётов по чек-листу.', format: 'Гибрид', duration: '1 месяц', slots: '2' },
-    { initials: 'AG', title: 'SMM и контент для соцсетей', company: 'AgroLink · AgriTech', desc: 'Контент-план и посты на 2 недели, оформление и базовая аналитика.', format: 'Удалённо', duration: '2–3 месяца', slots: '1' },
-    { initials: 'MD', title: 'Аналитика пользовательских данных', company: 'MedData · HealthTech', desc: 'Собрать и визуализировать данные по онбордингу, короткий дашборд.', format: 'Офис (Ташкент)', duration: '1 месяц', slots: '1' }
-  ];
+  // Каталог наполняется реальными профилями/задачами по мере регистрации. Пока пусто.
+  var catalogStudents = [];
+  var catalogGigs = [];
 
   /* ---------- helpers ---------- */
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -636,13 +625,23 @@
     }
 
     // listings
+    var emptyCard = function (title, text) {
+      return '<div style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:52px 32px; text-align:center;">' +
+        '<div style="width:56px; height:56px; border-radius:15px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:26px; margin:0 auto 18px;">📭</div>' +
+        '<h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0 0 8px;">' + title + '</h3>' +
+        '<p style="color:var(--muted); font-size:14.5px; max-width:420px; margin:0 auto; line-height:1.55;">' + text + '</p></div>';
+    };
     var listings;
     if (studentsActive) {
-      listings = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">' + catalogStudents.map(studentCard).join('') + '</div>';
+      listings = catalogStudents.length
+        ? '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">' + catalogStudents.map(studentCard).join('') + '</div>'
+        : emptyCard('Пока нет студентов', 'Здесь появятся верифицированные студенты, как только они пройдут регистрацию.');
     } else if (minorLocked) {
       listings = minorLock('Каталог заблокирован');
     } else {
-      listings = '<div style="display:flex; flex-direction:column; gap:14px;">' + catalogGigs.map(gigCard).join('') + '</div>';
+      listings = catalogGigs.length
+        ? '<div style="display:flex; flex-direction:column; gap:14px;">' + catalogGigs.map(gigCard).join('') + '</div>'
+        : emptyCard('Пока нет задач', 'Компании ещё не разместили задачи. Загляните позже — здесь появятся реальные проекты.');
     }
 
     return '<main class="view-in" style="max-width:1180px; margin:0 auto; padding:40px 28px 88px;">' + head +
