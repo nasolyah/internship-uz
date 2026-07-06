@@ -30,6 +30,7 @@
   /* ---------- заявки компаний ---------- */
   var SUBMIT_COMPANY_FN = SUPABASE_URL + '/functions/v1/submit-company';
   var COMPANY_STATUS_FN = SUPABASE_URL + '/functions/v1/company-status';
+  var POST_GIG_FN = SUPABASE_URL + '/functions/v1/post-gig';
 
   /* ---------- state ---------- */
   var state = {
@@ -53,6 +54,9 @@
     docUpload: { loading: false, error: '', fileName: '' },
     extrasSave: { loading: false, error: '', ok: false },
     companySubmit: { loading: false, error: '' },
+    gigs: [],                  // задачи из БД (каталог)
+    gigModal: false,           // форма публикации задачи (модалка)
+    gigSubmit: { loading: false, error: '' },
     itemModal: null,           // null | { type: 'skill'|'language'|'project'|'achievement', index: null|number }
     itemForm: {},
     itemUpload: { loading: false, error: '', fileName: '' },
@@ -583,6 +587,15 @@
   function studentCard(s) {
     return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px;"><div style="display:flex; align-items:center; justify-content:space-between;"><div style="width:44px; height:44px; border-radius:11px; background:color-mix(in srgb, var(--accent) 11%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px;">' + s.initials + '</div><span style="font-size:11px; font-weight:700; color:var(--accent);">✓ verified</span></div><div style="font-weight:600; font-size:16px; margin-top:14px;">' + s.name + '</div><div style="font-size:13px; color:var(--muted);">' + s.school + '</div><div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">' + s.skills.map(function (sk) { return '<span style="font-size:11.5px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:4px 9px; border-radius:6px;">' + sk + '</span>'; }).join('') + '</div><div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px solid var(--line);"><span style="font-size:12.5px; color:var(--muted);">ИИ-тест: <strong style="color:var(--ink);">' + s.score + '</strong></span><button style="font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button></div></div>';
   }
+  // Строка из БД -> объект для gigCard (все поля экранируем, данные вводят компании).
+  function gigView(r) {
+    var name = (r.company_name || 'Компания').trim();
+    var initials = name.split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase() || '◆';
+    return {
+      initials: esc(initials), title: esc(r.title || ''), format: esc(r.format || 'Формат не указан'),
+      company: esc(name), desc: esc(r.description || ''), duration: esc(r.duration || '—'), slots: esc(String(r.slots || '1'))
+    };
+  }
   function gigCard(g) {
     return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:16px;">' + g.title + '</span><span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:13.5px; color:var(--muted); margin-top:2px;">' + g.company + '</div><div style="font-size:14px; color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:12.5px; color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div><button style="font-size:13px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:10px 16px; border-radius:9px; cursor:pointer; flex-shrink:0;">Откликнуться</button></div>';
   }
@@ -611,7 +624,7 @@
       head += '<div style="display:flex; background:#fff; border:1px solid var(--line); border-radius:11px; padding:4px;"><button data-action="tabStudents" style="' + tb + (studentsActive ? ' background:var(--ink); color:#fff;' : ' background:transparent; color:var(--muted);') + '">Студенты</button><button data-action="tabGigs" style="' + tb + (studentsActive ? ' background:transparent; color:var(--muted);' : ' background:var(--ink); color:#fff;') + '">Задачи стартапов</button></div>';
     } else if (role === 'company') {
       head += companyStatus() === 'approved'
-        ? '<button data-action="goStartupForm" style="font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:11px 18px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
+        ? '<button data-action="openGigForm" style="font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:11px 18px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
         : '<button disabled style="font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:11px 18px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
     }
     head += '</div>';
@@ -625,7 +638,7 @@
       var scColor = scs === 'approved' ? '#16a34a' : scs === 'rejected' ? '#b3261e' : '#b26b12';
       var scText = scs === 'approved' ? 'Профиль подтверждён' : scs === 'rejected' ? 'Заявка отклонена' : 'На подтверждении';
       var scPost = scs === 'approved'
-        ? '<button data-action="goStartupForm" style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
+        ? '<button data-action="openGigForm" style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
         : '<button disabled style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
       sidebar = '<aside style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;">◆</div><div><div style="font-weight:600; font-size:15px;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:' + scColor + '; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:' + scColor + ';"></span>' + scText + '</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Что дальше</div><div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div>' + scPost + '<button data-action="goCabinet" style="margin-top:10px; width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
     } else {
@@ -647,8 +660,8 @@
     } else if (minorLocked) {
       listings = minorLock('Каталог заблокирован');
     } else {
-      listings = catalogGigs.length
-        ? '<div style="display:flex; flex-direction:column; gap:14px;">' + catalogGigs.map(gigCard).join('') + '</div>'
+      listings = state.gigs.length
+        ? '<div style="display:flex; flex-direction:column; gap:14px;">' + state.gigs.map(function (r) { return gigCard(gigView(r)); }).join('') + '</div>'
         : emptyCard('Пока нет задач', 'Компании ещё не разместили задачи. Загляните позже — здесь появятся реальные проекты.');
     }
 
@@ -916,7 +929,7 @@
         ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 24%, #fff); border-radius:12px; font-size:13px; color:#b3261e; line-height:1.5;">Заявка отклонена. Свяжитесь с командой платформы для уточнения.</div>'
         : '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:13px; color:var(--muted); line-height:1.5;">Заявка на проверке. Размещение задач откроется после подтверждения профиля админом.</div>';
     var postBtn = cs === 'approved'
-      ? '<button data-action="goStartupForm" style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
+      ? '<button data-action="openGigForm" style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
       : '<button disabled style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
     var checks = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:12px;">Статус проверки</div>' +
       '<div style="font-size:13.5px; color:var(--muted); line-height:1.6;">Госреестр · корпоративный домен · созвон с командой</div>' +
@@ -1026,7 +1039,7 @@
   }
   function vacanciesView() {
     if (state.authRole !== 'company') return homeView();
-    return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появится статус ваших вакансий и отклики студентов.', 'goStartupForm', 'Разместить задачу'));
+    return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появится статус ваших вакансий и отклики студентов.', 'openGigForm', 'Разместить задачу'));
   }
 
   /* ---------- view dispatch ---------- */
@@ -1687,6 +1700,32 @@
         setState({ companySubmit: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
       });
     },
+    // Публикация задачи компанией (только подтверждённой)
+    openGigForm: function () {
+      if (companyStatus() !== 'approved') { setState({ view: 'cabinet' }); top(); return; }
+      setState({ gigModal: true, gigSubmit: { loading: false, error: '' } });
+    },
+    closeGigForm: function () { setState({ gigModal: false, gigSubmit: { loading: false, error: '' } }); },
+    submitGig: function () {
+      var title = (state.form.gigTitle || '').trim();
+      if (!title) { setState({ gigSubmit: { loading: false, error: 'Укажите название задачи' } }); return; }
+      var appId;
+      try { appId = localStorage.getItem('company_app_id'); } catch (e) {}
+      if (!appId || !supabase) { setState({ gigSubmit: { loading: false, error: 'Компания не найдена — войдите заново' } }); return; }
+      setState({ gigSubmit: { loading: true, error: '' } });
+      fetch(POST_GIG_FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        body: JSON.stringify({ company_app_id: appId, title: title, description: state.form.gigDesc || '', format: state.form.gigFormat || '', duration: state.form.gigDuration || '', slots: state.form.gigSlots || '1' })
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); }).then(function (res) {
+        if (!res.ok || !res.body || !res.body.gig) { setState({ gigSubmit: { loading: false, error: (res.body && res.body.error) || 'Не удалось опубликовать задачу' } }); return; }
+        state.gigs = [res.body.gig].concat(state.gigs);
+        state.form.gigTitle = ''; state.form.gigDesc = ''; state.form.gigFormat = ''; state.form.gigDuration = ''; state.form.gigSlots = '';
+        setState({ gigModal: false, gigSubmit: { loading: false, error: '' } });
+      }).catch(function (err) {
+        setState({ gigSubmit: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
+      });
+    },
     scrollHow: function () { scrollToId('sec-how'); },
     scrollVerify: function () { scrollToId('sec-verify'); },
     logout: function () {
@@ -1703,6 +1742,7 @@
         docUpload: { loading: false, error: '', fileName: '' },
         extrasSave: { loading: false, error: '', ok: false },
         companySubmit: { loading: false, error: '' },
+        gigModal: false, gigSubmit: { loading: false, error: '' },
         menuOpen: false, modal: null, testView: null, testResult: null,
         form: {}, view: 'home', catalogTab: 'students'
       });
@@ -1833,6 +1873,15 @@
       if (state.view === 'home') state.view = 'catalog';
       render();
     }).catch(function () {});
+  }
+  // Загружает задачи из БД (публичное чтение) в каталог.
+  function loadGigs() {
+    if (!supabase) return;
+    supabase.from('gigs').select('*').order('created_at', { ascending: false }).limit(100).then(function (r) {
+      if (r.error || !r.data) return;
+      state.gigs = r.data;
+      render();
+    });
   }
 
   /* ---------- document upload modal ---------- */
@@ -2268,8 +2317,33 @@
       '<div style="position:fixed; inset:0; z-index:81; display:flex; align-items:center; justify-content:center; padding:16px; pointer-events:none;"><div style="' + dialogStyle + '">' + inner + '</div></div>';
   }
 
+  /* ---------- gig posting modal (company) ---------- */
+  function gigModalHtml() {
+    if (!state.gigModal) return '';
+    var f = state.form, gs = state.gigSubmit;
+    var field = function (label, key, ph, hint) {
+      return '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + label + '</span>' +
+        '<input data-field="' + key + '" value="' + esc(f[key] || '') + '" placeholder="' + esc(ph) + '" style="width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' +
+        (hint ? '<span style="display:block; font-size:12px; color:var(--muted); margin-top:5px;">' + hint + '</span>' : '') + '</label>';
+    };
+    var formats = ['Удалённо', 'Гибрид', 'Офис (Ташкент)'];
+    var fmtOpts = [''].concat(formats).map(function (o) { var sel = f.gigFormat === o ? ' selected' : ''; return '<option value="' + esc(o) + '"' + sel + '>' + (o || 'Выберите формат…') + '</option>'; }).join('');
+    var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:520px; width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Новая задача</h3><button data-action="closeGigForm" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
+      field('Название задачи', 'gigTitle', 'Напр. Дизайн лендинга для запуска') +
+      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Описание</span><textarea data-field="gigDesc" rows="4" placeholder="Что нужно сделать, объём работы, требования…" style="width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;">' + esc(f.gigDesc || '') + '</textarea></label>' +
+      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Формат</span><select data-field="gigFormat" style="width:100%; font-size:14px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' + fmtOpts + '</select></label>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + field('Длительность', 'gigDuration', 'Напр. 2 недели') + field('Сколько человек нужно', 'gigSlots', 'Напр. 1') + '</div>' +
+      (gs.error ? '<div style="font-size:13px; color:#b3261e; font-weight:600; margin-bottom:8px;">' + esc(gs.error) + '</div>' : '') +
+      '<button data-action="submitGig"' + (gs.loading ? ' disabled' : '') + ' style="width:100%; ' + S.primary + (gs.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (gs.loading ? 'Публикация…' : 'Опубликовать задачу') + '</button>' +
+      '<button data-action="closeGigForm" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
+    '</div>';
+    return '<div data-action="closeGigForm" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
+      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:16px; pointer-events:none;">' + dialog + '</div>';
+  }
+
   function render() {
-    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml();
+    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml();
     setupReveal();
     if (state.view === 'home') startStats();
   }
@@ -2286,6 +2360,7 @@
     loadTelegramScript();
     restoreSession();
     restoreCompany();
+    loadGigs();
     root.addEventListener('click', function (e) {
       var t = e.target.closest('[data-action]');
       if (t && actions[t.getAttribute('data-action')]) {
