@@ -1,5 +1,8 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+/* Липкий футер: контент растягивается, футер прижат к низу на коротких страницах */
+#root { display: flex; flex-direction: column; }
+#root > main { flex: 1 0 auto; }
 body { font-family: 'Manrope', system-ui, sans-serif; background: #fbfbf9; color: #12141a; -webkit-font-smoothing: antialiased; }
 ::selection { background: color-mix(in srgb, var(--accent, #2b54d4) 22%, #fff); }
 input, textarea, select, button { font-family: inherit; }
