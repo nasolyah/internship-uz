@@ -341,8 +341,8 @@
     }
     return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line);">' +
       '<div style="max-width:1180px; margin:0 auto; padding:16px 28px; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:24px;">' +
-        '<a data-action="goHome" style="display:flex; align-items:center; gap:10px; cursor:pointer;">' +
-          '<span style="width:30px; height:30px; border-radius:8px; background:var(--accent); display:flex; align-items:center; justify-content:center; color:#fff; font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:16px;">i</span>' +
+        '<a data-action="goHome" style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
+          '<span style="display:inline-block; width:58px; height:34px; overflow:hidden; flex-shrink:0;"><img src="logo.png" alt="" style="width:90px; height:90px; max-width:none; margin:-29px 0 0 -17px; display:block;"></span>' +
           '<span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
         '</a>' +
         '<nav style="display:flex; align-items:center; justify-content:center; gap:30px; white-space:nowrap;">' + nav + '</nav>' +
@@ -354,7 +354,7 @@
   function footer() {
     return '<footer style="border-top:1px solid var(--line); background:#fff;">' +
       '<div style="max-width:1180px; margin:0 auto; padding:36px 28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">' +
-        '<div style="display:flex; align-items:center; gap:10px;"><span style="width:26px; height:26px; border-radius:7px; background:var(--accent); display:flex; align-items:center; justify-content:center; color:#fff; font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:14px;">i</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">internship.uz</span></div>' +
+        '<div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:51px; height:30px; overflow:hidden; flex-shrink:0;"><img src="logo.png" alt="" style="width:80px; height:80px; max-width:none; margin:-26px 0 0 -15px; display:block;"></span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">internship.uz</span></div>' +
         '<div style="font-size:13px; color:var(--muted); text-align:right;">Платформа стажировок для стартапов и студентов Узбекистана<br>Пилот · 2026</div>' +
       '</div></footer>';
   }
