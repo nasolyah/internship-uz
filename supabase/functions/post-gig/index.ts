@@ -1,8 +1,9 @@
 // Supabase Edge Function: post-gig
-// Публикация задачи компанией. Проверяет, что компания (по company_app_id) подтверждена,
-// и вставляет задачу в таблицу gigs. Читают каталог все напрямую (публичная SELECT-политика).
+// Публикация задачи компанией. Компанию определяем по JWT (owner_user_id заявки),
+// проверяем, что она подтверждена, и вставляем задачу в gigs.
+// Читают каталог все напрямую (публичная SELECT-политика).
 //
-// Авто: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Авто: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -21,26 +22,34 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
+    // Компания — это владелец заявки. Раньше company_app_id приходил из тела запроса,
+    // то есть публиковать задачи мог любой, кто знает UUID чужой заявки.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData } = await userClient.auth.getUser();
+    const user = userData.user;
+    if (!user) return json({ error: 'Не авторизован' }, 401);
+
     const p = await req.json();
-    const appId = clip(p?.company_app_id, 64);
     const title = clip(p?.title, 120);
-    if (!appId) return json({ error: 'Нет id компании' }, 400);
     if (!title) return json({ error: 'Укажите название задачи' }, 400);
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Задачу может публиковать только подтверждённая компания.
     const { data: app, error: appErr } = await admin
-      .from('company_applications').select('status, data').eq('id', appId).maybeSingle();
+      .from('company_applications').select('id, status, data').eq('owner_user_id', user.id).maybeSingle();
     if (appErr) return json({ error: appErr.message }, 500);
-    if (!app) return json({ error: 'Компания не найдена' }, 404);
+    if (!app) return json({ error: 'Профиль компании не найден' }, 404);
+    // Задачу может публиковать только подтверждённая компания.
     if (app.status !== 'approved') return json({ error: 'Профиль компании ещё не подтверждён' }, 403);
 
     const companyName = clip((app.data as Record<string, unknown>)?.name, 120) || 'Компания';
     const row = {
-      company_app_id: appId,
+      company_app_id: app.id,
       company_name: companyName,
       title,
       description: clip(p?.description, 1000),

@@ -2,10 +2,14 @@
 // Принимает заявку компании, сохраняет её и отправляет в Telegram-группу проверки
 // с кнопками ✅/❌. Профиль считается подтверждённым только после нажатия ✅ (обрабатывает tg-webhook).
 //
+// Заявку подаёт залогиненный пользователь (вход по коду на корпоративную почту), и она
+// привязывается к нему через owner_user_id. Дальше компания читает свою заявку напрямую
+// по RLS, а не по UUID из localStorage.
+//
 // Секреты:
 //   TELEGRAM_BOT_TOKEN   — токен бота
 //   TG_COMPANY_CHAT_ID   — id группы проверки компаний
-// Авто: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Авто: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -26,6 +30,15 @@ Deno.serve(async (req) => {
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     const chatId = Deno.env.get('TG_COMPANY_CHAT_ID');
     if (!botToken || !chatId) return json({ error: 'TELEGRAM_BOT_TOKEN / TG_COMPANY_CHAT_ID не заданы' }, 500);
+
+    // Владельца заявки берём из JWT — из тела ему верить нельзя.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData } = await userClient.auth.getUser();
+    const user = userData.user;
+    if (!user) return json({ error: 'Не авторизован' }, 401);
 
     const p = await req.json();
     const name = String(p?.name || '').trim();
@@ -49,7 +62,14 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const ins = await admin.from('company_applications').insert({ data, status: 'pending' }).select('id').single();
+    // Одна заявка на аккаунт: повторная отправка формы не плодит дублей в группе проверки.
+    const existing = await admin
+      .from('company_applications').select('id, status').eq('owner_user_id', user.id).maybeSingle();
+    if (existing.error) return json({ error: existing.error.message }, 500);
+    if (existing.data) return json({ id: existing.data.id, status: existing.data.status });
+
+    const ins = await admin
+      .from('company_applications').insert({ data, status: 'pending', owner_user_id: user.id }).select('id').single();
     if (ins.error || !ins.data) return json({ error: ins.error?.message || 'Не удалось сохранить заявку' }, 500);
     const id = ins.data.id as string;
 

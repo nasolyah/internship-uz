@@ -29,8 +29,10 @@
 
   /* ---------- заявки компаний ---------- */
   var SUBMIT_COMPANY_FN = SUPABASE_URL + '/functions/v1/submit-company';
-  var COMPANY_STATUS_FN = SUPABASE_URL + '/functions/v1/company-status';
   var POST_GIG_FN = SUPABASE_URL + '/functions/v1/post-gig';
+  // Привязка к аккаунту заявок, поданных до появления входа для компаний
+  // (тогда «сессией» был company_app_id в localStorage). Нужна один раз на компанию.
+  var CLAIM_COMPANY_FN = SUPABASE_URL + '/functions/v1/claim-company';
 
   /* ---------- state ---------- */
   var state = {
@@ -38,6 +40,8 @@
     catalogTab: 'students',
     authRole: null,            // null | 'student' | 'company'
     studentStep: 'login',      // login | profile | consent | done
+    companyStep: 'login',      // login | email | otp | form | done
+    otpRole: 'student',        // чей вход сейчас идёт по коду: 'student' | 'company'
     studentProfile: null,
     companyProfile: null,
     session: null,
@@ -57,6 +61,11 @@
     gigs: [],                  // задачи из БД (каталог)
     gigModal: false,           // форма публикации задачи (модалка)
     gigSubmit: { loading: false, error: '' },
+    applications: [],          // отклики: студент видит свои, компания — адресованные ей
+    appsLoading: false,
+    applyState: {},            // gigId -> { loading: bool, error: '' }
+    // Открытая ветка чата. peer — с кем говорим (имя компании или студента).
+    chat: null,                // null | { appId, peer, gigTitle, messages, loading, error, sending }
     itemModal: null,           // null | { type: 'skill'|'language'|'project'|'achievement', index: null|number }
     itemForm: {},
     itemUpload: { loading: false, error: '', fileName: '' },
@@ -447,6 +456,33 @@
     return '<main class="view-in">' + hero + value + how + verify + waitlist + '</main>';
   }
 
+  /* ---------- вход по одноразовому коду (общий для студента и компании) ---------- */
+  function emailStepHtml(title, subtitle) {
+    var noClient = !supabase;
+    return '<div style="max-width:440px;">' +
+      '<a data-action="backToLogin" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Назад</a>' +
+      '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:10px 0 8px;">' + title + '</h1>' +
+      '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">' + subtitle + '</p>' +
+      (noClient ? '<div style="padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:12px; margin-bottom:16px; font-size:13px; color:#b3261e; line-height:1.5;">Supabase не настроен: укажите SUPABASE_URL и SUPABASE_ANON_KEY в int_app.js.</div>' : '') +
+      '<div style="display:flex; flex-direction:column; gap:16px;">' +
+        inputField('Email', 'semail', 'you@email.com') +
+        (state.otp.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
+        '<button data-action="sendOtp"' + (state.otp.loading || noClient ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading || noClient ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Отправка…' : 'Получить код') + '</button>' +
+      '</div></div>';
+  }
+  function otpStepHtml() {
+    return '<div style="max-width:440px;">' +
+      '<a data-action="backToEmail" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Изменить email</a>' +
+      '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:10px 0 8px;">Введите код</h1>' +
+      '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Шестизначный код отправлен на <strong style="color:var(--ink);">' + esc(state.otp.email) + '</strong>. Проверьте почту (и папку «Спам»).</p>' +
+      '<div style="display:flex; flex-direction:column; gap:16px;">' +
+        inputField('Код из письма', 'otpInput', '000000') +
+        (state.otp.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
+        '<button data-action="verifyOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Проверка…' : 'Подтвердить и войти') + '</button>' +
+        '<button data-action="resendOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.ghost + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">Отправить код повторно</button>' +
+      '</div></div>';
+  }
+
   /* ---------- STUDENT FORM ---------- */
   function studentView() {
     var inner = '';
@@ -467,28 +503,9 @@
             stepDot('1', 'Вход', true) + arrow() + stepDot('2', 'Контакты', false) + arrow() + stepDot('3', 'Личные данные', false) + arrow() + stepDot('4', 'Тестирование', false) +
           '</div></div></div>';
     } else if (state.studentStep === 'email') {
-      var noClient = !supabase;
-      inner = '<div style="max-width:440px;">' +
-        '<a data-action="backToLogin" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Назад</a>' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:10px 0 8px;">Вход по email</h1>' +
-        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Подходит и студентам, и школьникам. Укажите email — пришлём одноразовый код подтверждения.</p>' +
-        (noClient ? '<div style="padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:12px; margin-bottom:16px; font-size:13px; color:#b3261e; line-height:1.5;">Supabase не настроен: укажите SUPABASE_URL и SUPABASE_ANON_KEY в int_app.js.</div>' : '') +
-        '<div style="display:flex; flex-direction:column; gap:16px;">' +
-          inputField('Email', 'semail', 'you@email.com') +
-          (state.otp.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
-          '<button data-action="sendOtp"' + (state.otp.loading || noClient ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading || noClient ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Отправка…' : 'Получить код') + '</button>' +
-        '</div></div>';
+      inner = emailStepHtml('Вход по email', 'Подходит и студентам, и школьникам. Укажите email — пришлём одноразовый код подтверждения.');
     } else if (state.studentStep === 'otp') {
-      inner = '<div style="max-width:440px;">' +
-        '<a data-action="backToEmail" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Изменить email</a>' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:10px 0 8px;">Введите код</h1>' +
-        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Шестизначный код отправлен на <strong style="color:var(--ink);">' + esc(state.otp.email) + '</strong>. Проверьте почту (и папку «Спам»).</p>' +
-        '<div style="display:flex; flex-direction:column; gap:16px;">' +
-          inputField('Код из письма', 'otpInput', '000000') +
-          (state.otp.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
-          '<button data-action="verifyOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Проверка…' : 'Подтвердить и войти') + '</button>' +
-          '<button data-action="resendOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.ghost + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">Отправить код повторно</button>' +
-        '</div></div>';
+      inner = otpStepHtml();
     } else if (state.studentStep === 'profileContacts') {
       inner = '<div>' +
         '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Шаг 1 из 2 · Контакты</div>' +
@@ -561,6 +578,18 @@
   /* ---------- COMPANY FORM ---------- */
   function companyView() {
     var inner;
+    // Заявку подаёт залогиненная компания: без аккаунта её нельзя привязать к владельцу,
+    // а значит и переписку по откликам показать некому. Роль ещё не назначена — она появится
+    // вместе с заявкой, поэтому здесь смотрим только на наличие сессии.
+    if (!state.companyProfile && !state.session) {
+      if (state.companyStep === 'otp') {
+        inner = otpStepHtml();
+      } else {
+        inner = emailStepHtml('Вход для компаний',
+          'Укажите корпоративную почту — пришлём одноразовый код. Аккаунт нужен, чтобы вести переписку со студентами с любого устройства.');
+      }
+      return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
+    }
     if (!state.companyProfile) {
       inner = '<div>' +
         '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Шаг 1 · Подтверждение профиля</div>' +
@@ -592,12 +621,29 @@
     var name = (r.company_name || 'Компания').trim();
     var initials = name.split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase() || '◆';
     return {
+      id: r.id,
       initials: esc(initials), title: esc(r.title || ''), format: esc(r.format || 'Формат не указан'),
       company: esc(name), desc: esc(r.description || ''), duration: esc(r.duration || '—'), slots: esc(String(r.slots || '1'))
     };
   }
+  // Кнопка отклика меняет смысл: гость -> вход, уже откликнулся -> чат, компания -> ничего.
+  function gigActionHtml(gigId) {
+    var base = 'font-size:13px; font-weight:600; border:none; padding:10px 16px; border-radius:9px; cursor:pointer; flex-shrink:0;';
+    if (state.authRole === 'company') return '';
+    var applied = applicationForGig(gigId);
+    if (applied) {
+      return '<button data-action="openChat" data-app-id="' + esc(applied.id) + '" style="' + base + ' color:var(--ink); background:var(--bg); border:1px solid var(--line);">Открыть чат</button>';
+    }
+    var st = state.applyState[gigId] || {};
+    var btn = '<button data-action="applyToGig" data-gig-id="' + esc(gigId) + '"' + (st.loading ? ' disabled' : '') +
+      ' style="' + base + ' color:#fff; background:var(--accent);' + (st.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' +
+      (st.loading ? 'Отправляем…' : 'Откликнуться') + '</button>';
+    if (!st.error) return btn;
+    return '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">' + btn +
+      '<span style="font-size:12px; color:#b3261e; font-weight:600; max-width:180px; text-align:right;">' + esc(st.error) + '</span></div>';
+  }
   function gigCard(g) {
-    return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:16px;">' + g.title + '</span><span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:13.5px; color:var(--muted); margin-top:2px;">' + g.company + '</div><div style="font-size:14px; color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:12.5px; color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div><button style="font-size:13px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:10px 16px; border-radius:9px; cursor:pointer; flex-shrink:0;">Откликнуться</button></div>';
+    return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:16px;">' + g.title + '</span><span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:13.5px; color:var(--muted); margin-top:2px;">' + g.company + '</div><div style="font-size:14px; color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:12.5px; color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div>' + gigActionHtml(g.id) + '</div>';
   }
   function minorLock(title) {
     var c = docStat('consent');
@@ -1033,13 +1079,116 @@
     return '<main class="view-in" style="max-width:820px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:8px 0 24px;">' + title + '</h1>' + inner + '</main>';
   }
+  function statusChip(status) {
+    var m = appStatusMeta(status);
+    return '<span style="font-size:11.5px; font-weight:700; color:' + m.color + '; background:color-mix(in srgb, ' + m.color + ' 12%, #fff); padding:4px 9px; border-radius:6px; white-space:nowrap;">' + m.label + '</span>';
+  }
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return '';
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  }
+  function chatButton(appId, label) {
+    return '<button data-action="openChat" data-app-id="' + esc(appId) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:9px 15px; border-radius:8px; cursor:pointer; white-space:nowrap;">' + label + '</button>';
+  }
+  // Карточка отклика. Студент видит задачу и компанию, компания — студента и своё решение.
+  function applicationCard(a) {
+    var asCompany = state.authRole === 'company';
+    var title = esc((a.gigs && a.gigs.title) || 'Задача удалена');
+    var subtitle = asCompany ? esc(a.student_name || 'Студент') : esc((a.gigs && a.gigs.company_name) || 'Компания');
+
+    var decision = '';
+    if (asCompany && a.status === 'pending') {
+      decision = '<div style="display:flex; gap:8px; margin-top:12px;">' +
+        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="invited" style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button>' +
+        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="rejected" style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1px solid color-mix(in srgb, #b3261e 30%, #fff); padding:8px 14px; border-radius:8px; cursor:pointer;">Отказать</button>' +
+      '</div>';
+    }
+
+    return '<div style="background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px;">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
+        '<div style="min-width:0;">' +
+          '<div style="font-weight:600; font-size:15.5px;">' + title + '</div>' +
+          '<div style="font-size:13px; color:var(--muted); margin-top:2px;">' + subtitle + ' · ' + esc(fmtDate(a.created_at)) + '</div>' +
+        '</div>' +
+        '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">' + statusChip(a.status) + chatButton(a.id, 'Чат') + '</div>' +
+      '</div>' + decision + '</div>';
+  }
   function responsesView() {
     if (state.authRole !== 'student') return homeView();
-    return pageWrap('Мои отклики', emptyState('◎', 'Пока нет откликов', 'Откликнитесь на задачи в каталоге — здесь появится статус каждого отклика: на рассмотрении, приглашение или отказ.', 'goCatalog', 'Открыть каталог задач'));
+    if (!state.applications.length) {
+      return pageWrap('Мои отклики', state.appsLoading
+        ? '<div style="text-align:center; padding:48px; color:var(--muted); font-size:14px;">Загружаем отклики…</div>'
+        : emptyState('◎', 'Пока нет откликов', 'Откликнитесь на задачи в каталоге — здесь появится статус каждого отклика и переписка с компанией.', 'goCatalog', 'Открыть каталог задач'));
+    }
+    return pageWrap('Мои отклики',
+      '<div style="display:flex; flex-direction:column; gap:12px;">' + state.applications.map(applicationCard).join('') + '</div>');
   }
   function vacanciesView() {
     if (state.authRole !== 'company') return homeView();
-    return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появится статус ваших вакансий и отклики студентов.', 'openGigForm', 'Разместить задачу'));
+    var appId = state.companyProfile && state.companyProfile.id;
+    var myGigs = state.gigs.filter(function (g) { return g.company_app_id === appId; });
+
+    if (!myGigs.length) {
+      return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появятся ваши вакансии и отклики студентов.', 'openGigForm', 'Разместить задачу'));
+    }
+
+    var blocks = myGigs.map(function (g) {
+      var apps = state.applications.filter(function (a) { return a.gig_id === g.id; });
+      var head = '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">' +
+        '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px;">' + esc(g.title || '') + '</div>' +
+        '<span style="font-size:12.5px; color:var(--muted);">' + apps.length + ' ' + pluralRu(apps.length, 'отклик', 'отклика', 'откликов') + '</span></div>';
+      var body = apps.length
+        ? '<div style="display:flex; flex-direction:column; gap:10px;">' + apps.map(applicationCard).join('') + '</div>'
+        : '<div style="font-size:13.5px; color:var(--muted); padding:14px 0 4px;">Откликов пока нет — задача видна студентам в каталоге.</div>';
+      return '<section style="margin-bottom:30px;">' + head + body + '</section>';
+    }).join('');
+
+    return pageWrap('Мои вакансии', blocks);
+  }
+
+  /* ---------- CHAT ---------- */
+  function messageBubble(m) {
+    if (m.sender_role === 'system') {
+      return '<div style="align-self:center; max-width:80%; text-align:center; font-size:12.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:9px 14px; border-radius:10px;">' + esc(m.body) + '</div>';
+    }
+    var mine = m.sender_role === state.authRole;
+    var bubble = mine
+      ? 'align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px;'
+      : 'align-self:flex-start; background:#fff; color:var(--ink); border:1px solid var(--line); border-bottom-left-radius:4px;';
+    var time = new Date(m.created_at);
+    var stamp = isNaN(time) ? '' : time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return '<div style="max-width:76%; padding:10px 14px; border-radius:14px; font-size:14.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word; ' + bubble + '">' +
+      esc(m.body) +
+      '<span style="display:block; margin-top:4px; font-size:11px; opacity:0.65;">' + esc(stamp) + '</span></div>';
+  }
+  function chatView() {
+    var c = state.chat;
+    if (!c || !state.authRole) return homeView();
+
+    var thread;
+    if (c.loading) thread = '<div style="text-align:center; padding:40px; color:var(--muted); font-size:14px;">Загружаем переписку…</div>';
+    else if (c.messages.length) thread = c.messages.map(messageBubble).join('');
+    else thread = '<div style="text-align:center; padding:40px; color:var(--muted); font-size:14px;">Сообщений пока нет.</div>';
+
+    var head = '<div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">' +
+      '<button data-action="closeChat" style="' + S.back + ' background:none; border:none; cursor:pointer; padding:0;">← Назад</button>' +
+      '<div style="min-width:0;">' +
+        '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(c.peer) + '</div>' +
+        (c.gigTitle ? '<div style="font-size:13px; color:var(--muted);">' + esc(c.gigTitle) + '</div>' : '') +
+      '</div></div>';
+
+    var composer = '<div style="display:flex; gap:10px; align-items:flex-end; margin-top:14px;">' +
+      '<textarea data-field="chatDraft" data-chat-input rows="1" placeholder="Написать сообщение…" style="flex:1; font-size:14.5px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-family:inherit; line-height:1.45; resize:none; max-height:140px; background:#fff; color:var(--ink);">' + esc(state.form.chatDraft || '') + '</textarea>' +
+      '<button data-action="sendMessage"' + (c.sending ? ' disabled' : '') + ' style="font-size:14px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:12px 20px; border-radius:12px; cursor:pointer;' + (c.sending ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (c.sending ? '…' : 'Отправить') + '</button>' +
+    '</div>';
+
+    var inner = head +
+      '<div data-chat-thread style="background:var(--bg); border:1px solid var(--line); border-radius:16px; padding:18px; height:52vh; min-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">' + thread + '</div>' +
+      (c.error ? '<div style="margin-top:10px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(c.error) + '</div>' : '') +
+      composer;
+
+    return '<main class="view-in" style="max-width:820px; margin:0 auto; padding:40px 28px 88px;">' + inner + '</main>';
   }
 
   /* ---------- view dispatch ---------- */
@@ -1051,6 +1200,7 @@
       case 'cabinet': return cabinetView();
       case 'responses': return responsesView();
       case 'vacancies': return vacanciesView();
+      case 'chat': return chatView();
       default: return homeView();
     }
   }
@@ -1066,16 +1216,27 @@
   var pendingDocFile = null;  // выбранный в модалке файл (хранится вне DOM, чтобы переживать перерисовку)
   function setState(patch) { for (var k in patch) state[k] = patch[k]; render(); }
   function top() { try { window.scrollTo(0, 0); } catch (e) {} }
+  // Экран входа по коду общий для студента и компании — шаг пишется в свою ветку состояния.
+  // У компании нет входа через Telegram, поэтому её первый экран — сразу ввод почты.
+  function otpStepPatch(step) {
+    if (state.otpRole !== 'company') return { studentStep: step };
+    return { companyStep: step === 'login' ? 'email' : step };
+  }
 
   var actions = {
     // Залогиненного логотип ведёт в рабочий раздел (каталог), а не на маркетинговый лендинг.
     goHome: function () { setState({ view: state.authRole ? 'catalog' : 'home' }); top(); },
-    goStudent: function () { setState({ view: 'student', studentStep: 'login' }); top(); },
-    goStartupForm: function () { setState({ view: 'company' }); top(); },
+    goStudent: function () {
+      setState({ view: 'student', studentStep: 'login', otpRole: 'student', otp: { email: '', error: '', loading: false } }); top();
+    },
+    goStartupForm: function () {
+      var step = state.companyProfile ? 'done' : (state.session && state.authRole === 'company' ? 'form' : 'email');
+      setState({ view: 'company', companyStep: step, otpRole: 'company', otp: { email: '', error: '', loading: false } }); top();
+    },
     goCatalog: function () { setState({ view: 'catalog' }); top(); },
     goCabinet: function () { setState({ view: 'cabinet', extrasSave: { loading: false, error: '', ok: false } }); top(); },
-    goResponses: function () { setState({ view: 'responses' }); top(); },
-    goVacancies: function () { setState({ view: 'vacancies' }); top(); },
+    goResponses: function () { loadApplications(); setState({ view: 'responses' }); top(); },
+    goVacancies: function () { loadApplications(); setState({ view: 'vacancies' }); top(); },
     // Меню открывается/закрывается без полной перерисовки — иначе тело страницы «дёргается» (повтор анимаций).
     toggleMenu: function () { state.menuOpen = !state.menuOpen; paintHeader(); },
     tabStudents: function () { setState({ catalogTab: 'students' }); },
@@ -1130,9 +1291,17 @@
         setState({ tgAuth: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
       });
     },
-    continueEmail: function () { setState({ tgDraft: false, studentStep: 'email', otp: { email: '', error: '', loading: false } }); top(); },
-    backToLogin: function () { setState({ studentStep: 'login', otp: { email: '', error: '', loading: false } }); top(); },
-    backToEmail: function () { setState({ studentStep: 'email', otp: { email: state.otp.email, error: '', loading: false } }); top(); },
+    continueEmail: function () { setState({ tgDraft: false, studentStep: 'email', otpRole: 'student', otp: { email: '', error: '', loading: false } }); top(); },
+    backToLogin: function () {
+      var patch = otpStepPatch('login');
+      patch.otp = { email: '', error: '', loading: false };
+      setState(patch); top();
+    },
+    backToEmail: function () {
+      var patch = otpStepPatch('email');
+      patch.otp = { email: state.otp.email, error: '', loading: false };
+      setState(patch); top();
+    },
     // Шаг 1 из 2 (контакты) -> шаг 2 (личные данные) при заполнении профиля.
     goProfileDetails: function () {
       var email = (state.form.semail || '').trim();
@@ -1154,7 +1323,9 @@
       supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: true } }).then(function (res) {
         if (res.error) { setState({ otp: { email: '', error: res.error.message, loading: false } }); return; }
         state.form.otpInput = '';
-        setState({ studentStep: 'otp', otp: { email: email, error: '', loading: false } });
+        var patch = otpStepPatch('otp');
+        patch.otp = { email: email, error: '', loading: false };
+        setState(patch);
         top();
       });
     },
@@ -1178,16 +1349,35 @@
         return;
       }
       var email = state.otp.email;
+      var asCompany = state.otpRole === 'company';
       setState({ otp: { email: email, error: '', loading: true } });
       supabase.auth.verifyOtp({ email: email, token: entered, type: 'email' }).then(function (res) {
         if (res.error) { setState({ otp: { email: email, error: 'Неверный или устаревший код', loading: false } }); return; }
         state.form.semail = email;
+        var done = { otp: { email: email, error: '', loading: false } };
+
+        if (asCompany) {
+          state.session = res.data.session;
+          // Заявка, поданная до появления входа, лежит в localStorage — привяжем её к аккаунту.
+          claimLegacyCompanyApp().then(loadCompanyProfile).then(function (hasProfile) {
+            done.view = hasProfile ? 'cabinet' : 'company';
+            done.companyStep = hasProfile ? 'done' : 'form';
+            if (hasProfile) { state.authRole = 'company'; loadApplications(); }
+            setState(done);
+            top();
+          });
+          return;
+        }
+
         applyStudentProfile(res.data.session).then(function (hasProfile) {
           if (hasProfile) {
-            setState({ view: state.studentStep === 'consent' ? 'student' : 'cabinet', otp: { email: email, error: '', loading: false } });
+            done.view = state.studentStep === 'consent' ? 'student' : 'cabinet';
+            loadApplications();
           } else {
-            setState({ view: 'student', studentStep: 'profileContacts', otp: { email: email, error: '', loading: false } });
+            done.view = 'student';
+            done.studentStep = 'profileContacts';
           }
+          setState(done);
           top();
         });
       });
@@ -1686,16 +1876,18 @@
         mentorName: '', mentorRole: '', mentorContact: ''
       };
       if (!supabase) { setState({ companySubmit: { loading: false, error: 'Supabase не настроен' } }); return; }
+      if (!state.session) { setState({ companySubmit: { loading: false, error: 'Сессия истекла — войдите заново' } }); return; }
       setState({ companySubmit: { loading: true, error: '' } });
       fetch(SUBMIT_COMPANY_FN, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.session.access_token },
         body: JSON.stringify({ name: name, inn: inn, director: director, corpEmail: corpEmail, domain: profile.domain, linkedin: profile.linkedin, contact: contact, phone: phone })
       }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); }).then(function (res) {
         if (!res.ok || !res.body || !res.body.id) { setState({ companySubmit: { loading: false, error: (res.body && res.body.error) || 'Не удалось отправить заявку' } }); return; }
-        try { localStorage.setItem('company_app_id', res.body.id); } catch (e) {}
+        profile.id = res.body.id;
+        profile.status = res.body.status || 'pending';
         state.companyProfile = profile;
-        setState({ authRole: 'company', companySubmit: { loading: false, error: '' } }); top();
+        setState({ authRole: 'company', companyStep: 'done', companySubmit: { loading: false, error: '' } }); top();
       }).catch(function (err) {
         setState({ companySubmit: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
       });
@@ -1709,14 +1901,12 @@
     submitGig: function () {
       var title = (state.form.gigTitle || '').trim();
       if (!title) { setState({ gigSubmit: { loading: false, error: 'Укажите название задачи' } }); return; }
-      var appId;
-      try { appId = localStorage.getItem('company_app_id'); } catch (e) {}
-      if (!appId || !supabase) { setState({ gigSubmit: { loading: false, error: 'Компания не найдена — войдите заново' } }); return; }
+      if (!supabase || !state.session) { setState({ gigSubmit: { loading: false, error: 'Сессия истекла — войдите заново' } }); return; }
       setState({ gigSubmit: { loading: true, error: '' } });
       fetch(POST_GIG_FN, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-        body: JSON.stringify({ company_app_id: appId, title: title, description: state.form.gigDesc || '', format: state.form.gigFormat || '', duration: state.form.gigDuration || '', slots: state.form.gigSlots || '1' })
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.session.access_token },
+        body: JSON.stringify({ title: title, description: state.form.gigDesc || '', format: state.form.gigFormat || '', duration: state.form.gigDuration || '', slots: state.form.gigSlots || '1' })
       }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); }).then(function (res) {
         if (!res.ok || !res.body || !res.body.gig) { setState({ gigSubmit: { loading: false, error: (res.body && res.body.error) || 'Не удалось опубликовать задачу' } }); return; }
         state.gigs = [res.body.gig].concat(state.gigs);
@@ -1726,16 +1916,92 @@
         setState({ gigSubmit: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
       });
     },
+    // Отклик на задачу. Ветка чата создаётся триггером в БД вместе с системным сообщением.
+    applyToGig: function (el) {
+      var gigId = el.getAttribute('data-gig-id');
+      if (!gigId) return;
+      if (state.authRole !== 'student') { actions.goStudent(); return; }
+      var existing = applicationForGig(gigId);
+      if (existing) { openChat(existing.id); return; }
+      // Для несовершеннолетних каталог и так закрыт, но кнопка может прийти из старой разметки.
+      if (isMinor() && docStat('consent') !== 'approved') { setState({ view: 'cabinet' }); top(); return; }
+      var gig = findGig(gigId);
+      if (!gig || !supabase || !state.session) return;
+
+      state.applyState[gigId] = { loading: true, error: '' };
+      render();
+      supabase.from('gig_applications')
+        .insert({ gig_id: gigId, student_id: currentUserId(), company_app_id: gig.company_app_id, status: 'pending' })
+        .select('id, gig_id, company_app_id, student_name, status, created_at').single()
+        .then(function (r) {
+          if (r.error || !r.data) {
+            // 23505 — уникальный индекс (gig_id, student_id): отклик уже есть.
+            var dup = r.error && r.error.code === '23505';
+            state.applyState[gigId] = { loading: false, error: dup ? 'Вы уже откликнулись на эту задачу' : 'Не удалось откликнуться' };
+            if (dup) loadApplications();
+            render();
+            return;
+          }
+          delete state.applyState[gigId];
+          var row = r.data;
+          row.gigs = { title: gig.title, company_name: gig.company_name };
+          state.applications = [row].concat(state.applications);
+          openChat(row.id);
+        });
+    },
+    openChat: function (el) { openChat(el.getAttribute('data-app-id')); },
+    closeChat: function () {
+      unsubscribeMessages();
+      state.chat = null;
+      setState({ view: state.authRole === 'company' ? 'vacancies' : 'responses' });
+      top();
+    },
+    sendMessage: function () {
+      var body = (state.form.chatDraft || '').trim();
+      if (!body || !state.chat || state.chat.sending) return;
+      if (!supabase || !state.session) { state.chat.error = 'Сессия истекла — войдите заново'; render(); return; }
+      state.chat.sending = true;
+      state.chat.error = '';
+      render();
+      supabase.from('messages')
+        .insert({ application_id: state.chat.appId, sender_role: state.authRole, sender_id: currentUserId(), body: body })
+        .select('id, sender_role, sender_id, body, created_at').single()
+        .then(function (r) {
+          if (!state.chat) return;
+          state.chat.sending = false;
+          if (r.error || !r.data) { state.chat.error = 'Не удалось отправить сообщение'; render(); return; }
+          state.form.chatDraft = '';
+          focusChatInput = true;
+          // Своё сообщение может прийти и по realtime — вставляем только если его ещё нет.
+          if (!haveMessage(r.data.id)) state.chat.messages = state.chat.messages.concat(r.data);
+          render();
+        });
+    },
+    // Решение компании по отклику: приглашение или отказ.
+    setAppStatus: function (el) {
+      var appId = el.getAttribute('data-app-id');
+      var status = el.getAttribute('data-status');
+      var a = findApplication(appId);
+      if (!a || !supabase || state.authRole !== 'company' || a.status === status) return;
+      var before = a.status;
+      a.status = status;
+      render();
+      supabase.from('gig_applications').update({ status: status }).eq('id', appId).then(function (r) {
+        if (r.error) { a.status = before; render(); }
+      });
+    },
     scrollHow: function () { scrollToId('sec-how'); },
     scrollVerify: function () { scrollToId('sec-verify'); },
     logout: function () {
       if (supabase && state.session) supabase.auth.signOut();
       pendingDocFile = null;
       stopTestTimer();
+      unsubscribeMessages();
       try { localStorage.removeItem('company_app_id'); } catch (e) {}
       setState({
         authRole: null, studentProfile: null, companyProfile: null, session: null,
-        studentStep: 'login', docStatus: { study: 'none', consent: 'none' }, tgDraft: false,
+        studentStep: 'login', companyStep: 'login', otpRole: 'student',
+        docStatus: { study: 'none', consent: 'none' }, tgDraft: false,
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         profileSave: { loading: false, error: '' },
@@ -1743,6 +2009,7 @@
         extrasSave: { loading: false, error: '', ok: false },
         companySubmit: { loading: false, error: '' },
         gigModal: false, gigSubmit: { loading: false, error: '' },
+        applications: [], appsLoading: false, applyState: {}, chat: null,
         menuOpen: false, modal: null, testView: null, testResult: null,
         form: {}, view: 'home', catalogTab: 'students'
       });
@@ -1836,43 +2103,65 @@
       return false;
     });
   }
+  // Заявка компании читается ею самой: RLS пускает к строке с owner_user_id = auth.uid().
+  // Возвращает Promise<boolean> — есть ли у аккаунта заявка.
+  function loadCompanyProfile() {
+    if (!supabase || !state.session) return Promise.resolve(false);
+    return supabase.from('company_applications').select('id, status, data')
+      .eq('owner_user_id', currentUserId()).maybeSingle()
+      .then(function (r) {
+        var row = r && r.data;
+        if (!row) return false;
+        var d = row.data || {};
+        state.companyProfile = {
+          id: row.id,
+          name: d.name || '', inn: d.inn || '', director: d.director || '', corpEmail: d.corpEmail || '',
+          domain: d.domain || '', linkedin: d.linkedin || '', contact: d.contact || '', phone: d.phone || '',
+          status: row.status || 'pending',
+          description: '', focusAreas: [], techStack: [], commStyle: 'async', syncHours: '',
+          meetingCadence: 'weekly', meetingLink: '', pitch: '', defaultDuration: '1m',
+          mentorName: '', mentorRole: '', mentorContact: ''
+        };
+        state.authRole = 'company';
+        state.companyStep = 'done';
+        return true;
+      });
+  }
+  // Заявки, поданные до появления аккаунтов, помнит только localStorage. Привязываем один раз
+  // и забываем id: дальше компания находит свою заявку по owner_user_id.
+  function claimLegacyCompanyApp() {
+    var id;
+    try { id = localStorage.getItem('company_app_id'); } catch (e) {}
+    if (!id || !supabase || !state.session) return Promise.resolve();
+    return fetch(CLAIM_COMPANY_FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.session.access_token },
+      body: JSON.stringify({ id: id })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+      .then(function (res) {
+        // Чужую заявку забрать нельзя — тогда просто перестаём её помнить.
+        if (res.ok || (res.body && res.body.error)) { try { localStorage.removeItem('company_app_id'); } catch (e) {} }
+      })
+      .catch(function () {});
+  }
   // При загрузке страницы восстанавливает сессию и профиль из Supabase.
+  // Роль определяется по данным: есть заявка компании — компания, иначе студент.
   function restoreSession() {
     if (!supabase) return;
     supabase.auth.getSession().then(function (res) {
       var session = res.data && res.data.session;
       if (!session) return;
-      applyStudentProfile(session).then(function (hasProfile) {
+      state.session = session;
+      return claimLegacyCompanyApp().then(loadCompanyProfile).then(function (isCompany) {
+        if (isCompany) return true;
+        return applyStudentProfile(session);
+      }).then(function (hasProfile) {
         // залогиненного не держим на маркетинговом лендинге — в рабочий раздел (каталог)
         if (hasProfile && state.view === 'home') state.view = 'catalog';
+        if (hasProfile) loadApplications();
         render();
       });
     });
-  }
-  // Восстановление компании по сохранённому id заявки (у компаний нет Supabase-сессии).
-  function restoreCompany() {
-    var id;
-    try { id = localStorage.getItem('company_app_id'); } catch (e) {}
-    if (!id || !supabase) return;
-    fetch(COMPANY_STATUS_FN, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-      body: JSON.stringify({ id: id })
-    }).then(function (r) { return r.json(); }).then(function (j) {
-      if (state.authRole || !j || !j.data) return;  // не перекрываем студента; нет записи — игнор
-      var d = j.data;
-      state.companyProfile = {
-        name: d.name || '', inn: d.inn || '', director: d.director || '', corpEmail: d.corpEmail || '',
-        domain: d.domain || '', linkedin: d.linkedin || '', contact: d.contact || '', phone: d.phone || '',
-        status: j.status || 'pending',
-        description: '', focusAreas: [], techStack: [], commStyle: 'async', syncHours: '',
-        meetingCadence: 'weekly', meetingLink: '', pitch: '', defaultDuration: '1m',
-        mentorName: '', mentorRole: '', mentorContact: ''
-      };
-      state.authRole = 'company';
-      if (state.view === 'home') state.view = 'catalog';
-      render();
-    }).catch(function () {});
   }
   // Загружает задачи из БД (публичное чтение) в каталог.
   function loadGigs() {
@@ -1882,6 +2171,107 @@
       state.gigs = r.data;
       render();
     });
+  }
+
+  /* ---------- отклики и чат ---------- */
+  var chatChannel = null;
+  // Вернуть курсор в поле ввода после отправки, когда фокус уже сняли кликом по кнопке.
+  var focusChatInput = false;
+
+  var APP_STATUS = {
+    pending:  { label: 'На рассмотрении', color: '#e2a53a' },
+    invited:  { label: 'Приглашение',     color: '#16a34a' },
+    rejected: { label: 'Отказ',           color: '#b3261e' }
+  };
+  function appStatusMeta(status) { return APP_STATUS[status] || APP_STATUS.pending; }
+
+  function findApplication(appId) {
+    for (var i = 0; i < state.applications.length; i++) {
+      if (state.applications[i].id === appId) return state.applications[i];
+    }
+    return null;
+  }
+  function applicationForGig(gigId) {
+    for (var i = 0; i < state.applications.length; i++) {
+      if (state.applications[i].gig_id === gigId) return state.applications[i];
+    }
+    return null;
+  }
+  function findGig(gigId) {
+    for (var i = 0; i < state.gigs.length; i++) if (state.gigs[i].id === gigId) return state.gigs[i];
+    return null;
+  }
+
+  // Что вернёт запрос, решает RLS: студенту — свои отклики, компании — адресованные ей.
+  function loadApplications() {
+    if (!supabase || !state.session || !state.authRole) return;
+    state.appsLoading = true;
+    supabase.from('gig_applications')
+      .select('id, gig_id, company_app_id, student_name, status, created_at, gigs(title, company_name)')
+      .order('created_at', { ascending: false })
+      .then(function (r) {
+        state.appsLoading = false;
+        if (!r.error && r.data) state.applications = r.data;
+        render();
+      });
+  }
+
+  // Собеседник в ветке: компания видит студента, студент — компанию.
+  function chatPeer(a) {
+    if (state.authRole === 'company') return a.student_name || 'Студент';
+    return (a.gigs && a.gigs.company_name) || 'Компания';
+  }
+  function openChat(appId) {
+    var a = findApplication(appId);
+    if (!a) return;
+    state.chat = {
+      appId: appId, peer: chatPeer(a), gigTitle: (a.gigs && a.gigs.title) || '',
+      messages: [], loading: true, error: '', sending: false
+    };
+    state.form.chatDraft = '';
+    setState({ view: 'chat' });
+    top();
+    loadMessages(appId);
+    subscribeMessages(appId);
+  }
+  function loadMessages(appId) {
+    if (!supabase) return;
+    supabase.from('messages').select('id, sender_role, sender_id, body, created_at')
+      .eq('application_id', appId).order('created_at', { ascending: true })
+      .then(function (r) {
+        if (!state.chat || state.chat.appId !== appId) return;  // успели уйти из ветки
+        if (r.error) state.chat.error = 'Не удалось загрузить переписку';
+        else state.chat.messages = r.data || [];
+        state.chat.loading = false;
+        render();
+      });
+  }
+  function haveMessage(id) {
+    if (!state.chat) return true;
+    for (var i = 0; i < state.chat.messages.length; i++) if (state.chat.messages[i].id === id) return true;
+    return false;
+  }
+  // Realtime уважает RLS: в канал приходят только сообщения из веток, где мы участник.
+  function subscribeMessages(appId) {
+    unsubscribeMessages();
+    if (!supabase || !supabase.channel) return;
+    // Канал авторизуется отдельно от REST: без свежего токена RLS не пустит в поток.
+    try { supabase.realtime.setAuth(state.session.access_token); } catch (e) {}
+    chatChannel = supabase.channel('chat-' + appId)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: 'application_id=eq.' + appId },
+        function (payload) {
+          var m = payload && payload.new;
+          if (!m || !state.chat || state.chat.appId !== appId || haveMessage(m.id)) return;
+          state.chat.messages = state.chat.messages.concat(m);
+          render();
+        })
+      .subscribe();
+  }
+  function unsubscribeMessages() {
+    if (!chatChannel) return;
+    try { supabase.removeChannel(chatChannel); } catch (e) {}
+    chatChannel = null;
   }
 
   /* ---------- document upload modal ---------- */
@@ -2342,10 +2732,28 @@
       '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:16px; pointer-events:none;">' + dialog + '</div>';
   }
 
+  // Каждый render переписывает innerHTML целиком, а чат перерисовывается на каждое входящее
+  // сообщение. Без этого пользователь терял бы курсор в поле ввода и уезжал в начало переписки.
+  function chatInputHasFocus() {
+    var el = document.activeElement;
+    return !!(el && el.hasAttribute && el.hasAttribute('data-chat-input'));
+  }
+  function restoreChatUi(keepFocus) {
+    var thread = root.querySelector('[data-chat-thread]');
+    if (thread) thread.scrollTop = thread.scrollHeight;
+    if (!keepFocus) return;
+    var input = root.querySelector('[data-chat-input]');
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
   function render() {
+    var keepChatFocus = state.view === 'chat' && (chatInputHasFocus() || focusChatInput);
+    focusChatInput = false;
     root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml();
     setupReveal();
     if (state.view === 'home') startStats();
+    if (state.view === 'chat') restoreChatUi(keepChatFocus);
   }
   // Перерисовывает только шапку и оверлей (для открытия/закрытия меню), не трогая тело страницы.
   function paintHeader() {
@@ -2358,8 +2766,7 @@
   function init() {
     root = document.getElementById('root');
     loadTelegramScript();
-    restoreSession();
-    restoreCompany();
+    restoreSession();  // роль (студент/компания) определяется внутри по данным аккаунта
     loadGigs();
     root.addEventListener('click', function (e) {
       var t = e.target.closest('[data-action]');
@@ -2383,6 +2790,14 @@
       }
       return true;
     }
+    // Enter отправляет сообщение, Shift+Enter — перенос строки.
+    root.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      if (!e.target.hasAttribute || !e.target.hasAttribute('data-chat-input')) return;
+      e.preventDefault();
+      focusChatInput = true;
+      actions.sendMessage();
+    });
     root.addEventListener('input', function (e) {
       var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value;
       var itf = e.target.getAttribute && e.target.getAttribute('data-item-field'); if (itf) { state.itemForm = state.itemForm || {}; state.itemForm[itf] = e.target.value; }
