@@ -1423,11 +1423,13 @@
               // профиль уже есть — сразу в кабинет (или на шаг согласия, если требуется)
               setState({ view: state.studentStep === 'consent' ? 'student' : 'cabinet', tgDraft: false, tgAuth: { loading: false, error: '' } });
             } else {
-              // новый пользователь — черновик из Telegram и форма профиля
+              // новый пользователь — черновик из Telegram и форма профиля.
+              // Почту НЕ подставляем: res.body.email — синтетический tg_<id>@telegram.local
+              // (идентификатор в auth.users), письма на него не идут. Пусть впишет реальную.
               state.form.sfirst = user.first_name || state.form.sfirst || '';
               state.form.slast = user.last_name || state.form.slast || '';
               state.form.tg = user.username ? '@' + user.username : (state.form.tg || '');
-              state.form.semail = res.body.email || state.form.semail || '';
+              if (/@telegram\.local$/i.test(state.form.semail || '')) state.form.semail = '';
               setState({ view: 'student', tgDraft: true, studentStep: 'profileContacts', tgAuth: { loading: false, error: '' } });
             }
             top();
@@ -1451,6 +1453,7 @@
     // Шаг 1 из 2 (контакты) -> шаг 2 (личные данные) при заполнении профиля.
     goProfileDetails: function () {
       var email = (state.form.semail || '').trim();
+      if (/@telegram\.local$/i.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите настоящий email — на него придут уведомления' } }); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите корректный email' } }); return; }
       setState({ studentStep: 'profileDetails', profileSave: { loading: false, error: '' } }); top();
     },
@@ -1536,6 +1539,7 @@
       // Обязательные поля (Telegram — необязателен)
       if (!status) { setState({ profileSave: { loading: false, error: 'Выберите ваш статус' } }); return; }
       if (!first || !last) { setState({ profileSave: { loading: false, error: 'Укажите имя и фамилию' } }); return; }
+      if (/@telegram\.local$/i.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите настоящий email — на него придут уведомления' } }); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setState({ profileSave: { loading: false, error: 'Укажите корректный email' } }); return; }
       var minor = /до 18/.test(status);
       state.studentProfile = { first: first, last: last, tg: (state.form.tg || '').trim(), email: email, status: status, minor: minor, specialty: '', specialties: [], description: '', aiTest: null, aiTestSeenQuestions: [], availability: '', institution: '', photoPath: '', photoUrl: '', hardSkills: [], languages: [], projects: [], achievements: [], platformHistory: [] };
