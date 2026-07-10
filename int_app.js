@@ -2954,16 +2954,33 @@
     if (hdr) hdr.outerHTML = header();
   }
 
-  // Возврат из redirect-флоу Telegram: данные приходят в #tgAuthResult как base64(JSON).
-  // Возвращает подписанные поля пользователя или null.
+  // Убирает данные Telegram из адресной строки: чтобы не переобработать при обновлении и не светить hash.
+  function stripTelegramReturn() {
+    try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
+  }
+  // Возврат из redirect-флоу Telegram. Основной формат — подписанные поля query-параметрами
+  // (?id=..&hash=..&auth_date=..). Запасной — #tgAuthResult=base64(JSON). Возвращает поля или null.
   function readTelegramReturn() {
+    var search = window.location.search || '';
+    // Пробрасываем ровно то, что прислал Telegram: подпись считается по этому же набору полей,
+    // лишнее/недостающее её сломает. return_to мы задаём без своих query, так что тут только Telegram.
+    if (search.indexOf('hash=') !== -1) {
+      try {
+        var params = new URLSearchParams(search);
+        if (params.get('id') && params.get('hash') && params.get('auth_date')) {
+          var user = {};
+          params.forEach(function (v, k) { user[k] = v; });
+          stripTelegramReturn();
+          return user;
+        }
+      } catch (e) { /* упадём в разбор hash ниже */ }
+    }
+
     var hash = window.location.hash || '';
-    var key = 'tgAuthResult=';
-    var i = hash.indexOf(key);
+    var i = hash.indexOf('tgAuthResult=');
     if (i === -1) return null;
-    var raw = hash.slice(i + key.length).split('&')[0];
-    // Убираем токен из адресной строки: и чтобы не переобрабатывать при обновлении, и чтобы не светить.
-    try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
+    var raw = hash.slice(i + 'tgAuthResult='.length).split('&')[0];
+    stripTelegramReturn();
     try {
       var b64 = decodeURIComponent(raw).replace(/-/g, '+').replace(/_/g, '/');
       while (b64.length % 4) b64 += '=';
@@ -2971,8 +2988,8 @@
       // atob даёт латиницу-1; decodeURIComponent(escape(...)) восстанавливает UTF-8 (кириллица в имени).
       var json;
       try { json = decodeURIComponent(escape(bin)); } catch (e) { json = bin; }
-      var user = JSON.parse(json);
-      return (user && user.id && user.hash) ? user : null;
+      var u = JSON.parse(json);
+      return (u && u.id && u.hash) ? u : null;
     } catch (e) { return null; }
   }
 
