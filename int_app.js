@@ -12,7 +12,7 @@
   /* ---------- telegram login ---------- */
   // Имя бота из @BotFather, БЕЗ символа @. Напр. 'internship_uz_bot'.
   var TELEGRAM_BOT = 'int_auth_bot';
-  // Числовой bot_id (первая часть токена до ':') — нужен для Telegram.Login.auth.
+  // Числовой bot_id (первая часть токена до ':') — нужен для redirect-флоу входа через Telegram.
   var TELEGRAM_BOT_ID = '8827034426';
   // Эндпоинт Edge Function, которая проверяет подпись Telegram и выдаёт сессию.
   var TG_AUTH_FN = SUPABASE_URL + '/functions/v1/telegram-auth';
@@ -1388,15 +1388,17 @@
     // Открывает окно авторизации Telegram через JS-API (своя кнопка вместо iframe-виджета).
     loginTelegram: function () {
       if (TELEGRAM_BOT.indexOf('YOUR_BOT') !== -1) { setState({ tgAuth: { loading: false, error: 'Telegram-бот не настроен (TELEGRAM_BOT / TELEGRAM_BOT_ID в int_app.js).' } }); return; }
-      if (!window.Telegram || !window.Telegram.Login || typeof window.Telegram.Login.auth !== 'function') {
-        setState({ tgAuth: { loading: false, error: 'Виджет Telegram ещё не загрузился, попробуйте через секунду.' } });
-        return;
-      }
+      // Redirect-флоу вместо JS-колбэка: колбэк Telegram.Login.auth молча возвращает false,
+      // когда браузер режет стороннее хранилище (Safari ITP, Chrome). Здесь Telegram сам
+      // возвращает нас на страницу с данными в #tgAuthResult — межсайтовое хранилище не нужно.
+      var origin = location.protocol + '//' + location.host;
+      var returnTo = origin + location.pathname;  // без query/hash, чтобы не копить мусор
+      var url = 'https://oauth.telegram.org/auth?bot_id=' + encodeURIComponent(TELEGRAM_BOT_ID) +
+        '&origin=' + encodeURIComponent(origin) +
+        '&request_access=write' +
+        '&return_to=' + encodeURIComponent(returnTo);
       setState({ tgAuth: { loading: true, error: '' } });
-      window.Telegram.Login.auth({ bot_id: TELEGRAM_BOT_ID, request_access: 'write' }, function (user) {
-        if (!user) { setState({ tgAuth: { loading: false, error: 'Вход через Telegram отменён' } }); return; }
-        actions.telegramAuth(user);
-      });
+      window.location.href = url;
     },
     // Отправляет подписанные данные Telegram в Edge Function и устанавливает Supabase-сессию.
     telegramAuth: function (user) {
@@ -2217,18 +2219,6 @@
     setTimeout(function () { root.querySelectorAll('[data-reveal].reveal-armed').forEach(function (e) { e.classList.remove('reveal-armed'); }); }, 1600);
   }
 
-  /* ---------- telegram widget script ---------- */
-  // Грузим telegram-widget.js один раз — он нужен ради JS-API Telegram.Login.auth,
-  // который открывает окно авторизации по клику на нашу собственную кнопку.
-  function loadTelegramScript() {
-    if (document.getElementById('tg-widget-js')) return;
-    var s = document.createElement('script');
-    s.id = 'tg-widget-js';
-    s.async = true;
-    s.src = 'https://telegram.org/js/telegram-widget.js?22';
-    document.head.appendChild(s);
-  }
-
   /* ---------- render ---------- */
   /* ---------- profile persistence ---------- */
   function currentUserId() {
@@ -2964,10 +2954,38 @@
     if (hdr) hdr.outerHTML = header();
   }
 
+  // Возврат из redirect-флоу Telegram: данные приходят в #tgAuthResult как base64(JSON).
+  // Возвращает подписанные поля пользователя или null.
+  function readTelegramReturn() {
+    var hash = window.location.hash || '';
+    var key = 'tgAuthResult=';
+    var i = hash.indexOf(key);
+    if (i === -1) return null;
+    var raw = hash.slice(i + key.length).split('&')[0];
+    // Убираем токен из адресной строки: и чтобы не переобрабатывать при обновлении, и чтобы не светить.
+    try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
+    try {
+      var b64 = decodeURIComponent(raw).replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      var bin = atob(b64);
+      // atob даёт латиницу-1; decodeURIComponent(escape(...)) восстанавливает UTF-8 (кириллица в имени).
+      var json;
+      try { json = decodeURIComponent(escape(bin)); } catch (e) { json = bin; }
+      var user = JSON.parse(json);
+      return (user && user.id && user.hash) ? user : null;
+    } catch (e) { return null; }
+  }
+
   function init() {
     root = document.getElementById('root');
-    loadTelegramScript();
-    restoreSession();  // роль (студент/компания) определяется внутри по данным аккаунта
+    var tgUser = readTelegramReturn();
+    if (tgUser) {
+      // Вернулись после авторизации в Telegram — сразу меняем данные на сессию.
+      state.view = 'student';
+      actions.telegramAuth(tgUser);
+    } else {
+      restoreSession();  // роль (студент/компания) определяется внутри по данным аккаунта
+    }
     loadGigs();
     root.addEventListener('click', function (e) {
       var t = e.target.closest('[data-action]');
