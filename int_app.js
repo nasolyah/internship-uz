@@ -66,6 +66,8 @@
     applyState: {},            // gigId -> { loading: bool, error: '' }
     // Открытая ветка чата. peer — с кем говорим (имя компании или студента).
     chat: null,                // null | { appId, peer, gigTitle, messages, loading, error, sending }
+    // Просмотр чужого профиля: студент смотрит компанию, компания — откликнувшегося студента.
+    profileView: null,         // null | { kind: 'company'|'student', id, data, loading, error, back }
     itemModal: null,           // null | { type: 'skill'|'language'|'project'|'achievement', index: null|number }
     itemForm: {},
     itemUpload: { loading: false, error: '', fileName: '' },
@@ -621,10 +623,15 @@
     var name = (r.company_name || 'Компания').trim();
     var initials = name.split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase() || '◆';
     return {
-      id: r.id,
+      id: r.id, companyAppId: r.company_app_id,
       initials: esc(initials), title: esc(r.title || ''), format: esc(r.format || 'Формат не указан'),
       company: esc(name), desc: esc(r.description || ''), duration: esc(r.duration || '—'), slots: esc(String(r.slots || '1'))
     };
+  }
+  // Название компании в карточке задачи ведёт на её витрину.
+  function companyLink(g) {
+    if (!g.companyAppId) return g.company;
+    return '<a data-action="openCompanyProfile" data-company-id="' + esc(g.companyAppId) + '" data-back="catalog" style="cursor:pointer; color:var(--muted); border-bottom:1px solid var(--line);">' + g.company + '</a>';
   }
   // Кнопка отклика меняет смысл: гость -> вход, уже откликнулся -> чат, компания -> ничего.
   function gigActionHtml(gigId) {
@@ -643,7 +650,7 @@
       '<span style="font-size:12px; color:#b3261e; font-weight:600; max-width:180px; text-align:right;">' + esc(st.error) + '</span></div>';
   }
   function gigCard(g) {
-    return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:16px;">' + g.title + '</span><span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:13.5px; color:var(--muted); margin-top:2px;">' + g.company + '</div><div style="font-size:14px; color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:12.5px; color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div>' + gigActionHtml(g.id) + '</div>';
+    return '<div data-lift style="background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:16px;">' + g.title + '</span><span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:13.5px; color:var(--muted); margin-top:2px;">' + companyLink(g) + '</div><div style="font-size:14px; color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:12.5px; color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div>' + gigActionHtml(g.id) + '</div>';
   }
   function minorLock(title) {
     var c = docStat('consent');
@@ -1052,7 +1059,8 @@
 
     var es = state.extrasSave;
     var esNote = es.ok ? '<span style="font-size:12.5px; color:#16a34a; font-weight:600;">Сохранено ✓</span>' : '';
-    var saveBar = '<div style="display:flex; align-items:center; gap:14px; margin-top:20px;"><button data-action="saveCompanyExtras" style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + '">Сохранить настройки</button>' + esNote + '</div>';
+    var esErr = es.error ? '<span style="font-size:12.5px; color:#b3261e; font-weight:600;">' + esc(es.error) + '</span>' : '';
+    var saveBar = '<div style="display:flex; align-items:center; gap:14px; margin-top:20px;"><button data-action="saveCompanyExtras"' + (es.loading ? ' disabled' : '') + ' style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + (es.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (es.loading ? 'Сохранение…' : 'Сохранить настройки') + '</button>' + esNote + esErr + '</div>';
 
     return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет компании</h1>' +
@@ -1092,10 +1100,19 @@
     return '<button data-action="openChat" data-app-id="' + esc(appId) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:9px 15px; border-radius:8px; cursor:pointer; white-space:nowrap;">' + label + '</button>';
   }
   // Карточка отклика. Студент видит задачу и компанию, компания — студента и своё решение.
+  // У компании карточки сгруппированы под задачей, поэтому её название здесь не повторяем.
   function applicationCard(a) {
     var asCompany = state.authRole === 'company';
-    var title = esc((a.gigs && a.gigs.title) || 'Задача удалена');
-    var subtitle = asCompany ? esc(a.student_name || 'Студент') : esc((a.gigs && a.gigs.company_name) || 'Компания');
+    var back = asCompany ? 'vacancies' : 'responses';
+    var title, subtitle;
+    if (asCompany) {
+      // Имя студента ведёт в его профиль — компании он доступен, раз студент откликнулся.
+      title = '<a data-action="openStudentProfile" data-student-id="' + esc(a.student_id || '') + '" data-back="' + back + '" style="cursor:pointer; color:var(--ink); border-bottom:1px solid var(--line);">' + esc(a.student_name || 'Студент') + '</a>';
+      subtitle = esc(fmtDate(a.created_at));
+    } else {
+      title = esc((a.gigs && a.gigs.title) || 'Задача удалена');
+      subtitle = '<a data-action="openCompanyProfile" data-company-id="' + esc(a.company_app_id || '') + '" data-back="' + back + '" style="cursor:pointer; color:var(--muted); border-bottom:1px solid var(--line);">' + esc((a.gigs && a.gigs.company_name) || 'Компания') + '</a> · ' + esc(fmtDate(a.created_at));
+    }
 
     var decision = '';
     if (asCompany && a.status === 'pending') {
@@ -1109,7 +1126,7 @@
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
         '<div style="min-width:0;">' +
           '<div style="font-weight:600; font-size:15.5px;">' + title + '</div>' +
-          '<div style="font-size:13px; color:var(--muted); margin-top:2px;">' + subtitle + ' · ' + esc(fmtDate(a.created_at)) + '</div>' +
+          '<div style="font-size:13px; color:var(--muted); margin-top:2px;">' + subtitle + '</div>' +
         '</div>' +
         '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">' + statusChip(a.status) + chatButton(a.id, 'Чат') + '</div>' +
       '</div>' + decision + '</div>';
@@ -1147,11 +1164,133 @@
     return pageWrap('Мои вакансии', blocks);
   }
 
-  /* ---------- CHAT ---------- */
-  function messageBubble(m) {
-    if (m.sender_role === 'system') {
-      return '<div style="align-self:center; max-width:80%; text-align:center; font-size:12.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:9px 14px; border-radius:10px;">' + esc(m.body) + '</div>';
+  /* ---------- PROFILE (чужой) ---------- */
+  function chipList(items) {
+    if (!items || !items.length) return '';
+    return '<div style="display:flex; flex-wrap:wrap; gap:7px;">' + items.map(function (t) {
+      return '<span style="font-size:12px; font-weight:600; color:var(--ink); background:var(--bg); border:1px solid var(--line); padding:5px 10px; border-radius:7px;">' + esc(String(t)) + '</span>';
+    }).join('') + '</div>';
+  }
+  function profileSection(title, body) {
+    if (!body) return '';
+    return '<section style="margin-top:26px;">' +
+      '<div style="font-size:12.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">' + title + '</div>' +
+      body + '</section>';
+  }
+  function profileText(s) {
+    if (!s) return '';
+    return '<p style="font-size:15px; line-height:1.6; color:var(--ink); margin:0; white-space:pre-wrap;">' + esc(s) + '</p>';
+  }
+  var COMM_STYLE = { async: 'Асинхронно', sync: 'Синхронно, в рабочие часы' };
+  var CADENCE = { weekly: 'Раз в неделю', biweekly: 'Раз в две недели', daily: 'Ежедневно' };
+
+  function companyProfileHtml(c) {
+    var meta = [];
+    if (c.comm_style) meta.push('Формат: ' + (COMM_STYLE[c.comm_style] || c.comm_style));
+    if (c.sync_hours) meta.push('Часы: ' + c.sync_hours);
+    if (c.meeting_cadence) meta.push('Созвоны: ' + (CADENCE[c.meeting_cadence] || c.meeting_cadence));
+
+    var mentor = '';
+    if (c.mentor_name) {
+      mentor = '<div style="font-size:15px;"><strong>' + esc(c.mentor_name) + '</strong>' +
+        (c.mentor_role ? '<span style="color:var(--muted);"> · ' + esc(c.mentor_role) + '</span>' : '') + '</div>';
     }
+
+    return '<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">' +
+        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0;">' + esc(c.name || 'Компания') + '</h1>' +
+        '<span style="font-size:11px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, #fff); padding:4px 9px; border-radius:6px;">✓ подтверждена</span>' +
+      '</div>' +
+      (c.pitch ? '<p style="font-size:16px; color:var(--muted); margin:0;">' + esc(c.pitch) + '</p>' : '') +
+      profileSection('О компании', profileText(c.description)) +
+      profileSection('Направления', chipList(c.focus_areas)) +
+      profileSection('Технологии', chipList(c.tech_stack)) +
+      profileSection('Как работаем', meta.length ? '<div style="font-size:14.5px; color:var(--muted); line-height:1.7;">' + esc(meta.join(' · ')) + '</div>' : '') +
+      profileSection('Куратор', mentor) +
+      (c.linkedin ? profileSection('Ссылки', '<a href="' + esc(c.linkedin) + '" target="_blank" rel="noopener noreferrer" style="font-size:14.5px; color:var(--accent); font-weight:600;">' + esc(c.linkedin) + '</a>') : '');
+  }
+
+  function studentProfileHtml(s) {
+    var name = ((s.first_name || '') + ' ' + (s.last_name || '')).trim() || 'Студент';
+    var sub = [s.study_status, s.institution].filter(Boolean).join(' · ');
+
+    var test = '';
+    if (s.ai_test && s.ai_test.level) {
+      test = '<div style="font-size:15px;">Уровень: <strong>' + esc(s.ai_test.level) + '</strong>' +
+        (s.ai_test.correct != null && s.ai_test.total != null
+          ? '<span style="color:var(--muted);"> · ' + esc(String(s.ai_test.correct)) + ' из ' + esc(String(s.ai_test.total)) + '</span>' : '') + '</div>';
+    }
+
+    var projects = '';
+    if (s.projects && s.projects.length) {
+      projects = '<div style="display:flex; flex-direction:column; gap:10px;">' + s.projects.map(function (p) {
+        return '<div style="border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:#fff;">' +
+          '<div style="font-weight:600; font-size:15px;">' + esc(p.name || 'Проект') +
+            (p.specialty ? '<span style="font-weight:500; color:var(--muted);"> · ' + esc(p.specialty) + '</span>' : '') + '</div>' +
+          (p.desc ? '<div style="font-size:13.5px; color:var(--muted); margin-top:4px; line-height:1.5;">' + esc(p.desc) + '</div>' : '') +
+          (p.tags && p.tags.length ? '<div style="margin-top:10px;">' + chipList(p.tags) + '</div>' : '') + '</div>';
+      }).join('') + '</div>';
+    }
+
+    // Контакты отдаёт представление только приглашённому студенту — здесь просто показываем,
+    // что пришло. Пока приглашения нет, поля равны null.
+    var contacts = '';
+    if (s.email || s.tg) {
+      contacts = '<div style="font-size:14.5px; line-height:1.7;">' +
+        (s.email ? '<div>Email: <strong>' + esc(s.email) + '</strong></div>' : '') +
+        (s.tg ? '<div>Telegram: <strong>' + esc(s.tg) + '</strong></div>' : '') + '</div>';
+    } else {
+      contacts = '<div style="font-size:13.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px 14px; line-height:1.5;">Контакты откроются после того, как вы пригласите студента. До этого пишите в чате отклика.</div>';
+    }
+
+    var skills = (s.hard_skills || []).map(function (k) { return typeof k === 'string' ? k : (k && k.name); }).filter(Boolean);
+    var langs = (s.languages || []).map(function (k) { return typeof k === 'string' ? k : (k && k.name); }).filter(Boolean);
+
+    return '<div style="display:flex; align-items:center; gap:14px;">' +
+        (s.photo_url ? '<img src="' + esc(s.photo_url) + '" alt="" style="width:56px; height:56px; border-radius:14px; object-fit:cover;">' : '') +
+        '<div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0;">' + esc(name) + '</h1>' +
+        (sub ? '<div style="font-size:14px; color:var(--muted); margin-top:2px;">' + esc(sub) + '</div>' : '') + '</div>' +
+      '</div>' +
+      profileSection('О себе', profileText(s.description)) +
+      profileSection('Специальности', chipList(s.specialties)) +
+      profileSection('Навыки', chipList(skills)) +
+      profileSection('Языки', chipList(langs)) +
+      profileSection('ИИ-тест', test) +
+      profileSection('Проекты', projects) +
+      profileSection('Контакты', contacts);
+  }
+
+  function profileViewPage() {
+    var pv = state.profileView;
+    if (!pv) return homeView();
+    var inner;
+    if (pv.loading) inner = '<div style="text-align:center; padding:60px; color:var(--muted); font-size:14px;">Загружаем профиль…</div>';
+    else if (pv.error) inner = '<div style="text-align:center; padding:60px; color:#b3261e; font-size:14px; font-weight:600;">' + esc(pv.error) + '</div>';
+    else inner = pv.kind === 'company' ? companyProfileHtml(pv.data) : studentProfileHtml(pv.data);
+
+    return '<main class="view-in" style="max-width:760px; margin:0 auto; padding:40px 28px 88px;">' +
+      '<button data-action="closeProfile" style="' + S.back + ' background:none; border:none; cursor:pointer; padding:0; margin-bottom:20px;">← Назад</button>' +
+      inner + '</main>';
+  }
+
+  /* ---------- CHAT ---------- */
+  // Ссылку на созвон приписывает триггер в БД, в конец системного сообщения. Ссылкой делаем
+  // только то, что прошло строгую проверку: https, без пробелов и кавычек.
+  var MEET_URL = /https:\/\/[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:\/[A-Za-z0-9\-._~:/?#@!$&*+,;=%]*)?$/;
+  function systemBubble(body) {
+    var wrap = 'align-self:center; max-width:80%; font-size:12.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); padding:9px 14px; border-radius:10px;';
+    var hit = String(body).match(MEET_URL);
+    if (!hit) return '<div style="' + wrap + ' text-align:center;">' + esc(body) + '</div>';
+
+    var url = hit[0];
+    var text = String(body).slice(0, hit.index).replace(/[\s:·—-]+$/, '');
+    return '<div style="' + wrap + ' text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">' +
+      '<span>' + esc(text) + '</span>' +
+      '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); padding:9px 16px; border-radius:9px; text-decoration:none;">Присоединиться к созвону</a>' +
+      '<span style="font-size:11.5px; color:var(--muted); word-break:break-all;">' + esc(url) + '</span>' +
+    '</div>';
+  }
+  function messageBubble(m) {
+    if (m.sender_role === 'system') return systemBubble(m.body);
     var mine = m.sender_role === state.authRole;
     var bubble = mine
       ? 'align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px;'
@@ -1171,10 +1310,14 @@
     else if (c.messages.length) thread = c.messages.map(messageBubble).join('');
     else thread = '<div style="text-align:center; padding:40px; color:var(--muted); font-size:14px;">Сообщений пока нет.</div>';
 
+    // Имя собеседника ведёт в его профиль; вернёмся оттуда обратно в эту же ветку.
+    var peerAttrs = state.authRole === 'company'
+      ? 'data-action="openStudentProfile" data-student-id="' + esc(c.studentId || '') + '"'
+      : 'data-action="openCompanyProfile" data-company-id="' + esc(c.companyAppId || '') + '"';
     var head = '<div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">' +
       '<button data-action="closeChat" style="' + S.back + ' background:none; border:none; cursor:pointer; padding:0;">← Назад</button>' +
       '<div style="min-width:0;">' +
-        '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(c.peer) + '</div>' +
+        '<a ' + peerAttrs + ' data-back="chat" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em; cursor:pointer; text-decoration:none; color:var(--ink); border-bottom:1px solid var(--line);">' + esc(c.peer) + '</a>' +
         (c.gigTitle ? '<div style="font-size:13px; color:var(--muted);">' + esc(c.gigTitle) + '</div>' : '') +
       '</div></div>';
 
@@ -1201,6 +1344,7 @@
       case 'responses': return responsesView();
       case 'vacancies': return vacanciesView();
       case 'chat': return chatView();
+      case 'profile': return profileViewPage();
       default: return homeView();
     }
   }
@@ -1737,7 +1881,17 @@
       cp.mentorName = (cp.mentorName || '').trim();
       cp.mentorRole = (cp.mentorRole || '').trim();
       cp.mentorContact = (cp.mentorContact || '').trim();
-      setState({ extrasSave: { loading: false, error: '', ok: true } });
+      if (!supabase || !state.session || !cp.id) {
+        setState({ extrasSave: { loading: false, error: 'Сессия истекла — войдите заново', ok: false } });
+        return;
+      }
+      setState({ extrasSave: { loading: true, error: '', ok: false } });
+      supabase.from('company_applications').update({ profile: companyProfileJson(cp) })
+        .eq('id', cp.id)
+        .then(function (r) {
+          if (r.error) { setState({ extrasSave: { loading: false, error: 'Не удалось сохранить: ' + r.error.message, ok: false } }); return; }
+          setState({ extrasSave: { loading: false, error: '', ok: true } });
+        });
     },
     // Направления для мэтчинга (Frontend/Backend/и т.п.) — переключается сразу.
     toggleFocusArea: function (t) {
@@ -1950,6 +2104,15 @@
         });
     },
     openChat: function (el) { openChat(el.getAttribute('data-app-id')); },
+    openCompanyProfile: function (el) { openProfile('company', el.getAttribute('data-company-id'), el.getAttribute('data-back')); },
+    openStudentProfile: function (el) { openProfile('student', el.getAttribute('data-student-id'), el.getAttribute('data-back')); },
+    closeProfile: function () {
+      var back = (state.profileView && state.profileView.back) || 'catalog';
+      state.profileView = null;
+      // Из профиля, открытого из переписки, возвращаемся в ту же ветку — она ещё в state.chat.
+      setState({ view: back === 'chat' && state.chat ? 'chat' : back });
+      top();
+    },
     closeChat: function () {
       unsubscribeMessages();
       state.chat = null;
@@ -2009,7 +2172,7 @@
         extrasSave: { loading: false, error: '', ok: false },
         companySubmit: { loading: false, error: '' },
         gigModal: false, gigSubmit: { loading: false, error: '' },
-        applications: [], appsLoading: false, applyState: {}, chat: null,
+        applications: [], appsLoading: false, applyState: {}, chat: null, profileView: null,
         menuOpen: false, modal: null, testView: null, testResult: null,
         form: {}, view: 'home', catalogTab: 'students'
       });
@@ -2107,25 +2270,41 @@
   // Возвращает Promise<boolean> — есть ли у аккаунта заявка.
   function loadCompanyProfile() {
     if (!supabase || !state.session) return Promise.resolve(false);
-    return supabase.from('company_applications').select('id, status, data')
+    return supabase.from('company_applications').select('id, status, data, profile')
       .eq('owner_user_id', currentUserId()).maybeSingle()
       .then(function (r) {
         var row = r && r.data;
         if (!row) return false;
         var d = row.data || {};
+        // Реквизиты — из data (их проверяли вручную, компания их не правит).
+        // Витрина — из profile, единственной колонки, куда компании разрешена запись.
+        var p = row.profile || {};
         state.companyProfile = {
           id: row.id,
           name: d.name || '', inn: d.inn || '', director: d.director || '', corpEmail: d.corpEmail || '',
           domain: d.domain || '', linkedin: d.linkedin || '', contact: d.contact || '', phone: d.phone || '',
           status: row.status || 'pending',
-          description: '', focusAreas: [], techStack: [], commStyle: 'async', syncHours: '',
-          meetingCadence: 'weekly', meetingLink: '', pitch: '', defaultDuration: '1m',
-          mentorName: '', mentorRole: '', mentorContact: ''
+          description: p.description || '', focusAreas: p.focusAreas || [], techStack: p.techStack || [],
+          commStyle: p.commStyle || 'async', syncHours: p.syncHours || '',
+          meetingCadence: p.meetingCadence || 'weekly', meetingLink: p.meetingLink || '',
+          pitch: p.pitch || '', defaultDuration: p.defaultDuration || '1m',
+          mentorName: p.mentorName || '', mentorRole: p.mentorRole || '', mentorContact: p.mentorContact || ''
         };
         state.authRole = 'company';
         state.companyStep = 'done';
         return true;
       });
+  }
+  // Витрина компании -> колонка profile. RLS пускает сюда только владельца заявки,
+  // а привилегия на запись выдана ровно на эту колонку: ни status, ни data не тронуть.
+  function companyProfileJson(cp) {
+    return {
+      description: cp.description || '', focusAreas: cp.focusAreas || [], techStack: cp.techStack || [],
+      commStyle: cp.commStyle || 'async', syncHours: cp.syncHours || '',
+      meetingCadence: cp.meetingCadence || 'weekly', meetingLink: cp.meetingLink || '',
+      pitch: cp.pitch || '', defaultDuration: cp.defaultDuration || '1m',
+      mentorName: cp.mentorName || '', mentorRole: cp.mentorRole || '', mentorContact: cp.mentorContact || ''
+    };
   }
   // Заявки, поданные до появления аккаунтов, помнит только localStorage. Привязываем один раз
   // и забываем id: дальше компания находит свою заявку по owner_user_id.
@@ -2207,7 +2386,7 @@
     if (!supabase || !state.session || !state.authRole) return;
     state.appsLoading = true;
     supabase.from('gig_applications')
-      .select('id, gig_id, company_app_id, student_name, status, created_at, gigs(title, company_name)')
+      .select('id, gig_id, student_id, company_app_id, student_name, status, created_at, gigs(title, company_name)')
       .order('created_at', { ascending: false })
       .then(function (r) {
         state.appsLoading = false;
@@ -2226,6 +2405,7 @@
     if (!a) return;
     state.chat = {
       appId: appId, peer: chatPeer(a), gigTitle: (a.gigs && a.gigs.title) || '',
+      studentId: a.student_id, companyAppId: a.company_app_id,
       messages: [], loading: true, error: '', sending: false
     };
     state.form.chatDraft = '';
@@ -2272,6 +2452,27 @@
     if (!chatChannel) return;
     try { supabase.removeChannel(chatChannel); } catch (e) {}
     chatChannel = null;
+  }
+
+  /* ---------- просмотр чужого профиля ---------- */
+
+  // Читаем через представления company_public / student_public: они отдают заранее
+  // отобранные колонки. Реквизиты компании и контакты неприглашённого студента туда не входят.
+  function openProfile(kind, id, back) {
+    if (!id || !supabase) return;
+    state.profileView = { kind: kind, id: id, data: null, loading: true, error: '', back: back || 'catalog' };
+    setState({ view: 'profile' });
+    top();
+    var table = kind === 'company' ? 'company_public' : 'student_public';
+    supabase.from(table).select('*').eq('id', id).maybeSingle().then(function (r) {
+      var pv = state.profileView;
+      if (!pv || pv.id !== id) return;  // успели уйти со страницы
+      pv.loading = false;
+      if (r.error) pv.error = 'Не удалось загрузить профиль';
+      else if (!r.data) pv.error = kind === 'company' ? 'Профиль компании недоступен' : 'Профиль студента недоступен';
+      else pv.data = r.data;
+      render();
+    });
   }
 
   /* ---------- document upload modal ---------- */
