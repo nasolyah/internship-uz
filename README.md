@@ -50,9 +50,24 @@ python -m http.server 8777
 ```
 
 > Вход через Telegram работает только на публичном домене, привязанном к боту через
-> BotFather `/setdomain` — на `file://` и `localhost` кнопка авторизации не сработает.
+> BotFather `/setdomain` (у нас — `internship-uz.pages.dev`): на `file://` и `localhost`
+> кнопка авторизации не сработает. Вход по коду на почту работает и локально — им и
+> проверяются отклики с чатом.
 
 ## Деплой
 
-- **Сайт** — статика (`int.html`, `int_app.js`, `int_css.css`) на Netlify.
-- **Edge Function** — `supabase functions deploy telegram-auth` или через Supabase Dashboard.
+Прод: **https://internship-uz.pages.dev** — статика на Cloudflare Pages, собирается
+автоматически при push в `main`. То есть push и есть деплой сайта.
+
+Порядок при изменениях, затрагивающих базу: сначала миграции, потом Edge Functions,
+и только затем push — иначе новый клиент какое-то время будет ходить в схему, которой
+ещё нет.
+
+```bash
+supabase db push                                   # миграции
+supabase functions deploy <имя>                    # или через Supabase Dashboard
+git push origin main                               # сайт (Cloudflare пересоберёт)
+```
+
+`tg-webhook` деплоится с `--no-verify-jwt` — Telegram не присылает наш JWT, эндпоинт
+защищён секретом в заголовке.
