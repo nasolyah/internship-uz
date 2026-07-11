@@ -1083,8 +1083,8 @@
       '<p style="color:var(--muted); font-size:15px; max-width:420px; margin:0 auto 22px; line-height:1.55;">' + text + '</p>' +
       '<button data-action="' + btnAction + '" style="' + S.primary.replace('padding:15px', 'padding:13px 24px') + '">' + btnLabel + '</button></div>';
   }
-  function pageWrap(title, inner) {
-    return '<main class="view-in" style="max-width:820px; margin:0 auto; padding:40px 28px 88px;">' +
+  function pageWrap(title, inner, width) {
+    return '<main class="view-in" style="max-width:' + (width || 820) + 'px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:8px 0 24px;">' + title + '</h1>' + inner + '</main>';
   }
   function statusChip(status) {
@@ -1122,13 +1122,13 @@
       '</div>';
     }
 
-    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
+    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px 26px;">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">' +
         '<div style="min-width:0;">' +
-          '<div style="font-weight:600; font-size:15.5px;">' + title + '</div>' +
-          '<div style="font-size:13px; color:var(--muted); margin-top:2px;">' + subtitle + '</div>' +
+          '<div style="font-weight:600; font-size:17.5px; letter-spacing:-0.01em; ' + S.wrap + '">' + title + '</div>' +
+          '<div style="font-size:13.5px; color:var(--muted); margin-top:4px;">' + subtitle + '</div>' +
         '</div>' +
-        '<div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">' + statusChip(a.status) + chatButton(a.id, 'Чат') + '</div>' +
+        '<div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">' + statusChip(a.status) + chatButton(a.id, 'Открыть чат') + '</div>' +
       '</div>' + decision + '</div>';
   }
   function responsesView() {
@@ -1139,7 +1139,7 @@
         : emptyState('◎', 'Пока нет откликов', 'Откликнитесь на задачи в каталоге — здесь появится статус каждого отклика и переписка с компанией.', 'goCatalog', 'Открыть каталог задач'));
     }
     return pageWrap('Мои отклики',
-      '<div style="display:flex; flex-direction:column; gap:12px;">' + state.applications.map(applicationCard).join('') + '</div>');
+      '<div style="display:flex; flex-direction:column; gap:14px;">' + state.applications.map(applicationCard).join('') + '</div>', 960);
   }
   function vacanciesView() {
     if (state.authRole !== 'company') return homeView();
@@ -1147,7 +1147,7 @@
     var myGigs = state.gigs.filter(function (g) { return g.company_app_id === appId; });
 
     if (!myGigs.length) {
-      return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появятся ваши вакансии и отклики студентов.', 'openGigForm', 'Разместить задачу'));
+      return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появятся ваши вакансии и отклики студентов.', 'openGigForm', 'Разместить задачу'), 960);
     }
 
     var blocks = myGigs.map(function (g) {
@@ -1161,7 +1161,7 @@
       return '<section style="margin-bottom:30px;">' + head + body + '</section>';
     }).join('');
 
-    return pageWrap('Мои вакансии', blocks);
+    return pageWrap('Мои вакансии', blocks, 960);
   }
 
   /* ---------- PROFILE (чужой) ---------- */
@@ -1171,12 +1171,6 @@
       return '<span style="font-size:12px; font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:5px 10px; border-radius:7px;">' + esc(String(t)) + '</span>';
     }).join('') + '</div>';
   }
-  function profileSection(title, body) {
-    if (!body) return '';
-    return '<section style="margin-top:26px;">' +
-      '<div style="font-size:12.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">' + title + '</div>' +
-      body + '</section>';
-  }
   function profileText(s) {
     if (!s) return '';
     return '<p style="font-size:15px; line-height:1.6; color:var(--ink); margin:0; white-space:pre-wrap;">' + esc(s) + '</p>';
@@ -1184,94 +1178,156 @@
   var COMM_STYLE = { async: 'Асинхронно', sync: 'Синхронно, в рабочие часы' };
   var CADENCE = { weekly: 'Раз в неделю', biweekly: 'Раз в две недели', daily: 'Ежедневно' };
 
-  function companyProfileHtml(c) {
-    var meta = [];
-    if (c.comm_style) meta.push('Формат: ' + (COMM_STYLE[c.comm_style] || c.comm_style));
-    if (c.sync_hours) meta.push('Часы: ' + c.sync_hours);
-    if (c.meeting_cadence) meta.push('Созвоны: ' + (CADENCE[c.meeting_cadence] || c.meeting_cadence));
-
-    var mentor = '';
-    if (c.mentor_name) {
-      mentor = '<div style="font-size:15px;"><strong>' + esc(c.mentor_name) + '</strong>' +
-        (c.mentor_role ? '<span style="color:var(--muted);"> · ' + esc(c.mentor_role) + '</span>' : '') + '</div>';
-    }
-
-    return '<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0;">' + esc(c.name || 'Компания') + '</h1>' +
-        '<span style="font-size:11px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, #fff); padding:4px 9px; border-radius:6px;">✓ подтверждена</span>' +
-      '</div>' +
-      (c.pitch ? '<p style="font-size:16px; color:var(--muted); margin:0;">' + esc(c.pitch) + '</p>' : '') +
-      profileSection('О компании', profileText(c.description)) +
-      profileSection('Направления', chipList(c.focus_areas)) +
-      profileSection('Технологии', chipList(c.tech_stack)) +
-      profileSection('Как работаем', meta.length ? '<div style="font-size:14.5px; color:var(--muted); line-height:1.7;">' + esc(meta.join(' · ')) + '</div>' : '') +
-      profileSection('Куратор', mentor) +
-      (c.linkedin ? profileSection('Ссылки', '<a href="' + esc(c.linkedin) + '" target="_blank" rel="noopener noreferrer" style="font-size:14.5px; color:var(--accent); font-weight:600;">' + esc(c.linkedin) + '</a>') : '') +
-      // Компания заполнила только имя — витрина пустая. Не оставляем почти голую страницу.
-      (!c.pitch && !c.description && !(c.focus_areas && c.focus_areas.length) && !(c.tech_stack && c.tech_stack.length) && !meta.length && !mentor
-        ? '<div style="margin-top:20px; font-size:14.5px; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:16px 18px; line-height:1.55;">Компания ещё не заполнила профиль. Детали о задаче можно обсудить в чате отклика.</div>'
-        : '');
+  // Read-only карточки под вид личного кабинета: тот же стиль, но без кнопок редактирования.
+  var RO_CARD = 'background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:24px;';
+  var RO_TITLE = 'font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px;';
+  function roCard(title, inner) {
+    return '<div style="' + RO_CARD + '">' + (title ? '<div style="' + RO_TITLE + ' margin-bottom:14px;">' + title + '</div>' : '') + inner + '</div>';
+  }
+  function roRow(label, value) {
+    return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1.5px solid var(--line);"><span style="font-size:13.5px; color:var(--muted);">' + label + '</span><span style="font-size:13.5px; font-weight:600; text-align:right; word-break:break-word;">' + esc(value || '—') + '</span></div>';
+  }
+  function roAvatar(photo, name) {
+    if (photo) return '<img src="' + esc(photo) + '" alt="" style="width:64px; height:64px; border-radius:18px; object-fit:cover; flex-shrink:0;">';
+    var init = (name || 'С').trim().split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase() || 'С';
+    return '<span style="width:64px; height:64px; border-radius:18px; background:color-mix(in srgb, var(--accent) 11%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; flex-shrink:0;">' + esc(init) + '</span>';
+  }
+  function roStack(cards) {
+    return cards.filter(Boolean).map(function (c) { return '<div style="margin-top:20px;">' + c + '</div>'; }).join('');
   }
 
+  // Профиль компании глазами студента — вид как в кабинете компании, только без полей ввода.
+  function companyProfileHtml(c) {
+    var header = '<div style="' + RO_CARD + ' display:flex; align-items:center; gap:18px;">' +
+      '<span style="width:64px; height:64px; border-radius:16px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0;">◆</span>' +
+      '<div style="min-width:0;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(c.name || 'Компания') + '</span>' +
+      '<span style="font-size:11px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, #fff); padding:4px 9px; border-radius:6px;">✓ подтверждена</span></div>' +
+      (c.pitch ? '<div style="font-size:14px; color:var(--muted); margin-top:6px;">' + esc(c.pitch) + '</div>' : '') + '</div></div>';
+
+    var cards = [];
+    if (c.description) cards.push(roCard('О компании', profileText(c.description)));
+
+    var techInner = '';
+    if (c.focus_areas && c.focus_areas.length) techInner += '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Основные направления</div>' + chipList(c.focus_areas);
+    if (c.tech_stack && c.tech_stack.length) techInner += '<div style="font-size:13px; font-weight:600; margin:' + (techInner ? '16px' : '0') + ' 0 8px;">Технологический стек</div>' + chipList(c.tech_stack);
+    if (techInner) cards.push(roCard('Технический профиль', techInner));
+
+    var fmt = '';
+    if (c.comm_style) fmt += roRow('Коммуникация', COMM_STYLE[c.comm_style] || c.comm_style);
+    if (c.sync_hours) fmt += roRow('Рабочие часы', c.sync_hours);
+    if (c.meeting_cadence) fmt += roRow('Периодичность созвонов', CADENCE[c.meeting_cadence] || c.meeting_cadence);
+    if (fmt) cards.push(roCard('Формат работы', fmt));
+
+    if (c.mentor_name) cards.push(roCard('Куратор для стажёров', '<div style="font-size:15px;"><strong>' + esc(c.mentor_name) + '</strong>' + (c.mentor_role ? '<span style="color:var(--muted);"> · ' + esc(c.mentor_role) + '</span>' : '') + '</div>'));
+
+    if (c.linkedin) cards.push(roCard('Ссылки', '<a href="' + esc(c.linkedin) + '" target="_blank" rel="noopener noreferrer" style="font-size:14.5px; color:var(--accent); font-weight:600; word-break:break-all;">' + esc(c.linkedin) + '</a>'));
+
+    if (!cards.length) cards.push('<div style="' + RO_CARD + ' font-size:14.5px; color:var(--muted); line-height:1.55;">Компания ещё не заполнила профиль. Детали о задаче можно обсудить в чате отклика.</div>');
+
+    return header + roStack(cards);
+  }
+
+  // Профиль студента глазами компании — вид как в кабинете студента, только без редактирования.
   function studentProfileHtml(s) {
     var name = ((s.first_name || '') + ' ' + (s.last_name || '')).trim() || 'Студент';
     var sub = [s.study_status, s.institution].filter(Boolean).join(' · ');
+    var availTag = s.availability
+      ? '<span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:' + availColor(s.availability) + '; background:color-mix(in srgb, ' + availColor(s.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(s.availability) + ';"></span>' + esc(availLabel(s.availability)) + '</span>'
+      : '';
 
-    var test = '';
-    if (s.ai_test && s.ai_test.level) {
-      test = '<div style="font-size:15px;">Уровень: <strong>' + esc(s.ai_test.level) + '</strong>' +
-        (s.ai_test.correct != null && s.ai_test.total != null
-          ? '<span style="color:var(--muted);"> · ' + esc(String(s.ai_test.correct)) + ' из ' + esc(String(s.ai_test.total)) + '</span>' : '') + '</div>';
-    }
+    var header = '<div style="' + RO_CARD + ' display:flex; align-items:center; gap:18px; flex-wrap:wrap;">' +
+      roAvatar(s.photo_url, name) +
+      '<div style="min-width:0; flex:1;"><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(name) + '</div>' +
+      (sub ? '<div style="font-size:13px; color:var(--muted); margin-top:5px;">' + esc(sub) + '</div>' : '') +
+      (availTag ? '<div style="margin-top:10px;">' + availTag + '</div>' : '') + '</div></div>';
 
-    var projects = '';
-    if (s.projects && s.projects.length) {
-      projects = '<div style="display:flex; flex-direction:column; gap:10px;">' + s.projects.map(function (p) {
-        return '<div style="border:1.5px solid var(--line); border-radius:12px; padding:14px 16px; background:#fff;">' +
-          '<div style="font-weight:600; font-size:15px;">' + esc(p.name || 'Проект') +
-            (p.specialty ? '<span style="font-weight:500; color:var(--muted);"> · ' + esc(p.specialty) + '</span>' : '') + '</div>' +
-          (p.desc ? '<div style="font-size:13.5px; color:var(--muted); margin-top:4px; line-height:1.5;">' + esc(p.desc) + '</div>' : '') +
-          (p.tags && p.tags.length ? '<div style="margin-top:10px;">' + chipList(p.tags) + '</div>' : '') + '</div>';
-      }).join('') + '</div>';
-    }
+    var cards = [];
 
-    // Контакты отдаёт представление только приглашённому студенту — здесь просто показываем,
-    // что пришло. Пока приглашения нет, поля равны null.
-    var contacts = '';
+    // Контакты: представление отдаёт email/tg только после приглашения; иначе поля null.
     if (s.email || s.tg) {
-      contacts = '<div style="font-size:14.5px; line-height:1.7;">' +
-        (s.email ? '<div>Email: <strong>' + esc(s.email) + '</strong></div>' : '') +
-        (s.tg ? '<div>Telegram: <strong>' + esc(s.tg) + '</strong></div>' : '') + '</div>';
+      cards.push(roCard('Контакты', (s.email ? roRow('Email', s.email) : '') + (s.tg ? roRow('Telegram', s.tg) : '')));
     } else {
-      contacts = '<div style="font-size:13.5px; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; line-height:1.5;">Контакты откроются после того, как вы пригласите студента. До этого пишите в чате отклика.</div>';
+      cards.push(roCard('Контакты', '<div style="font-size:13.5px; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; line-height:1.5;">Контакты откроются после того, как вы пригласите студента. До этого пишите в чате отклика.</div>'));
     }
 
-    var skills = (s.hard_skills || []).map(function (k) { return typeof k === 'string' ? k : (k && k.name); }).filter(Boolean);
-    var langs = (s.languages || []).map(function (k) { return typeof k === 'string' ? k : (k && k.name); }).filter(Boolean);
+    if (s.specialties && s.specialties.length) cards.push(roCard('Специальности', chipList(s.specialties)));
+    if (s.description) cards.push(roCard('О себе', profileText(s.description)));
 
-    return '<div style="display:flex; align-items:center; gap:14px;">' +
-        (s.photo_url ? '<img src="' + esc(s.photo_url) + '" alt="" style="width:56px; height:56px; border-radius:14px; object-fit:cover;">' : '') +
-        '<div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0;">' + esc(name) + '</h1>' +
-        (sub ? '<div style="font-size:14px; color:var(--muted); margin-top:2px;">' + esc(sub) + '</div>' : '') + '</div>' +
-      '</div>' +
-      profileSection('О себе', profileText(s.description)) +
-      profileSection('Специальности', chipList(s.specialties)) +
-      profileSection('Навыки', chipList(skills)) +
-      profileSection('Языки', chipList(langs)) +
-      profileSection('ИИ-тест', test) +
-      profileSection('Проекты', projects) +
-      profileSection('Контакты', contacts);
+    var skills = (s.hard_skills || []);
+    var langs = (s.languages || []);
+    if (skills.length || langs.length) {
+      var inner = '';
+      if (skills.length) {
+        inner += '<div style="font-size:13px; font-weight:600; margin-bottom:10px;">Hard skills</div>' +
+          '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">' +
+          skills.map(function (sk) {
+            var nm = typeof sk === 'string' ? sk : sk.name;
+            var conf = typeof sk === 'object' ? sk.confidence : null;
+            return '<div style="border:1.5px solid var(--line); border-radius:12px; padding:13px 14px;"><div style="display:flex; align-items:center; gap:8px;"><span style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(nm) + '</span>' +
+              (typeof conf === 'number' ? '<span style="font-size:11px; font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div></div>';
+          }).join('') + '</div>';
+      }
+      if (langs.length) {
+        inner += '<div style="font-size:13px; font-weight:600; margin:' + (skills.length ? '18px' : '0') + ' 0 4px;">Знание языков</div>' +
+          langs.map(function (l) {
+            var nm = typeof l === 'string' ? l : l.name;
+            var lvl = typeof l === 'object' ? l.level : '';
+            return '<div style="display:flex; align-items:center; gap:8px; padding:10px 0; border-top:1.5px solid var(--line); font-size:13.5px;"><strong style="font-weight:600;">' + esc(nm) + '</strong>' + (lvl ? '<span style="color:var(--muted);">— ' + esc(lvl) + '</span>' : '') + '</div>';
+          }).join('');
+      }
+      cards.push(roCard('Матрица навыков', inner));
+    }
+
+    if (s.ai_test && s.ai_test.level) {
+      cards.push(roCard('ИИ-тест навыков', '<div style="font-size:15px;">Уровень: <strong style="color:' + levelColor(s.ai_test.level) + ';">' + esc(s.ai_test.level) + '</strong>' +
+        (s.ai_test.correct != null && s.ai_test.total != null ? '<span style="color:var(--muted);"> · ' + esc(String(s.ai_test.correct)) + ' из ' + esc(String(s.ai_test.total)) + '</span>' : '') + '</div>'));
+    }
+
+    if (s.projects && s.projects.length) {
+      var pcards = s.projects.map(function (p) {
+        var files = p.files || [];
+        var cover = files[0];
+        var coverHtml = cover
+          ? (isImageFile(cover)
+              ? '<img src="' + esc(cover.url) + '" style="width:100%; height:140px; object-fit:cover; border-radius:13px 13px 0 0; display:block;">'
+              : '<div style="width:100%; height:140px; background:var(--bg); border-radius:13px 13px 0 0; display:flex; align-items:center; justify-content:center; color:var(--muted);">' + icon('file', 30) + '</div>')
+          : '';
+        var specTag = p.specialty ? '<span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + esc(p.specialty) + '</span>' : '';
+        var tagChips = (p.tags || []).slice(0, 4).map(function (t) { return '<span style="font-size:10.5px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:2px 7px; border-radius:999px;">#' + esc(t) + '</span>'; }).join('');
+        return '<div style="border:1.5px solid var(--line); border-radius:14px; overflow:hidden;">' + coverHtml +
+          '<div style="padding:14px 16px;"><div style="font-weight:600; font-size:15px; ' + S.wrap + '">' + esc(p.name || 'Проект') + '</div>' +
+          (specTag ? '<div style="margin-top:6px;">' + specTag + '</div>' : '') +
+          (p.desc ? '<p style="font-size:13px; color:var(--muted); line-height:1.5; margin:8px 0 0; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
+          (tagChips ? '<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;">' + tagChips + '</div>' : '') + '</div></div>';
+      }).join('');
+      cards.push(roCard('Проекты', '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">' + pcards + '</div>'));
+    }
+
+    if (s.achievements && s.achievements.length) {
+      var acards = s.achievements.map(function (a) {
+        var link = a.file ? a.file.url : a.link;
+        var fileLabel = a.file ? a.file.name : (a.link ? 'ссылка' : '');
+        return '<div style="scroll-snap-align:start; flex-shrink:0; width:230px; border:1.5px solid var(--line); border-radius:14px; padding:16px;">' +
+          '<div style="width:34px; height:34px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:12px;">★</div>' +
+          '<div style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(a.title) + '</div>' +
+          '<div style="font-size:12px; color:var(--muted); margin-top:4px; ' + S.wrap + '">' + esc(a.issuer || '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
+          (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; font-size:12.5px; font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' + esc(fileLabel || 'Открыть') + ' ↗</a>' : '') + '</div>';
+      }).join('');
+      cards.push(roCard('Сертификаты и достижения', '<div style="display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:6px;">' + acards + '</div>'));
+    }
+
+    return header + roStack(cards);
   }
 
   function profileViewPage() {
     var pv = state.profileView;
     if (!pv) return homeView();
     var inner;
-    if (pv.loading) inner = '<div style="text-align:center; padding:60px; color:var(--muted); font-size:14px;">Загружаем профиль…</div>';
-    else if (pv.error) inner = '<div style="text-align:center; padding:60px; color:#b3261e; font-size:14px; font-weight:600;">' + esc(pv.error) + '</div>';
+    if (pv.loading) inner = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">Загружаем профиль…</div>';
+    else if (pv.error) inner = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:14px; font-weight:600;">' + esc(pv.error) + '</div>';
     else inner = pv.kind === 'company' ? companyProfileHtml(pv.data) : studentProfileHtml(pv.data);
 
-    return '<main class="view-in" style="max-width:760px; margin:0 auto; padding:40px 28px 88px;">' +
+    return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
       '<button data-action="closeProfile" style="' + S.back + ' background:none; border:none; cursor:pointer; padding:0; margin-bottom:20px;">← Назад</button>' +
       inner + '</main>';
   }
