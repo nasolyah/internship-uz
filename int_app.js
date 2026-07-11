@@ -939,7 +939,7 @@
         : '<div style="margin-bottom:8px;">' + starRating(0) + '</div><div style="font-size:13px; color:var(--muted);">Пока нет оценок — появятся после первой стажировки</div>') +
       '<a data-action="openReviews" style="display:inline-block; margin-top:12px; font-size:13.5px; font-weight:600; color:var(--accent); cursor:pointer;">Смотреть отзывы и обратную связь →</a></div>';
 
-    return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
+    return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет</h1>' +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + contacts + verification + '</div>' +
@@ -1062,7 +1062,7 @@
     var saveColor = es.error ? '#b3261e' : es.ok ? '#16a34a' : 'var(--muted)';
     var saveBar = '<div style="display:flex; align-items:center; gap:8px; margin-top:18px; font-size:12.5px; font-weight:600; color:' + saveColor + ';">' + icon(es.error ? 'warn' : 'check', 14) + '<span>' + saveText + '</span></div>';
 
-    return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
+    return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет компании</h1>' +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + details + checks + '</div>' +
@@ -1084,7 +1084,7 @@
       '<button data-action="' + btnAction + '" style="' + S.primary.replace('padding:15px', 'padding:13px 24px') + '">' + btnLabel + '</button></div>';
   }
   function pageWrap(title, inner, width) {
-    return '<main class="view-in" style="max-width:' + (width || 820) + 'px; margin:0 auto; padding:40px 28px 88px;">' +
+    return '<main class="view-in" style="width:100%; max-width:' + (width || 820) + 'px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:8px 0 24px;">' + title + '</h1>' + inner + '</main>';
   }
   function statusChip(status) {
@@ -1139,7 +1139,7 @@
         : emptyState('◎', 'Пока нет откликов', 'Откликнитесь на задачи в каталоге — здесь появится статус каждого отклика и переписка с компанией.', 'goCatalog', 'Открыть каталог задач'));
     }
     return pageWrap('Мои отклики',
-      '<div style="display:flex; flex-direction:column; gap:14px;">' + state.applications.map(applicationCard).join('') + '</div>', 960);
+      '<div style="display:flex; flex-direction:column; gap:14px;">' + state.applications.map(applicationCard).join('') + '</div>', 1200);
   }
   function vacanciesView() {
     if (state.authRole !== 'company') return homeView();
@@ -1147,7 +1147,7 @@
     var myGigs = state.gigs.filter(function (g) { return g.company_app_id === appId; });
 
     if (!myGigs.length) {
-      return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появятся ваши вакансии и отклики студентов.', 'openGigForm', 'Разместить задачу'), 960);
+      return pageWrap('Мои вакансии', emptyState('▤', 'Пока нет вакансий', 'Разместите первую задачу — здесь появятся ваши вакансии и отклики студентов.', 'openGigForm', 'Разместить задачу'), 1200);
     }
 
     var blocks = myGigs.map(function (g) {
@@ -1161,7 +1161,7 @@
       return '<section style="margin-bottom:30px;">' + head + body + '</section>';
     }).join('');
 
-    return pageWrap('Мои вакансии', blocks, 960);
+    return pageWrap('Мои вакансии', blocks, 1200);
   }
 
   /* ---------- PROFILE (чужой) ---------- */
@@ -1327,7 +1327,7 @@
     else if (pv.error) inner = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:14px; font-weight:600;">' + esc(pv.error) + '</div>';
     else inner = pv.kind === 'company' ? companyProfileHtml(pv.data) : studentProfileHtml(pv.data);
 
-    return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
+    return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
       '<button data-action="closeProfile" style="' + S.back + ' background:none; border:none; cursor:pointer; padding:0; margin-bottom:20px;">← Назад</button>' +
       inner + '</main>';
   }
