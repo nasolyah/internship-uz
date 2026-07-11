@@ -1058,9 +1058,9 @@
       '</div>';
 
     var es = state.extrasSave;
-    var esNote = es.ok ? '<span style="font-size:12.5px; color:#16a34a; font-weight:600;">Сохранено ✓</span>' : '';
-    var esErr = es.error ? '<span style="font-size:12.5px; color:#b3261e; font-weight:600;">' + esc(es.error) + '</span>' : '';
-    var saveBar = '<div style="display:flex; align-items:center; gap:14px; margin-top:20px;"><button data-action="saveCompanyExtras"' + (es.loading ? ' disabled' : '') + ' style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + (es.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (es.loading ? 'Сохранение…' : 'Сохранить настройки') + '</button>' + esNote + esErr + '</div>';
+    var saveText = es.loading ? 'Сохранение…' : es.error ? esc(es.error) : es.ok ? 'Все изменения сохранены ✓' : 'Изменения сохраняются автоматически';
+    var saveColor = es.error ? '#b3261e' : es.ok ? '#16a34a' : 'var(--muted)';
+    var saveBar = '<div style="display:flex; align-items:center; gap:8px; margin-top:18px; font-size:12.5px; font-weight:600; color:' + saveColor + ';">' + icon(es.error ? 'warn' : 'check', 14) + '<span>' + saveText + '</span></div>';
 
     return '<main class="view-in" style="max-width:960px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет компании</h1>' +
@@ -1940,25 +1940,6 @@
     },
     // Поля выше (data-company-field) пишутся в state.companyProfile сразу при вводе —
     // кнопка "Сохранить" здесь только подтверждает пользователю, что всё применено.
-    saveCompanyExtras: function () {
-      if (!state.companyProfile) return;
-      var cp = state.companyProfile;
-      cp.meetingLink = (cp.meetingLink || '').trim();
-      cp.mentorName = (cp.mentorName || '').trim();
-      cp.mentorRole = (cp.mentorRole || '').trim();
-      cp.mentorContact = (cp.mentorContact || '').trim();
-      if (!supabase || !state.session || !cp.id) {
-        setState({ extrasSave: { loading: false, error: 'Сессия истекла — войдите заново', ok: false } });
-        return;
-      }
-      setState({ extrasSave: { loading: true, error: '', ok: false } });
-      supabase.from('company_applications').update({ profile: companyProfileJson(cp) })
-        .eq('id', cp.id)
-        .then(function (r) {
-          if (r.error) { setState({ extrasSave: { loading: false, error: 'Не удалось сохранить: ' + r.error.message, ok: false } }); return; }
-          setState({ extrasSave: { loading: false, error: '', ok: true } });
-        });
-    },
     // Направления для мэтчинга (Frontend/Backend/и т.п.) — переключается сразу.
     toggleFocusArea: function (t) {
       if (!state.companyProfile) return;
@@ -1968,6 +1949,7 @@
       if (idx === -1) list.push(area); else list.splice(idx, 1);
       state.companyProfile.focusAreas = list;
       setState({});
+      autoSaveCompany();
     },
     addTechTag: function () {
       var el = document.getElementById('tech-tag-input');
@@ -1978,28 +1960,33 @@
       state.companyProfile.techStack = list;
       if (el) el.value = '';
       setState({});
+      autoSaveCompany();
     },
     removeTechTag: function (t) {
       if (!state.companyProfile) return;
       var tag = t.getAttribute('data-tag');
       state.companyProfile.techStack = (state.companyProfile.techStack || []).filter(function (x) { return x !== tag; });
       setState({});
+      autoSaveCompany();
     },
     // Стиль коммуникации / периодичность созвонов / длительность проекта — сохраняются сразу при выборе.
     setCommStyle: function (t) {
       if (!state.companyProfile) return;
       state.companyProfile.commStyle = t.getAttribute('data-comm');
       setState({});
+      autoSaveCompany();
     },
     setMeetingCadence: function (val) {
       if (!state.companyProfile) return;
       state.companyProfile.meetingCadence = val;
       setState({});
+      autoSaveCompany();
     },
     setDefaultDuration: function (val) {
       if (!state.companyProfile) return;
       state.companyProfile.defaultDuration = val;
       setState({});
+      autoSaveCompany();
     },
     // ИИ-тест
     openTest: function () {
@@ -2359,6 +2346,22 @@
       pitch: cp.pitch || '', defaultDuration: cp.defaultDuration || '1m',
       mentorName: cp.mentorName || '', mentorRole: cp.mentorRole || '', mentorContact: cp.mentorContact || ''
     };
+  }
+  // Автосохранение витрины компании: пишет колонку profile при каждом изменении.
+  // Тихо выходит, если сохранять пока некуда (нет сессии/заявки) — без ошибки на экране.
+  function autoSaveCompany() {
+    var cp = state.companyProfile;
+    if (!supabase || !state.session || !cp || !cp.id) return;
+    cp.meetingLink = (cp.meetingLink || '').trim();
+    cp.mentorName = (cp.mentorName || '').trim();
+    cp.mentorRole = (cp.mentorRole || '').trim();
+    cp.mentorContact = (cp.mentorContact || '').trim();
+    setState({ extrasSave: { loading: true, error: '', ok: false } });
+    supabase.from('company_applications').update({ profile: companyProfileJson(cp) })
+      .eq('id', cp.id)
+      .then(function (r) {
+        setState({ extrasSave: r.error ? { loading: false, error: 'Не удалось сохранить', ok: false } : { loading: false, error: '', ok: true } });
+      });
   }
   // Заявки, поданные до появления аккаунтов, помнит только localStorage. Привязываем один раз
   // и забываем id: дальше компания находит свою заявку по owner_user_id.
@@ -3105,6 +3108,12 @@
       applyItemArrayField(e.target);
     });
     root.addEventListener('change', function (e) {
+      // Текстовые поля компании автосохраняются при потере фокуса (change = blur после правки),
+      // чтобы не писать в БД на каждую букву. Значение уже в state из input-обработчика выше.
+      if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-company-field') && state.companyProfile) {
+        autoSaveCompany();
+        return;
+      }
       // выбор файла в модалке загрузки документа
       if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-file-input')) {
         pendingDocFile = (e.target.files && e.target.files[0]) || null;
