@@ -2513,21 +2513,24 @@
 
   /* ---------- просмотр чужого профиля ---------- */
 
-  // Читаем через представления company_public / student_public: они отдают заранее
+  // Читаем через функции company_public / student_public: они отдают заранее
   // отобранные колонки. Реквизиты компании и контакты неприглашённого студента туда не входят.
   function openProfile(kind, id, back) {
     if (!id || !supabase) return;
     state.profileView = { kind: kind, id: id, data: null, loading: true, error: '', back: back || 'catalog' };
     setState({ view: 'profile' });
     top();
-    var table = kind === 'company' ? 'company_public' : 'student_public';
-    supabase.from(table).select('*').eq('id', id).maybeSingle().then(function (r) {
+    // company_public / student_public — security-definer функции (RPC), а не вьюхи:
+    // так линтер Supabase доволен, а контролируемый обход RLS сохраняется.
+    var fn = kind === 'company' ? 'company_public' : 'student_public';
+    supabase.rpc(fn, { p_id: id }).then(function (r) {
       var pv = state.profileView;
       if (!pv || pv.id !== id) return;  // успели уйти со страницы
       pv.loading = false;
+      var row = r.data && r.data[0];    // set-returning функция отдаёт массив
       if (r.error) pv.error = 'Не удалось загрузить профиль';
-      else if (!r.data) pv.error = kind === 'company' ? 'Профиль компании недоступен' : 'Профиль студента недоступен';
-      else pv.data = r.data;
+      else if (!row) pv.error = kind === 'company' ? 'Профиль компании недоступен' : 'Профиль студента недоступен';
+      else pv.data = row;
       render();
     });
   }
