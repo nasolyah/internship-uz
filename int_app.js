@@ -48,6 +48,10 @@
     form: {},
     files: [],                 // student_files: все загруженные файлы со статусом модерации
     filesLoading: false,
+    isAdmin: false,
+    // Админка: очередь модерации. tab — что показываем, rejectFor — id, для которого
+    // открыт ввод причины отказа.
+    admin: { tab: 'pending', items: [], companies: [], loading: false, error: '', rejectFor: null, reason: '', busy: null },
     tgDraft: false,
     menuOpen: false,
     modal: null,               // null | 'study' | 'consent'
@@ -341,9 +345,9 @@
     // центральная навигация — свой набор для каждой роли
     var nav;
     if (role === 'student') {
-      nav = navLink('goCatalog', 'Каталог') + navLink('goResponses', 'Мои отклики');
+      nav = navLink('goCatalog', 'Каталог') + navLink('goResponses', 'Мои отклики') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
     } else if (role === 'company') {
-      nav = navLink('goCatalog', 'Каталог') + navLink('goVacancies', 'Мои вакансии');
+      nav = navLink('goCatalog', 'Каталог') + navLink('goVacancies', 'Мои вакансии') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
     } else {
       nav = navLink('scrollHow', 'Как это работает') + navLink('scrollVerify', 'Верификация') + navLink('goCatalog', 'Каталог');
     }
@@ -1194,6 +1198,126 @@
     return pageWrap('Мои вакансии', blocks, 1200);
   }
 
+  /* ---------- ADMIN: очередь модерации ---------- */
+  var KIND_LABEL = {
+    study: 'Справка о месте учёбы', consent: 'Согласие родителя', avatar: 'Фото профиля',
+    skill: 'Сертификат к навыку', language: 'Сертификат по языку',
+    project: 'Файл проекта', achievement: 'Сертификат достижения'
+  };
+  // Справка и согласие — юридически значимые, ИИ их не решает сам, только подсказывает.
+  var HUMAN_ONLY = { study: true, consent: true };
+
+  function adminTab(id, label, count) {
+    var active = state.admin.tab === id;
+    return '<button data-action="adminTab" data-tab="' + id + '" style="font-size:13.5px; font-weight:600; padding:9px 16px; border-radius:10px; cursor:pointer; ' +
+      (active ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1.5px solid var(--line);') + '">' +
+      label + (count ? ' <span style="opacity:0.7;">' + count + '</span>' : '') + '</button>';
+  }
+
+  function aiVerdictBlock(v) {
+    if (!v) return '';
+    var verdict = v.verdict || '—';
+    var color = verdict === 'ok' ? '#16a34a' : verdict === 'reject' ? '#b3261e' : '#b26b12';
+    var fields = '';
+    if (v.extracted && typeof v.extracted === 'object') {
+      var parts = [];
+      for (var k in v.extracted) if (v.extracted[k]) parts.push(esc(k) + ': ' + esc(String(v.extracted[k])));
+      if (parts.length) fields = '<div style="font-size:12px; color:var(--muted); margin-top:6px;">' + parts.join(' · ') + '</div>';
+    }
+    return '<div style="margin-top:10px; padding:11px 13px; background:var(--bg); border:1.5px solid var(--line); border-radius:10px;">' +
+      '<div style="font-size:11.5px; font-weight:700; color:' + color + '; text-transform:uppercase; letter-spacing:0.04em;">ИИ: ' + esc(verdict) + '</div>' +
+      (v.reason ? '<div style="font-size:13px; color:var(--ink); margin-top:5px; line-height:1.45;">' + esc(v.reason) + '</div>' : '') +
+      fields + '</div>';
+  }
+
+  function adminFileCard(f) {
+    var m = MOD_BADGE[f.status] || ['—', 'var(--muted)'];
+    var who = (f.decided_by === 'ai') ? 'решил ИИ' : (f.decided_by === 'admin' ? 'решил админ' : '');
+    var busy = state.admin.busy === f.id;
+
+    var decide = '';
+    if (state.admin.rejectFor === f.id) {
+      decide = '<div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:13.5px; padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<button data-action="adminConfirmReject" data-id="' + esc(f.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCancelReject" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
+    } else {
+      var approveLabel = f.status === 'approved' ? 'Одобрено' : 'Одобрить';
+      decide = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
+        '<button data-action="adminOpenFile" data-path="' + esc(f.path) + '" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть файл</button>' +
+        '<button data-action="adminApprove" data-id="' + esc(f.id) + '"' + (busy || f.status === 'approved' ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || f.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">' + approveLabel + '</button>' +
+        '<button data-action="adminStartReject" data-id="' + esc(f.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+    }
+
+    var context = [f.student_status, f.student_institution].filter(Boolean).join(' · ');
+    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;">' +
+        '<div style="min-width:0;">' +
+          '<div style="font-weight:600; font-size:16px;">' + esc(KIND_LABEL[f.kind] || f.kind) + (HUMAN_ONLY[f.kind] ? ' <span style="font-size:11px; font-weight:700; color:#b26b12; background:color-mix(in srgb, #b26b12 12%, #fff); padding:2px 7px; border-radius:999px;">только вручную</span>' : '') + '</div>' +
+          '<div style="font-size:13.5px; color:var(--muted); margin-top:3px;">' + esc(f.student_name || 'Студент') + (context ? ' · ' + esc(context) : '') + '</div>' +
+          '<div style="font-size:12.5px; color:var(--muted); margin-top:3px;">' + esc(f.name || '—') + ' · ' + esc(fmtDate(f.created_at)) + '</div>' +
+        '</div>' +
+        '<div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">' +
+          '<span style="font-size:11.5px; font-weight:700; color:' + m[1] + '; background:color-mix(in srgb, ' + m[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px;">' + m[0] + '</span>' +
+          (who ? '<span style="font-size:11.5px; color:var(--muted);">' + who + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      (f.reason ? '<div style="margin-top:8px; font-size:13px; color:#b3261e;">Причина: ' + esc(f.reason) + '</div>' : '') +
+      aiVerdictBlock(f.ai_verdict) + decide + '</div>';
+  }
+
+  function adminCompanyCard(c) {
+    var d = c.data || {};
+    var st = { pending: ['на проверке', '#b26b12'], approved: ['подтверждена', '#16a34a'], rejected: ['отклонена', '#b3261e'] }[c.status] || ['—', 'var(--muted)'];
+    var rows = [['ИНН', d.inn], ['Руководитель', d.director], ['Контакт', d.contact], ['Телефон', d.phone], ['Почта', d.corpEmail], ['LinkedIn', d.linkedin]]
+      .filter(function (r) { return r[1]; })
+      .map(function (r) { return '<div style="font-size:13px; color:var(--muted);">' + esc(r[0]) + ': <span style="color:var(--ink); font-weight:600;">' + esc(r[1]) + '</span></div>'; }).join('');
+    var busy = state.admin.busy === c.id;
+    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
+        '<div style="min-width:0;"><div style="font-weight:600; font-size:16px;">' + esc(d.name || 'Компания') + '</div>' +
+        '<div style="margin-top:6px; display:flex; flex-direction:column; gap:3px;">' + rows + '</div></div>' +
+        '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
+      '</div>' +
+      '<div style="margin-top:12px; display:flex; gap:8px;">' +
+        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="approved"' + (busy || c.status === 'approved' ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || c.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">Подтвердить</button>' +
+        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="rejected"' + (busy || c.status === 'rejected' ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+      '</div></div>';
+  }
+
+  function adminView() {
+    if (!state.isAdmin) return homeView();
+    var a = state.admin;
+    var items = a.items || [];
+    var pending = items.filter(function (f) { return f.status === 'pending'; });
+    var byAi = items.filter(function (f) { return f.decided_by === 'ai'; });
+    var shown = a.tab === 'pending' ? pending : a.tab === 'ai' ? byAi : items;
+    var pendingCompanies = (a.companies || []).filter(function (c) { return c.status === 'pending'; });
+
+    var tabs = '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">' +
+      adminTab('pending', 'Ждут решения', pending.length) +
+      adminTab('ai', 'Одобрено ИИ', byAi.length) +
+      adminTab('all', 'Все решения', items.length) +
+      '<button data-action="adminRefresh" style="font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 16px; border-radius:10px; cursor:pointer; margin-left:auto;">Обновить</button></div>';
+
+    var companies = (a.tab === 'pending' && pendingCompanies.length)
+      ? '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Заявки компаний</div>' +
+        '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + pendingCompanies.map(adminCompanyCard).join('') + '</div>'
+      : (a.tab === 'all'
+        ? '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Заявки компаний</div>' +
+          '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + (a.companies || []).map(adminCompanyCard).join('') + '</div>'
+        : '');
+
+    var body;
+    if (a.loading) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">Загружаем очередь…</div>';
+    else if (a.error) body = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:14px; font-weight:600;">' + esc(a.error) + '</div>';
+    else if (!shown.length) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">' + (a.tab === 'pending' ? 'Ничего не ждёт решения — очередь пуста.' : 'Пока пусто.') + '</div>';
+    else body = '<div style="display:flex; flex-direction:column; gap:12px;">' + shown.map(adminFileCard).join('') + '</div>';
+
+    var title = '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Файлы студентов</div>';
+    return pageWrap('Модерация', tabs + companies + title + body, 1200);
+  }
+
   /* ---------- PROFILE (чужой) ---------- */
   function chipList(items) {
     if (!items || !items.length) return '';
@@ -1435,6 +1559,7 @@
       case 'vacancies': return vacanciesView();
       case 'chat': return chatView();
       case 'profile': return profileViewPage();
+      case 'admin': return adminView();
       default: return homeView();
     }
   }
@@ -2191,6 +2316,37 @@
           openChat(row.id);
         });
     },
+    goAdmin: function () { setState({ view: 'admin' }); loadAdminQueue(); top(); },
+    adminTab: function (el) { state.admin.tab = el.getAttribute('data-tab'); state.admin.rejectFor = null; setState({}); },
+    adminRefresh: function () { loadAdminQueue(); },
+    // Ссылку на файл делаем короткоживущей и по требованию — она не хранится нигде,
+    // поэтому не протухает, как было в телеграме.
+    adminOpenFile: function (el) {
+      var path = el.getAttribute('data-path');
+      if (!path || !supabase) return;
+      supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 300).then(function (r) {
+        var url = r && r.data && r.data.signedUrl;
+        if (url) window.open(url, '_blank', 'noopener');
+        else setState({ admin: Object.assign({}, state.admin, { error: 'Не удалось открыть файл' }) });
+      });
+    },
+    adminApprove: function (el) { adminDecideFile(el.getAttribute('data-id'), 'approved', null); },
+    adminStartReject: function (el) { state.admin.rejectFor = el.getAttribute('data-id'); state.admin.reason = ''; setState({}); },
+    adminCancelReject: function () { state.admin.rejectFor = null; state.admin.reason = ''; setState({}); },
+    adminConfirmReject: function (el) {
+      var reason = (state.form.adminReason || '').trim();
+      adminDecideFile(el.getAttribute('data-id'), 'rejected', reason || 'Без указания причины');
+    },
+    adminCompanyDecide: function (el) {
+      var id = el.getAttribute('data-id'), status = el.getAttribute('data-status');
+      if (!supabase || !id) return;
+      state.admin.busy = id; setState({});
+      supabase.rpc('admin_decide_company', { p_id: id, p_status: status }).then(function (r) {
+        state.admin.busy = null;
+        if (r.error) { state.admin.error = 'Не удалось сохранить решение'; setState({}); return; }
+        loadAdminQueue();
+      });
+    },
     openChat: function (el) { openChat(el.getAttribute('data-app-id')); },
     openCompanyProfile: function (el) { openProfile('company', el.getAttribute('data-company-id'), el.getAttribute('data-back')); },
     openStudentProfile: function (el) { openProfile('student', el.getAttribute('data-student-id'), el.getAttribute('data-back')); },
@@ -2252,7 +2408,8 @@
       setState({
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', companyStep: 'login', otpRole: 'student',
-        files: [], filesLoading: false, tgDraft: false,
+        files: [], filesLoading: false, isAdmin: false,
+        admin: { tab: 'pending', items: [], companies: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false,
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         profileSave: { loading: false, error: '' },
@@ -2339,6 +2496,47 @@
         return true;
       }
       return false;
+    });
+  }
+  // Решение админа по файлу. Пишем прямо в student_files: RLS пускает сюда только
+  // is_admin(), у студента политики update нет вовсе.
+  function adminDecideFile(id, status, reason) {
+    if (!supabase || !id) return;
+    state.admin.busy = id; render();
+    supabase.from('student_files')
+      .update({ status: status, decided_by: 'admin', reason: reason })
+      .eq('id', id)
+      .then(function (r) {
+        state.admin.busy = null;
+        state.admin.rejectFor = null;
+        state.form.adminReason = '';
+        if (r.error) { state.admin.error = 'Не удалось сохранить решение'; render(); return; }
+        loadAdminQueue();
+      });
+  }
+  // Админ ли текущий пользователь. Проверяет база (is_admin), подделать на клиенте
+  // бессмысленно: все админские запросы всё равно гейтятся той же функцией на сервере.
+  function checkAdmin() {
+    if (!supabase || !currentUserId()) return Promise.resolve(false);
+    return supabase.rpc('is_admin').then(function (r) {
+      state.isAdmin = !r.error && r.data === true;
+      if (state.isAdmin) render();
+      return state.isAdmin;
+    });
+  }
+  // Очередь модерации: файлы + заявки компаний. Обе выборки закрыты is_admin() на сервере.
+  function loadAdminQueue() {
+    if (!supabase || !state.isAdmin) return;
+    state.admin.loading = true; state.admin.error = ''; render();
+    Promise.all([
+      supabase.rpc('admin_moderation_queue', { p_status: null }),
+      supabase.from('company_applications').select('id, data, status, created_at').order('created_at', { ascending: false })
+    ]).then(function (res) {
+      state.admin.loading = false;
+      if (res[0].error) state.admin.error = 'Не удалось загрузить очередь';
+      else state.admin.items = res[0].data || [];
+      if (!res[1].error) state.admin.companies = res[1].data || [];
+      render();
     });
   }
   // Файлы студента со статусами модерации. RLS отдаёт только свои (админу — все).
@@ -2448,6 +2646,7 @@
       var session = res.data && res.data.session;
       if (!session) return;
       state.session = session;
+      checkAdmin();
       return claimLegacyCompanyApp().then(loadCompanyProfile).then(function (isCompany) {
         if (isCompany) return true;
         return applyStudentProfile(session);
