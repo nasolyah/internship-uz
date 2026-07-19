@@ -2,6 +2,9 @@
 // Проверяет подпись Telegram Login Widget и выдаёт одноразовый OTP,
 // которым клиент устанавливает настоящую Supabase-сессию (verifyOtp).
 //
+// Кого пускать — определяет таблица telegram_links (миграция 0013), а не почта аккаунта.
+// Требует применённой 0013: без неё запрос к telegram_links упадёт.
+//
 // Секреты (Project Settings → Edge Functions → Secrets, или `supabase secrets set`):
 //   TELEGRAM_BOT_TOKEN   — токен бота из @BotFather
 // Автоматически доступны в рантайме:
@@ -97,24 +100,56 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    // Telegram не даёт email — используем синтетический, стабильный по telegram id.
-    const email = `tg_${data.id}@telegram.local`;
+    // Кого пускаем — решает таблица связей, а не почта. Пользователь мог привязать
+    // настоящую почту к тг-аккаунту (тогда его email в auth.users уже не синтетический)
+    // или привязать Telegram к аккаунту, заведённому по почте. Поиск по tg_<id>@telegram.local
+    // в обоих случаях промахнулся бы и завёл человеку второй, пустой аккаунт.
+    const { data: link } = await admin
+      .from('telegram_links')
+      .select('user_id')
+      .eq('telegram_id', String(data.id))
+      .maybeSingle();
 
-    // Идемпотентно создаём пользователя (если уже есть — Supabase вернёт ошибку, игнорируем её).
-    const { error: createErr } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: {
-        provider: 'telegram',
-        telegram_id: data.id,
-        first_name: data.first_name ?? '',
-        last_name: data.last_name ?? '',
-        username: data.username ?? '',
-        photo_url: data.photo_url ?? '',
-      },
-    });
-    if (createErr && !/already|registered|exists/i.test(createErr.message)) {
-      return json({ error: createErr.message }, 500);
+    let email: string;
+
+    if (link) {
+      // Аккаунт уже известен — берём его актуальную почту (она могла смениться при привязке).
+      const { data: existing, error: getErr } = await admin.auth.admin.getUserById(link.user_id);
+      if (getErr || !existing?.user?.email) {
+        return json({ error: getErr?.message || 'Аккаунт не найден' }, 500);
+      }
+      email = existing.user.email;
+      // Username в Telegram меняется — держим его свежим для отображения в кабинете.
+      await admin.from('telegram_links')
+        .update({ username: data.username ?? null })
+        .eq('telegram_id', String(data.id));
+    } else {
+      // Первый вход через Telegram: заводим аккаунт с синтетической почтой. Настоящую
+      // человек сможет привязать позже в кабинете, и тогда логин станет нормальным.
+      email = `tg_${data.id}@telegram.local`;
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: {
+          provider: 'telegram',
+          telegram_id: data.id,
+          first_name: data.first_name ?? '',
+          last_name: data.last_name ?? '',
+          username: data.username ?? '',
+          photo_url: data.photo_url ?? '',
+        },
+      });
+      if (createErr || !created?.user) {
+        return json({ error: createErr?.message || 'Не удалось создать аккаунт' }, 500);
+      }
+      const { error: linkInsErr } = await admin.from('telegram_links').insert({
+        telegram_id: String(data.id),
+        user_id: created.user.id,
+        username: data.username ?? null,
+      });
+      // Без связи следующий вход снова создал бы новый аккаунт — это тихая порча данных,
+      // поэтому падаем явно, а не пускаем внутрь.
+      if (linkInsErr) return json({ error: 'Не удалось связать Telegram с аккаунтом' }, 500);
     }
 
     // Генерируем OTP без отправки письма — клиент обменяет его на сессию через verifyOtp.

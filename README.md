@@ -23,6 +23,12 @@
   `verifyOtp`. Подробности — в [SETUP_TELEGRAM.md](SETUP_TELEGRAM.md).
 - **Email** — одноразовый код через `signInWithOtp` / `verifyOtp`.
 
+Это один аккаунт, а не два: соответствие `telegram_id` → пользователь лежит в
+`telegram_links` (миграция 0013), а не выводится из почты. В кабинете зашедший по почте
+может привязать Telegram (Edge `link-telegram`, подпись проверяется), а зашедший через
+Telegram — привязать настоящую почту (`updateUser` + код, тип OTP `email_change`), после
+чего логин в `auth.users` перестаёт быть синтетическим `tg_<id>@telegram.local`.
+
 **Компании** — одноразовый код на корпоративную почту (тот же `signInWithOtp`). Заявка
 компании привязана к аккаунту через `company_applications.owner_user_id`; публиковать задачи
 может только заявка со статусом `approved`.

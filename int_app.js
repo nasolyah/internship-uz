@@ -16,6 +16,11 @@
   var TELEGRAM_BOT_ID = '8827034426';
   // Эндпоинт Edge Function, которая проверяет подпись Telegram и выдаёт сессию.
   var TG_AUTH_FN = SUPABASE_URL + '/functions/v1/telegram-auth';
+  // Та же подпись, но для привязки Telegram к уже открытому аккаунту (без выдачи сессии).
+  var TG_LINK_FN = SUPABASE_URL + '/functions/v1/link-telegram';
+  // Возврат из Telegram стирает состояние страницы, поэтому намерение переживает редирект
+  // в localStorage: 'link' — привязываем к текущему аккаунту, иначе это обычный вход.
+  var TG_INTENT_KEY = 'iuz_tg_intent';
 
   /* ---------- документы студента ---------- */
   var SUBMIT_DOC_FN = SUPABASE_URL + '/functions/v1/submit-doc';
@@ -59,6 +64,11 @@
     testResult: null,
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
+    // Привязки аккаунта: какой Telegram привязан и синтетический ли логин
+    // (tg_<id>@telegram.local — значит настоящую почту ещё не привязывали).
+    links: { telegram_id: null, telegram_username: '', login_email: '', login_is_synthetic: false, loading: false, error: '' },
+    // Привязка почты к тг-аккаунту: 'form' — ввод адреса, 'code' — ввод кода из письма.
+    emailLink: { step: null, email: '', error: '', loading: false },
     profileSave: { loading: false, error: '' },
     docUpload: { loading: false, error: '', fileName: '' },
     extrasSave: { loading: false, error: '', ok: false },
@@ -814,8 +824,48 @@
       }
       return row(label, '<span style="display:inline-flex; align-items:center;">' + val(sp[field]) + editFieldBtn(field) + '</span>');
     };
+    // Кнопка-ссылка в строке контактов: мелкая, не перетягивает внимание с данных.
+    var linkBtnStyle = 'font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:5px 11px; border-radius:8px; cursor:pointer; margin-left:8px;';
+    var lk = state.links;
+
+    // Telegram: привязанный (подтверждён подписью) отличаем от вписанного руками.
+    var tgCell;
+    if (lk.telegram_id) {
+      tgCell = '<span style="display:inline-flex; align-items:center; gap:6px;">' +
+        esc(lk.telegram_username ? '@' + lk.telegram_username : (sp.tg || 'привязан')) +
+        '<span title="Подтверждён через Telegram" style="font-size:11px; font-weight:700; color:#16a34a; background:color-mix(in srgb, #16a34a 12%, #fff); padding:2px 8px; border-radius:999px;">привязан</span></span>';
+    } else {
+      tgCell = '<span style="display:inline-flex; align-items:center; flex-wrap:wrap;">' + val(sp.tg) +
+        '<button data-action="linkTelegram"' + (state.tgAuth.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + '">' +
+        (state.tgAuth.loading ? 'Открываем Telegram…' : 'Привязать Telegram') + '</button></span>';
+    }
+
+    // Логин: у аккаунта из Telegram он синтетический, войти по почте нельзя, пока не привяжут.
+    var loginCell;
+    var el = state.emailLink;
+    if (el.step === 'form') {
+      loginCell = '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' +
+        '<input id="link-email-input" type="email" value="' + esc(el.email || '') + '" placeholder="you@email.com" style="flex:1; min-width:200px; font-size:13.5px; padding:8px 11px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<button data-action="sendLinkEmailCode"' + (el.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + ' margin-left:0;">' + (el.loading ? 'Отправляем…' : 'Прислать код') + '</button>' +
+        '<button data-action="cancelLinkEmail" style="' + linkBtnStyle + ' margin-left:0;">Отмена</button></div>';
+    } else if (el.step === 'code') {
+      loginCell = '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' +
+        '<span style="font-size:12.5px; color:var(--muted); width:100%;">Код отправлен на ' + esc(el.email) + '</span>' +
+        '<input id="link-code-input" inputmode="numeric" placeholder="Код из письма" style="flex:1; min-width:150px; font-size:13.5px; padding:8px 11px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<button data-action="confirmLinkEmail"' + (el.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + ' margin-left:0;">' + (el.loading ? 'Проверяем…' : 'Подтвердить') + '</button>' +
+        '<button data-action="cancelLinkEmail" style="' + linkBtnStyle + ' margin-left:0;">Отмена</button></div>';
+    } else {
+      loginCell = '<span style="display:inline-flex; align-items:center; flex-wrap:wrap;">' +
+        '<span style="color:var(--muted);">не задан — вход только через Telegram</span>' +
+        '<button data-action="startLinkEmail" style="' + linkBtnStyle + '">Привязать почту</button></span>';
+    }
+    var loginErr = el.error ? '<div style="font-size:12px; color:#b3261e; margin-top:6px;">' + esc(el.error) + '</div>' : '';
+
     var contacts = '<div style="' + card + '"><div style="' + cardTitle + '">Контакты и статус</div>' +
-      editableRow('email', 'Email', 'text') + row('Telegram', val(sp.tg)) + editableRow('status', 'Статус', 'status') + editableRow('institution', 'Место учёбы', 'institution') + '</div>';
+      editableRow('email', 'Email', 'text') +
+      row('Telegram', tgCell) +
+      (lk.login_is_synthetic ? row('Вход по почте', loginCell + loginErr) : '') +
+      editableRow('status', 'Статус', 'status') + editableRow('institution', 'Место учёбы', 'institution') + '</div>';
 
     // строка документа со статусом и кнопкой загрузки (открывает модалку)
     var docRow = function (label, type) {
@@ -1601,19 +1651,80 @@
     tabStudents: function () { setState({ catalogTab: 'students' }); },
     tabGigs: function () { setState({ catalogTab: 'gigs' }); },
     // Открывает окно авторизации Telegram через JS-API (своя кнопка вместо iframe-виджета).
-    loginTelegram: function () {
-      if (TELEGRAM_BOT.indexOf('YOUR_BOT') !== -1) { setState({ tgAuth: { loading: false, error: 'Telegram-бот не настроен (TELEGRAM_BOT / TELEGRAM_BOT_ID в int_app.js).' } }); return; }
-      // Redirect-флоу вместо JS-колбэка: колбэк Telegram.Login.auth молча возвращает false,
-      // когда браузер режет стороннее хранилище (Safari ITP, Chrome). Здесь Telegram сам
-      // возвращает нас на страницу с данными в #tgAuthResult — межсайтовое хранилище не нужно.
-      var origin = location.protocol + '//' + location.host;
-      var returnTo = origin + location.pathname;  // без query/hash, чтобы не копить мусор
-      var url = 'https://oauth.telegram.org/auth?bot_id=' + encodeURIComponent(TELEGRAM_BOT_ID) +
-        '&origin=' + encodeURIComponent(origin) +
-        '&request_access=write' +
-        '&return_to=' + encodeURIComponent(returnTo);
+    loginTelegram: function () { goToTelegram('login'); },
+    // Привязка Telegram к открытому аккаунту. Уходим тем же редиректом, что и вход;
+    // отличает их только намерение, сохранённое до перехода.
+    linkTelegram: function () { goToTelegram('link'); },
+    // Возврат из Telegram с намерением «привязать»: подпись проверяет Edge Function,
+    // она же следит, чтобы этот Telegram не был занят другим аккаунтом.
+    finishLinkTelegram: function (user) {
+      if (!supabase || !user || !user.id) { setState({ tgAuth: { loading: false, error: 'Telegram не вернул данные' } }); return; }
       setState({ tgAuth: { loading: true, error: '' } });
-      window.location.href = url;
+      supabase.auth.getSession().then(function (s) {
+        var token = s && s.data && s.data.session && s.data.session.access_token;
+        if (!token) { setState({ tgAuth: { loading: false, error: 'Сессия истекла — войдите заново' } }); return; }
+        return fetch(TG_LINK_FN, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(user),
+        }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+          .then(function (res) {
+            if (!res.ok) { setState({ tgAuth: { loading: false, error: (res.body && res.body.error) || 'Не удалось привязать Telegram' } }); return; }
+            state.tgAuth = { loading: false, error: '' };
+            if (state.studentProfile && res.body.username) state.studentProfile.tg = '@' + res.body.username;
+            loadAccountLinks();   // перерисует строку как «привязан»
+            setState({});
+          });
+      }).catch(function (err) {
+        setState({ tgAuth: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
+      });
+    },
+    /* --- привязка настоящей почты к аккаунту, заведённому через Telegram --- */
+    startLinkEmail: function () { setState({ emailLink: { step: 'form', email: '', error: '', loading: false } }); },
+    cancelLinkEmail: function () { setState({ emailLink: { step: null, email: '', error: '', loading: false } }); },
+    // Меняем почту в auth.users. Supabase сам шлёт код на новый адрес — своего письма
+    // не отправляем. Старый адрес синтетический, письма туда не идут, поэтому в настройках
+    // Supabase должно быть выключено подтверждение с обоих адресов (Secure email change).
+    sendLinkEmailCode: function () {
+      var input = document.getElementById('link-email-input');
+      var email = input ? input.value.trim() : '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setState({ emailLink: { step: 'form', email: email, error: 'Укажите корректный email', loading: false } });
+        return;
+      }
+      setState({ emailLink: { step: 'form', email: email, error: '', loading: true } });
+      supabase.auth.updateUser({ email: email }).then(function (r) {
+        if (r.error) {
+          var msg = /already|registered|exists/i.test(r.error.message || '')
+            ? 'На эту почту уже заведён аккаунт. Войдите в него или укажите другой адрес.'
+            : (r.error.message || 'Не удалось отправить код');
+          setState({ emailLink: { step: 'form', email: email, error: msg, loading: false } });
+          return;
+        }
+        setState({ emailLink: { step: 'code', email: email, error: '', loading: false } });
+      });
+    },
+    confirmLinkEmail: function () {
+      var input = document.getElementById('link-code-input');
+      var code = input ? input.value.trim() : '';
+      var email = state.emailLink.email;
+      if (!code) { setState({ emailLink: { step: 'code', email: email, error: 'Введите код из письма', loading: false } }); return; }
+      setState({ emailLink: { step: 'code', email: email, error: '', loading: true } });
+      // email_change — отдельный тип OTP: подтверждает смену почты, а не вход.
+      supabase.auth.verifyOtp({ email: email, token: code, type: 'email_change' }).then(function (r) {
+        if (r.error) {
+          setState({ emailLink: { step: 'code', email: email, error: 'Неверный или устаревший код', loading: false } });
+          return;
+        }
+        // Теперь по этой почте можно входить кодом — и это будет тот же аккаунт.
+        state.emailLink = { step: null, email: '', error: '', loading: false };
+        if (state.studentProfile && !state.studentProfile.email) {
+          state.studentProfile.email = email;
+          saveProfileToDb();
+        }
+        loadAccountLinks();
+        setState({});
+      });
     },
     // Отправляет подписанные данные Telegram в Edge Function и устанавливает Supabase-сессию.
     telegramAuth: function (user) {
@@ -2412,6 +2523,9 @@
         admin: { tab: 'pending', items: [], companies: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false,
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
+        // Иначе следующий вход в этом же браузере увидел бы привязки предыдущего человека.
+        links: { telegram_id: null, telegram_username: '', login_email: '', login_is_synthetic: false, loading: false, error: '' },
+        emailLink: { step: null, email: '', error: '', loading: false },
         profileSave: { loading: false, error: '' },
         docUpload: { loading: false, error: '', fileName: '' },
         extrasSave: { loading: false, error: '', ok: false },
@@ -2493,11 +2607,30 @@
         state.authRole = 'student';
         state.studentStep = 'done';
         loadStudentFiles();   // статусы документов и файлов — из student_files, не из профиля
+        loadAccountLinks();   // привязан ли Telegram, настоящий ли логин-email
         return true;
       }
       return false;
     });
   }
+  // Привязки аккаунта. Логин-email лежит в auth.users и клиенту напрямую не виден
+  // (в сессии он есть, но после смены почты сессия ещё старая) — поэтому спрашиваем базу.
+  function loadAccountLinks() {
+    if (!supabase || !currentUserId()) return;
+    supabase.rpc('my_account_links').then(function (r) {
+      var row = r && r.data && r.data[0];
+      if (r.error || !row) return;   // 0013 не применена — молчим, кабинет работает как раньше
+      state.links = {
+        telegram_id: row.telegram_id || null,
+        telegram_username: row.telegram_username || '',
+        login_email: row.login_email || '',
+        login_is_synthetic: !!row.login_is_synthetic,
+        loading: false, error: '',
+      };
+      render();
+    });
+  }
+
   // Решение админа по файлу. Пишем прямо в student_files: RLS пускает сюда только
   // is_admin(), у студента политики update нет вовсе.
   function adminDecideFile(id, status, reason) {
@@ -3283,6 +3416,36 @@
     if (hdr) hdr.outerHTML = header();
   }
 
+  // Уводит на страницу авторизации Telegram. intent переживает редирект в localStorage:
+  // вернувшись, страница уже перезагружена и состояние приложения потеряно.
+  //
+  // Redirect-флоу вместо JS-колбэка: колбэк Telegram.Login.auth молча возвращает false,
+  // когда браузер режет стороннее хранилище (Safari ITP, Chrome). Здесь Telegram сам
+  // возвращает нас на страницу с подписанными данными — межсайтовое хранилище не нужно.
+  function goToTelegram(intent) {
+    if (TELEGRAM_BOT.indexOf('YOUR_BOT') !== -1) {
+      setState({ tgAuth: { loading: false, error: 'Telegram-бот не настроен (TELEGRAM_BOT / TELEGRAM_BOT_ID в int_app.js).' } });
+      return;
+    }
+    try { localStorage.setItem(TG_INTENT_KEY, intent); } catch (e) { /* приватный режим — упадём в обычный вход */ }
+    var origin = location.protocol + '//' + location.host;
+    var returnTo = origin + location.pathname;  // без query/hash, чтобы не копить мусор
+    var url = 'https://oauth.telegram.org/auth?bot_id=' + encodeURIComponent(TELEGRAM_BOT_ID) +
+      '&origin=' + encodeURIComponent(origin) +
+      '&request_access=write' +
+      '&return_to=' + encodeURIComponent(returnTo);
+    setState({ tgAuth: { loading: true, error: '' } });
+    window.location.href = url;
+  }
+
+  // Считывает и сразу гасит намерение — чтобы повторное обновление страницы
+  // не приняло обычный вход за привязку.
+  function takeTelegramIntent() {
+    var v = null;
+    try { v = localStorage.getItem(TG_INTENT_KEY); localStorage.removeItem(TG_INTENT_KEY); } catch (e) {}
+    return v;
+  }
+
   // Убирает данные Telegram из адресной строки: чтобы не переобработать при обновлении и не светить hash.
   function stripTelegramReturn() {
     try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
@@ -3325,7 +3488,13 @@
   function init() {
     root = document.getElementById('root');
     var tgUser = readTelegramReturn();
-    if (tgUser) {
+    var tgIntent = takeTelegramIntent();
+    if (tgUser && tgIntent === 'link') {
+      // Возврат после привязки: сессия уже есть (человек не выходил), меняем не её,
+      // а связь telegram_id → аккаунт. Профиль восстанавливаем как обычно.
+      restoreSession();
+      actions.finishLinkTelegram(tgUser);
+    } else if (tgUser) {
       // Вернулись после авторизации в Telegram — сразу меняем данные на сессию.
       state.view = 'student';
       actions.telegramAuth(tgUser);
