@@ -1,8 +1,8 @@
 # Документы школьников (справка + согласие) — настройка
 
 Школьник/лицеист загружает в кабинете **справку о месте учёбы** и **согласие родителя**.
-Файлы уходят в Supabase Storage, Edge Function шлёт их в Telegram-группу проверки с
-кнопками ✅/❌, а вебхук обновляет статус в БД.
+Файлы уходят в Supabase Storage, Edge Function шлёт уведомление в Telegram-группу проверки,
+а решение админ принимает в разделе «Модерация» на сайте.
 
 ## 1. Таблица и хранилище (SQL Editor)
 
@@ -25,37 +25,28 @@ Dashboard → Edge Functions → Secrets (или `supabase secrets set`):
 
 - `TG_STUDY_CHAT_ID` = id группы проверки справок
 - `TG_CONSENT_CHAT_ID` = id группы проверки согласий
-- `TG_WEBHOOK_SECRET` = любая случайная строка (напр. 32 символа)
+- `PANEL_URL` = адрес сайта, попадёт ссылкой в уведомление (необязательный)
 - `TELEGRAM_BOT_TOKEN` — уже задан (используется повторно)
 
-## 4. Задеплоить функции
-
-- `submit-doc` — приём документа и отправка в группу (обычный деплой).
-- `tg-webhook` — обработчик кнопок; деплой **без проверки JWT**:
+## 4. Задеплоить функцию
 
 ```bash
 supabase functions deploy submit-doc
-supabase functions deploy tg-webhook --no-verify-jwt
 ```
 
-(Через Dashboard: создать функции «Via Editor», вставить код из
-`supabase/functions/submit-doc/` и `supabase/functions/tg-webhook/`. Для `tg-webhook`
-отключить «Verify JWT» в настройках функции.)
+(Через Dashboard: создать функцию «Via Editor» и вставить код из
+`supabase/functions/submit-doc/`.)
 
-## 5. Привязать вебхук к боту
+> Вебхука больше нет. Раньше решения принимались кнопками ✅/❌ прямо в Telegram
+> (функция `tg-webhook`), и это давало два независимых источника решений — бот писал
+> статус в обход панели. Теперь Telegram только уведомляет, а решения принимаются
+> в разделе «Модерация» на сайте. Если вебхук был привязан к боту, снимите его:
+>
+> ```bash
+> curl "https://api.telegram.org/bot<ТОКЕН>/deleteWebhook"
+> ```
 
-Один раз вызовите (подставьте токен и секрет):
-
-```bash
-curl "https://api.telegram.org/bot<ТОКЕН>/setWebhook?url=https://ysxvlopfcarhdszqzmnp.supabase.co/functions/v1/tg-webhook&secret_token=<TG_WEBHOOK_SECRET>&allowed_updates=[\"callback_query\"]"
-```
-
-Проверить: `https://api.telegram.org/bot<ТОКЕН>/getWebhookInfo`.
-
-> ⚠️ Тот же бот используется и для входа (Login Widget), и для вебхука — это нормально.
-> Login Widget работает независимо от вебхука.
-
-## 6. Шаблон согласия
+## 5. Шаблон согласия
 
 Положите PDF в `templates/parental-consent-template.pdf` (см. [templates/README.md](templates/README.md))
 и запушьте. Кнопка «Скачать шаблон» в модалке ведёт на этот файл.
@@ -63,7 +54,8 @@ curl "https://api.telegram.org/bot<ТОКЕН>/setWebhook?url=https://ysxvlopfca
 ## Как проходит проверка
 
 1. Школьник в кабинете жмёт «Загрузить» / «Подтвердить» → выбирает файл → «Отправить на проверку».
-2. Документ приходит в группу с подписью (ФИО, email, tg) и кнопками ✅/❌.
-3. Админ жмёт кнопку → вебхук ставит статус `approved`/`rejected`, сообщение помечается решением.
+2. Документ приходит в группу с подписью (ФИО, email, tg) и ссылкой на панель — как уведомление.
+3. Админ открывает раздел «Модерация» на сайте, смотрит файл и ставит `approved`/`rejected`
+   (при отказе — с причиной, её увидит школьник).
 4. У школьника в кабинете статус меняется (после перезагрузки страницы). Одобренное согласие
    разблокирует каталог задач.

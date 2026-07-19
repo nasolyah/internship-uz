@@ -1,6 +1,6 @@
 // Supabase Edge Function: submit-company
-// Принимает заявку компании, сохраняет её и отправляет в Telegram-группу проверки
-// с кнопками ✅/❌. Профиль считается подтверждённым только после нажатия ✅ (обрабатывает tg-webhook).
+// Принимает заявку компании, сохраняет её и шлёт уведомление в Telegram-группу проверки.
+// Заявка подтверждается только в панели модерации (admin_decide_company); Telegram — пинг.
 //
 // Заявку подаёт залогиненный пользователь (вход по коду на корпоративную почту), и она
 // привязывается к нему через owner_user_id. Дальше компания читает свою заявку напрямую
@@ -9,6 +9,7 @@
 // Секреты:
 //   TELEGRAM_BOT_TOKEN   — токен бота
 //   TG_COMPANY_CHAT_ID   — id группы проверки компаний
+//   PANEL_URL            — адрес сайта для ссылки в уведомлении (необязательный)
 // Авто: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -73,6 +74,7 @@ Deno.serve(async (req) => {
     if (ins.error || !ins.data) return json({ error: ins.error?.message || 'Не удалось сохранить заявку' }, 500);
     const id = ins.data.id as string;
 
+    const panel = Deno.env.get('PANEL_URL');
     const lines = [
       `🏢 Заявка компании`,
       `Название: ${data.name}`,
@@ -83,19 +85,13 @@ Deno.serve(async (req) => {
       `Контакт: ${data.contact}`,
       `Телефон: ${data.phone}`,
       `Статус: на проверке`,
+      panel ? `Решение — в разделе «Модерация»: ${panel}` : `Решение — в разделе «Модерация» на сайте`,
     ].filter(Boolean);
-
-    const keyboard = {
-      inline_keyboard: [[
-        { text: '✅ Подтвердить', callback_data: `company:${id}:approve` },
-        { text: '❌ Отклонить', callback_data: `company:${id}:reject` },
-      ]],
-    };
 
     const tg = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: lines.join('\n'), reply_markup: keyboard }),
+      body: JSON.stringify({ chat_id: chatId, text: lines.join('\n') }),
     });
     const tgRes = await tg.json();
     if (!tgRes.ok) return json({ error: 'Telegram: ' + (tgRes.description || 'ошибка отправки') }, 502);

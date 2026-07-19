@@ -1,12 +1,14 @@
 // Supabase Edge Function: submit-doc
-// Получает от клиента ссылку на загруженный документ, отправляет его в Telegram-группу
-// проверки с inline-кнопками ✅/❌. Статус документа хранится в student_files —
-// строку туда создаёт клиент при загрузке, эта функция только уведомляет.
+// Получает от клиента ссылку на загруженный документ и шлёт уведомление в Telegram-группу
+// проверки. Telegram здесь — только пинг «пришёл документ»; решения принимаются в админке.
+// Кнопок ✅/❌ нет намеренно: два источника решений (бот и панель) расходились бы между собой,
+// а статус документа живёт в student_files и меняется только через панель.
 //
 // Секреты:
 //   TELEGRAM_BOT_TOKEN  — токен бота
 //   TG_STUDY_CHAT_ID    — id группы проверки справок о месте учёбы
 //   TG_CONSENT_CHAT_ID  — id группы проверки согласий родителей
+//   PANEL_URL           — адрес сайта, ссылку на него кладём в уведомление (необязательный)
 // Авто: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -59,26 +61,25 @@ Deno.serve(async (req) => {
     const { data: prof } = await admin.from('profiles').select('data').eq('id', user.id).maybeSingle();
     const d: Record<string, unknown> = (prof?.data as Record<string, unknown>) || {};
     const who = `${d.first ?? ''} ${d.last ?? ''}`.trim() + (d.email ? ` · ${d.email}` : '') + (d.tg ? ` · ${d.tg}` : '');
-    const caption = `📄 ${LABELS[type]}\n${who}\nСтатус: на проверке`;
-
-    const keyboard = {
-      inline_keyboard: [[
-        { text: '✅ Подтвердить', callback_data: `${type}:${user.id}:approve` },
-        { text: '❌ Отклонить', callback_data: `${type}:${user.id}:reject` },
-      ]],
-    };
+    const panel = Deno.env.get('PANEL_URL');
+    const caption = [
+      `📄 ${LABELS[type]}`,
+      who,
+      `Статус: на проверке`,
+      panel ? `Решение — в разделе «Модерация»: ${panel}` : `Решение — в разделе «Модерация» на сайте`,
+    ].filter(Boolean).join('\n');
 
     const tg = await fetch(`https://api.telegram.org/bot${botToken}/sendDocument`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, document: signed.signedUrl, caption, reply_markup: keyboard }),
+      body: JSON.stringify({ chat_id: chatId, document: signed.signedUrl, caption }),
     });
     const tgRes = await tg.json();
     if (!tgRes.ok) return json({ error: 'Telegram: ' + (tgRes.description || 'ошибка отправки') }, 502);
 
     // Статус документа живёт в student_files — строку туда создаёт клиент при загрузке
     // (RLS пускает только 'pending'). Здесь ничего не пишем: функция лишь уведомляет
-    // группу проверки, а решение принимается в админке или кнопками под этим сообщением.
+    // группу проверки, а решение принимается в панели модерации.
     return json({ ok: true, status: 'pending' });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
