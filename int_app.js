@@ -804,7 +804,9 @@
       '<div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">' + availTag + '</div></div></div>';
 
     // Строка с инлайн-редактированием (карандаш): email, статус, место учёбы.
-    var editableRow = function (field, label, kind) {
+    // extra — необязательная приписка справа от значения (бейдж/кнопка). Нужна, чтобы не
+    // заводить вторую строку под то же самое поле: у почты это пометка про вход.
+    var editableRow = function (field, label, kind, extra) {
       if (state.fieldEditConfirm && state.fieldEditConfirm.field === field) {
         return '<div style="padding:12px 0; border-top:1.5px solid var(--line);">' +
           '<div style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; color:#b26b12; font-weight:600; margin-bottom:10px;">' + icon('warn', 15) + '<span>' + esc(state.fieldEditConfirm.warning) + '</span></div>' +
@@ -822,49 +824,66 @@
           '<button data-action="cancelFieldEdit" title="Отмена" style="' + chipIconStyle + '">' + icon('x', 14) + '</button></div>' +
           (state.fieldEditError ? '<div style="font-size:12px; color:#b3261e; margin-top:6px;">' + esc(state.fieldEditError) + '</div>' : '') + '</div>';
       }
-      return row(label, '<span style="display:inline-flex; align-items:center;">' + val(sp[field]) + editFieldBtn(field) + '</span>');
+      return row(label, '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:2px;">' + val(sp[field]) + editFieldBtn(field) + (extra || '') + '</span>');
     };
     // Кнопка-ссылка в строке контактов: мелкая, не перетягивает внимание с данных.
-    var linkBtnStyle = 'font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:5px 11px; border-radius:8px; cursor:pointer; margin-left:8px;';
+    var linkBtnStyle = 'font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:5px 11px; border-radius:8px; cursor:pointer; margin-left:8px; white-space:nowrap;';
+    var badge = function (text, color, title) {
+      return '<span' + (title ? ' title="' + esc(title) + '"' : '') + ' style="font-size:11px; font-weight:700; color:' + color +
+        '; background:color-mix(in srgb, ' + color + ' 12%, #fff); padding:2px 8px; border-radius:999px; margin-left:6px; white-space:nowrap;">' + esc(text) + '</span>';
+    };
     var lk = state.links;
 
     // Telegram: привязанный (подтверждён подписью) отличаем от вписанного руками.
     var tgCell;
     if (lk.telegram_id) {
-      tgCell = '<span style="display:inline-flex; align-items:center; gap:6px;">' +
-        esc(lk.telegram_username ? '@' + lk.telegram_username : (sp.tg || 'привязан')) +
-        '<span title="Подтверждён через Telegram" style="font-size:11px; font-weight:700; color:#16a34a; background:color-mix(in srgb, #16a34a 12%, #fff); padding:2px 8px; border-radius:999px;">привязан</span></span>';
+      tgCell = '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
+        val(lk.telegram_username ? '@' + lk.telegram_username : (sp.tg || '')) +
+        badge('вход', '#16a34a', 'Подтверждён через Telegram — по нему можно входить') + '</span>';
     } else {
-      tgCell = '<span style="display:inline-flex; align-items:center; flex-wrap:wrap;">' + val(sp.tg) +
+      tgCell = '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' + val(sp.tg) +
         '<button data-action="linkTelegram"' + (state.tgAuth.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + '">' +
-        (state.tgAuth.loading ? 'Открываем Telegram…' : 'Привязать Telegram') + '</button></span>';
+        (state.tgAuth.loading ? 'Открываем…' : 'Привязать') + '</button></span>';
     }
 
-    // Логин: у аккаунта из Telegram он синтетический, войти по почте нельзя, пока не привяжут.
-    var loginCell;
+    // Пометка про вход живёт в той же строке, что и почта: заводить под это отдельную
+    // строку — значит показать в одном блоке два разных email и запутать.
     var el = state.emailLink;
+    var emailMark;
+    if (lk.login_is_synthetic) {
+      emailMark = '<button data-action="startLinkEmail" style="' + linkBtnStyle + '">Сделать входом</button>';
+    } else if (lk.login_email && sp.email && lk.login_email.toLowerCase() === sp.email.toLowerCase()) {
+      emailMark = badge('вход', '#16a34a');
+    } else if (lk.login_email) {
+      // Контактная почта и логин разошлись — показываем, каким адресом на самом деле входят.
+      emailMark = '<span style="font-size:11.5px; color:var(--muted); margin-left:6px;">вход: ' + esc(lk.login_email) + '</span>';
+    } else emailMark = '';
+
+    // Форма привязки — отдельным блоком во всю ширину под строками: в ячейке значения
+    // она ломала выравнивание, из-за чего подпись строки переносилась на две.
+    var linkForm = '';
     if (el.step === 'form') {
-      loginCell = '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' +
-        '<input id="link-email-input" type="email" value="' + esc(el.email || '') + '" placeholder="you@email.com" style="flex:1; min-width:200px; font-size:13.5px; padding:8px 11px; border:1.5px solid var(--line); border-radius:9px;">' +
+      linkForm = '<div style="padding:12px 0; border-top:1.5px solid var(--line);">' +
+        '<div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">Почта для входа — по ней можно будет заходить кодом, как через Telegram.</div>' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+        '<input id="link-email-input" type="email" value="' + esc(el.email || sp.email || '') + '" placeholder="you@email.com" style="flex:1; min-width:200px; ' + S.field + '">' +
         '<button data-action="sendLinkEmailCode"' + (el.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + ' margin-left:0;">' + (el.loading ? 'Отправляем…' : 'Прислать код') + '</button>' +
         '<button data-action="cancelLinkEmail" style="' + linkBtnStyle + ' margin-left:0;">Отмена</button></div>';
     } else if (el.step === 'code') {
-      loginCell = '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' +
-        '<span style="font-size:12.5px; color:var(--muted); width:100%;">Код отправлен на ' + esc(el.email) + '</span>' +
-        '<input id="link-code-input" inputmode="numeric" placeholder="Код из письма" style="flex:1; min-width:150px; font-size:13.5px; padding:8px 11px; border:1.5px solid var(--line); border-radius:9px;">' +
+      linkForm = '<div style="padding:12px 0; border-top:1.5px solid var(--line);">' +
+        '<div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">Код отправлен на ' + esc(el.email) + '</div>' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+        '<input id="link-code-input" inputmode="numeric" placeholder="Код из письма" style="flex:1; min-width:160px; ' + S.field + '">' +
         '<button data-action="confirmLinkEmail"' + (el.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + ' margin-left:0;">' + (el.loading ? 'Проверяем…' : 'Подтвердить') + '</button>' +
         '<button data-action="cancelLinkEmail" style="' + linkBtnStyle + ' margin-left:0;">Отмена</button></div>';
-    } else {
-      loginCell = '<span style="display:inline-flex; align-items:center; flex-wrap:wrap;">' +
-        '<span style="color:var(--muted);">не задан — вход только через Telegram</span>' +
-        '<button data-action="startLinkEmail" style="' + linkBtnStyle + '">Привязать почту</button></span>';
     }
-    var loginErr = el.error ? '<div style="font-size:12px; color:#b3261e; margin-top:6px;">' + esc(el.error) + '</div>' : '';
+    if (linkForm && el.error) linkForm += '<div style="font-size:12px; color:#b3261e; margin-top:8px;">' + esc(el.error) + '</div>';
+    if (linkForm) linkForm += '</div>';
 
     var contacts = '<div style="' + card + '"><div style="' + cardTitle + '">Контакты и статус</div>' +
-      editableRow('email', 'Email', 'text') +
+      editableRow('email', 'Email', 'text', emailMark) +
       row('Telegram', tgCell) +
-      (lk.login_is_synthetic ? row('Вход по почте', loginCell + loginErr) : '') +
+      linkForm +
       editableRow('status', 'Статус', 'status') + editableRow('institution', 'Место учёбы', 'institution') + '</div>';
 
     // строка документа со статусом и кнопкой загрузки (открывает модалку)
