@@ -46,7 +46,8 @@
     companyProfile: null,
     session: null,
     form: {},
-    docStatus: { study: 'none', consent: 'none' },  // none | pending | approved | rejected
+    files: [],                 // student_files: все загруженные файлы со статусом модерации
+    filesLoading: false,
     tgDraft: false,
     menuOpen: false,
     modal: null,               // null | 'study' | 'consent'
@@ -131,7 +132,36 @@
   function companyName() { return state.companyProfile ? state.companyProfile.name : 'Ваша компания'; }
   function companyDomain() { return state.companyProfile ? (state.companyProfile.domain || '') : ''; }
   // Статус конкретного документа: none | pending | approved | rejected.
-  function docStat(type) { return (state.docStatus && state.docStatus[type]) || 'none'; }
+  // Статус документа берём из загруженных student_files: единственный источник правды,
+  // писать в который студент не может (в отличие от старого docStatus в profiles.data).
+  function docStat(type) {
+    var f = fileFor(type);
+    return f ? f.status : 'none';
+  }
+  // Последний файл нужного вида (по одному на avatar/study/consent).
+  function fileFor(kind) {
+    var list = state.files || [], found = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].kind === kind && (!found || list[i].created_at > found.created_at)) found = list[i];
+    }
+    return found;
+  }
+  // Статус конкретного файла элемента профиля (сертификат, файл проекта) — по пути в сторадже.
+  function fileStatusByPath(path) {
+    if (!path) return null;
+    var list = state.files || [];
+    for (var i = 0; i < list.length; i++) if (list[i].path === path) return list[i];
+    return null;
+  }
+  var MOD_BADGE = { pending: ['на проверке', '#b26b12'], approved: ['одобрено', '#16a34a'], rejected: ['отклонено', '#b3261e'] };
+  // Бейдж модерации рядом с файлом: студент видит, дошёл ли файл до компаний.
+  function modBadge(path) {
+    var f = fileStatusByPath(path);
+    var m = f && MOD_BADGE[f.status];
+    if (!m) return '';
+    var tip = (f.status === 'rejected' && f.reason) ? ' title="' + esc(f.reason) + '"' : '';
+    return '<span' + tip + ' style="font-size:10.5px; font-weight:700; color:' + m[1] + '; background:color-mix(in srgb, ' + m[1] + ' 12%, #fff); padding:2px 7px; border-radius:999px; white-space:nowrap;">' + m[0] + '</span>';
+  }
   function docLabel(status) {
     return { pending: 'на проверке', approved: 'подтверждено', rejected: 'отклонено — загрузите заново', none: '' }[status] || '';
   }
@@ -740,7 +770,7 @@
     var chipIconStyle = 'width:20px; height:20px; border-radius:6px; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;';
     var chipEditBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted);">' + icon('pencil', 12) + '</button>'; };
     var chipRemoveBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + chipIconStyle + ' color:#b3261e;">' + icon('x', 12) + '</button>'; };
-    var fileBadge = function (file) { return (file && file.url) ? '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" title="' + esc(file.name || 'файл') + '" style="color:var(--muted); display:inline-flex;">' + icon('paperclip', 13) + '</a>' : ''; };
+    var fileBadge = function (file) { return (file && file.url) ? '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" title="' + esc(file.name || 'файл') + '" style="color:var(--muted); display:inline-flex;">' + icon('paperclip', 13) + '</a>' + modBadge(file.path) : ''; };
     var editFieldBtn = function (field) { return '<button data-action="startFieldEdit" data-field-edit="' + field + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted); margin-left:6px;">' + icon('pencil', 12) + '</button>'; };
 
     var availTag = '<span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:' + availColor(sp.availability) + '; background:color-mix(in srgb, ' + availColor(sp.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(sp.availability) + ';"></span>' + esc(availLabel(sp.availability)) + '</span>' +
@@ -836,7 +866,7 @@
         ? '<img src="' + esc(file.url) + '" style="width:32px; height:32px; border-radius:7px; object-fit:cover; flex-shrink:0;">'
         : '<div style="width:32px; height:32px; border-radius:7px; background:#fff; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); flex-shrink:0;">' + icon('file', 15) + '</div>';
       return '<div data-action="openMediaPreview" data-preview-url="' + esc(file.url) + '" data-preview-name="' + esc(file.name) + '" data-preview-image="' + (isImg ? '1' : '0') + '" style="display:flex; align-items:center; gap:8px; margin-top:9px; padding:6px 9px; background:var(--bg); border-radius:9px; cursor:pointer;">' + thumb +
-        '<div style="min-width:0;"><div style="font-size:12px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(file.name) + '</div>' + (file.size ? '<div style="font-size:11px; color:var(--muted);">' + fmtBytes(file.size) + '</div>' : '') + '</div></div>';
+        '<div style="min-width:0;"><div style="font-size:12px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(file.name) + '</div><div style="margin-top:3px;">' + modBadge(file.path) + '</div>' + (file.size ? '<div style="font-size:11px; color:var(--muted);">' + fmtBytes(file.size) + '</div>' : '') + '</div></div>';
     };
     var skillCard = function (sk, i) {
       var name = typeof sk === 'string' ? sk : sk.name;
@@ -1795,6 +1825,11 @@
         var metas = slots.map(function (s) { return { name: s.name, url: s.url, path: s.path, type: s.type, size: s.size }; });
         if (isMultiFileType(type)) item.files = metas;
         else if (metas.length) item.file = metas[0];
+        // Каждый только что загруженный файл уходит на модерацию: компания увидит его
+        // лишь после одобрения. Уже существующие (без свежей загрузки) не трогаем.
+        resolvedMetas.forEach(function (meta, k) {
+          if (meta && meta.path) registerFile(type, meta.path, staged[k] && staged[k].file);
+        });
         commit();
       }
 
@@ -1855,7 +1890,7 @@
       }
       setState({ avatarUpload: { loading: true, error: '' } });
       var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-      var path = userId + '/avatar.' + ext;
+      var path = userId + '/avatar-' + Date.now() + '.' + ext;
       supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' }).then(function (up) {
         if (up.error) { setState({ avatarUpload: { loading: false, error: 'Ошибка загрузки: ' + up.error.message } }); return; }
         return supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 60 * 60 * 24 * 365).then(function (su) {
@@ -1863,6 +1898,7 @@
           state.studentProfile.photoUrl = (su && su.data && su.data.signedUrl) || '';
           setState({ avatarUpload: { loading: false, error: '' } });
           saveProfileToDb();
+          registerFile('avatar', path, file);
         });
       }).catch(function (err) {
         setState({ avatarUpload: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err) } });
@@ -1934,7 +1970,6 @@
       } else if (conf.field === 'institution') {
         sp.institution = conf.value;
       }
-      state.docStatus.study = 'none';
       setState({ fieldEdit: null, fieldEditConfirm: null, fieldEditError: '' });
       if (supabase && currentUserId()) saveProfileToDb();
     },
@@ -2044,7 +2079,7 @@
       var userId = currentUserId();
       if (!supabase || !userId || !state.session) { setState({ docUpload: { loading: false, error: 'Сессия истекла — войдите заново', fileName: file.name } }); return; }
       var ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf';
-      var path = userId + '/' + type + '.' + ext;
+      var path = userId + '/' + type + '-' + Date.now() + '.' + ext;
       setState({ docUpload: { loading: true, error: '', fileName: file.name } });
       supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' }).then(function (up) {
         if (up.error) { setState({ docUpload: { loading: false, error: 'Ошибка загрузки: ' + up.error.message, fileName: file.name } }); return; }
@@ -2054,8 +2089,8 @@
           body: JSON.stringify({ type: type, path: path })
         }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); }).then(function (res) {
           if (!res.ok || !res.body || res.body.error) { setState({ docUpload: { loading: false, error: (res.body && res.body.error) || 'Не удалось отправить на проверку', fileName: file.name } }); return; }
-          state.docStatus[type] = 'pending';
           pendingDocFile = null;
+          registerFile(type, path, file);
           setState({ modal: null, docUpload: { loading: false, error: '', fileName: '' } });
         });
       }).catch(function (err) {
@@ -2217,7 +2252,7 @@
       setState({
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', companyStep: 'login', otpRole: 'student',
-        docStatus: { study: 'none', consent: 'none' }, tgDraft: false,
+        files: [], filesLoading: false, tgDraft: false,
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         profileSave: { loading: false, error: '' },
@@ -2280,7 +2315,7 @@
     var userId = currentUserId();
     if (!supabase || !userId || !state.studentProfile) return Promise.resolve({ error: null });
     var p = state.studentProfile;
-    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', specialties: p.specialties || [], description: p.description || '', aiTest: p.aiTest || null, aiTestSeenQuestions: p.aiTestSeenQuestions || [], docStatus: state.docStatus,
+    var data = { first: p.first, last: p.last, tg: p.tg, email: p.email, status: p.status, minor: !!p.minor, specialty: p.specialty || '', specialties: p.specialties || [], description: p.description || '', aiTest: p.aiTest || null, aiTestSeenQuestions: p.aiTestSeenQuestions || [],
       availability: p.availability || '', institution: p.institution || '', photoPath: p.photoPath || '', photoUrl: p.photoUrl || '', hardSkills: p.hardSkills || [], languages: p.languages || [], projects: p.projects || [], achievements: p.achievements || [], platformHistory: p.platformHistory || [] };
     return supabase.from('profiles')
       .upsert({ id: userId, role: 'student', data: data, updated_at: new Date().toISOString() })
@@ -2298,14 +2333,39 @@
         var d = row.data;
         state.studentProfile = { first: d.first || '', last: d.last || '', tg: d.tg || '', email: d.email || '', status: d.status || '', minor: !!d.minor, specialty: d.specialty || '', specialties: d.specialties || (d.specialty ? [d.specialty] : []), description: d.description || '', aiTest: d.aiTest || null, aiTestSeenQuestions: d.aiTestSeenQuestions || [],
           availability: d.availability || '', institution: d.institution || '', photoPath: d.photoPath || '', photoUrl: d.photoUrl || '', hardSkills: d.hardSkills || [], languages: d.languages || [], projects: d.projects || [], achievements: d.achievements || [], platformHistory: d.platformHistory || [] };
-        // статусы документов (совместимость со старым флагом consentUploaded)
-        state.docStatus = d.docStatus || { study: 'none', consent: d.consentUploaded ? 'pending' : 'none' };
         state.authRole = 'student';
         state.studentStep = 'done';
+        loadStudentFiles();   // статусы документов и файлов — из student_files, не из профиля
         return true;
       }
       return false;
     });
+  }
+  // Файлы студента со статусами модерации. RLS отдаёт только свои (админу — все).
+  function loadStudentFiles() {
+    if (!supabase || !currentUserId()) return Promise.resolve();
+    state.filesLoading = true;
+    return supabase.from('student_files')
+      .select('id, kind, path, name, status, reason, ai_verdict, decided_by, created_at')
+      .order('created_at', { ascending: false })
+      .then(function (r) {
+        state.filesLoading = false;
+        if (!r.error && r.data) state.files = r.data;
+        render();
+      });
+  }
+  // Регистрирует загруженный файл на модерацию. Статус проставить нельзя — RLS пускает
+  // только 'pending', решение принимает админ.
+  function registerFile(kind, path, file) {
+    if (!supabase || !currentUserId()) return Promise.resolve();
+    return supabase.from('student_files').insert({
+      student_id: currentUserId(),
+      kind: kind,
+      path: path,
+      name: (file && file.name) || '',
+      mime: (file && file.type) || '',
+      size: (file && file.size) || 0
+    }).then(function () { return loadStudentFiles(); });
   }
   // Заявка компании читается ею самой: RLS пускает к строке с owner_user_id = auth.uid().
   // Возвращает Promise<boolean> — есть ли у аккаунта заявка.

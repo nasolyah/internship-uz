@@ -1,6 +1,7 @@
 // Supabase Edge Function: submit-doc
 // Получает от клиента ссылку на загруженный документ, отправляет его в Telegram-группу
-// проверки с inline-кнопками ✅/❌ и ставит статус документа в profiles.data.docStatus = 'pending'.
+// проверки с inline-кнопками ✅/❌. Статус документа хранится в student_files —
+// строку туда создаёт клиент при загрузке, эта функция только уведомляет.
 //
 // Секреты:
 //   TELEGRAM_BOT_TOKEN  — токен бота
@@ -75,12 +76,9 @@ Deno.serve(async (req) => {
     const tgRes = await tg.json();
     if (!tgRes.ok) return json({ error: 'Telegram: ' + (tgRes.description || 'ошибка отправки') }, 502);
 
-    // Обновляем статус документа.
-    const docStatus = (d.docStatus as Record<string, string>) || {};
-    docStatus[type] = 'pending';
-    d.docStatus = docStatus;
-    await admin.from('profiles').update({ data: d, updated_at: new Date().toISOString() }).eq('id', user.id);
-
+    // Статус документа живёт в student_files — строку туда создаёт клиент при загрузке
+    // (RLS пускает только 'pending'). Здесь ничего не пишем: функция лишь уведомляет
+    // группу проверки, а решение принимается в админке или кнопками под этим сообщением.
     return json({ ok: true, status: 'pending' });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

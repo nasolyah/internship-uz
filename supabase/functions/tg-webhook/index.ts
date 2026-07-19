@@ -1,6 +1,6 @@
 // Supabase Edge Function: tg-webhook
 // Вебхук Telegram. Обрабатывает нажатия inline-кнопок ✅/❌ под документами в группе проверки:
-// обновляет profiles.data.docStatus и редактирует сообщение с решением.
+// пишет решение в student_files (статус модерации) и редактирует сообщение с решением.
 //
 // Обрабатывает и заявки компаний (callback_data company:<id>:approve|reject) — меняет
 // company_applications.status.
@@ -74,13 +74,21 @@ Deno.serve(async (req) => {
         text: `${baseText}\nСтатус: ${mark} · ${who}`,
       }, botToken);
     } else {
-      // документы студента (study/consent): сообщение с документом (sendDocument, caption).
-      const { data: prof } = await admin.from('profiles').select('data').eq('id', userId).maybeSingle();
-      const d: Record<string, unknown> = (prof?.data as Record<string, unknown>) || {};
-      const docStatus = (d.docStatus as Record<string, string>) || {};
-      docStatus[type] = status;
-      d.docStatus = docStatus;
-      await admin.from('profiles').update({ data: d, updated_at: new Date().toISOString() }).eq('id', userId);
+      // Документы студента (study/consent): решение пишем в student_files — единственный
+      // источник правды по модерации. Берём самый свежий файл этого вида у студента.
+      const { data: latest } = await admin
+        .from('student_files')
+        .select('id')
+        .eq('student_id', userId)
+        .eq('kind', type)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest) {
+        await admin.from('student_files')
+          .update({ status, decided_by: 'admin' })
+          .eq('id', latest.id);
+      }
       const baseCaption = String(cb.message.caption || LABELS[type] || 'Документ').split('\nСтатус:')[0];
       await tg('editMessageCaption', {
         chat_id: cb.message.chat.id,
