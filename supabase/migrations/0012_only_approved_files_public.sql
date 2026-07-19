@@ -71,22 +71,24 @@ stable
 security definer
 set search_path = public
 as $$
-  with ok as (select public.approved_paths(p_id) as paths)
+  -- lateral, а не CTE: нужен именно столбец-массив. С «= any((select ...))» Postgres
+  -- понимает это как подзапрос-множество и падает на text = text[].
   select p.id,
     p.data ->> 'first',        p.data ->> 'last',
     p.data ->> 'status',       p.data ->> 'institution',
     p.data ->> 'description',  p.data ->> 'availability',
     -- фото показываем, только если аватар прошёл модерацию
-    case when (p.data ->> 'photoPath') = any((select paths from ok)) then p.data ->> 'photoUrl' end,
+    case when (p.data ->> 'photoPath') = any(ok.paths) then p.data ->> 'photoUrl' end,
     coalesce(p.data -> 'specialties', '[]'::jsonb),
-    public.keep_approved_file(p.data -> 'hardSkills',   (select paths from ok)),
-    public.keep_approved_file(p.data -> 'languages',    (select paths from ok)),
-    public.keep_approved_files(p.data -> 'projects',    (select paths from ok)),
-    public.keep_approved_file(p.data -> 'achievements', (select paths from ok)),
+    public.keep_approved_file(p.data -> 'hardSkills',   ok.paths),
+    public.keep_approved_file(p.data -> 'languages',    ok.paths),
+    public.keep_approved_files(p.data -> 'projects',    ok.paths),
+    public.keep_approved_file(p.data -> 'achievements', ok.paths),
     p.data -> 'aiTest',
     case when public.company_invited_student(p.id) then p.data ->> 'email' end,
     case when public.company_invited_student(p.id) then p.data ->> 'tg'    end
   from public.profiles p
+       cross join lateral (select public.approved_paths(p.id) as paths) ok
   where p.id = p_id
     and exists (
       select 1 from public.gig_applications a
