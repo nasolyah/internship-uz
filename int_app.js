@@ -179,7 +179,7 @@
     for (var i = 0; i < list.length; i++) if (list[i].path === path) return list[i];
     return null;
   }
-  var MOD_BADGE = { pending: ['на проверке', '#8f5410'], approved: ['одобрено', '#15803d'], rejected: ['отклонено', '#b3261e'] };
+  var MOD_BADGE = { pending: ['на проверке', 'var(--warn)'], approved: ['одобрено', 'var(--ok)'], rejected: ['отклонено', 'var(--err)'] };
   // Бейдж модерации рядом с файлом: студент видит, дошёл ли файл до компаний.
   function modBadge(path) {
     var f = fileStatusByPath(path);
@@ -192,14 +192,14 @@
     return { pending: 'на проверке', approved: 'подтверждено', rejected: 'отклонено — загрузите заново', none: '' }[status] || '';
   }
   function docColor(status) {
-    return { pending: '#8f5410', approved: '#15803d', rejected: '#b3261e', none: 'var(--muted)' }[status] || 'var(--muted)';
+    return { pending: 'var(--warn)', approved: 'var(--ok)', rejected: 'var(--err)', none: 'var(--muted)' }[status] || 'var(--muted)';
   }
   // Динамический тег доступности студента: looking | team | hired.
   function availLabel(v) {
     return { looking: 'Ищу проекты', team: 'В команде', hired: 'Нанят(а)' }[v] || 'Статус не указан';
   }
   function availColor(v) {
-    return { looking: 'var(--accent)', team: '#8f5410', hired: '#15803d' }[v] || 'var(--muted)';
+    return { looking: 'var(--accent)', team: 'var(--warn)', hired: 'var(--ok)' }[v] || 'var(--muted)';
   }
   function availOptions(selected) {
     return [['', 'Указать статус'], ['looking', 'Ищу проекты'], ['team', 'В команде'], ['hired', 'Нанят(а)']].map(function (o) {
@@ -228,9 +228,9 @@
   }
   function confidenceColor(n) {
     if (n == null) return 'var(--muted)';
-    if (n >= 8) return '#15803d';
-    if (n >= 5) return '#8f5410';
-    return '#b3261e';
+    if (n >= 8) return 'var(--ok)';
+    if (n >= 5) return 'var(--warn)';
+    return 'var(--err)';
   }
   // Рекомендуемые hard skills по специальности — подсказки при выборе специальностей.
   var SPECIALTY_SKILLS = {
@@ -273,14 +273,18 @@
   // Рейтинг — фирменный стиль платформы: спасательные круги вместо звёзд.
   function lifeRing(size, filled) {
     var s = size || 30;
-    var c = filled ? '#e2a53a' : 'var(--line)';
+    /* Цвет идёт через style, а не через атрибут stroke: var() в презентационных
+       атрибутах SVG держит Chromium, но у Safari с этим исторически плохо, а
+       здесь заметная доля айфонов. В style поддержка гарантирована везде.
+       Янтарь у круга означает оценку, а не статус — это отдельная роль. */
+    var c = 'stroke:' + (filled ? 'var(--rating)' : 'var(--line)') + ';';
     return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">' +
-      '<circle cx="12" cy="12" r="9.5" stroke="' + c + '" stroke-width="3"/>' +
-      '<circle cx="12" cy="12" r="3.5" stroke="' + c + '" stroke-width="2" fill="#fff"/>' +
-      '<line x1="12" y1="1.3" x2="12" y2="7.5" stroke="' + c + '" stroke-width="3"/>' +
-      '<line x1="12" y1="16.5" x2="12" y2="22.7" stroke="' + c + '" stroke-width="3"/>' +
-      '<line x1="1.3" y1="12" x2="7.5" y2="12" stroke="' + c + '" stroke-width="3"/>' +
-      '<line x1="16.5" y1="12" x2="22.7" y2="12" stroke="' + c + '" stroke-width="3"/>' +
+      '<circle cx="12" cy="12" r="9.5" style="' + c + '" stroke-width="3"/>' +
+      '<circle cx="12" cy="12" r="3.5" style="' + c + '" stroke-width="2" fill="#fff"/>' +
+      '<line x1="12" y1="1.3" x2="12" y2="7.5" style="' + c + '" stroke-width="3"/>' +
+      '<line x1="12" y1="16.5" x2="12" y2="22.7" style="' + c + '" stroke-width="3"/>' +
+      '<line x1="1.3" y1="12" x2="7.5" y2="12" style="' + c + '" stroke-width="3"/>' +
+      '<line x1="16.5" y1="12" x2="22.7" y2="12" style="' + c + '" stroke-width="3"/>' +
     '</svg>';
   }
   function starRating(score, size) {
@@ -330,14 +334,14 @@
   function verifyColor() {
     if (state.authRole === 'company') {
       var cs = companyStatus();
-      return cs === 'approved' ? '#15803d' : cs === 'rejected' ? '#b3261e' : '#e2a53a';
+      return cs === 'approved' ? 'var(--ok)' : cs === 'rejected' ? 'var(--err)' : 'var(--warn)';
     }
     if (state.authRole === 'student') {
       if (isMinor()) {
         var c = docStat('consent');
-        return c === 'approved' ? '#15803d' : c === 'rejected' ? '#b3261e' : c === 'pending' ? '#e2a53a' : '#b3261e';
+        return c === 'approved' ? 'var(--ok)' : c === 'rejected' ? 'var(--err)' : c === 'pending' ? 'var(--warn)' : 'var(--err)';
       }
-      return '#15803d';
+      return 'var(--ok)';
     }
     return 'var(--muted)';
   }
@@ -426,7 +430,7 @@
             '<div style="min-width:0;"><div style="font-weight:600; font-size:var(--text-caption); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + esc(name) + '</div>' +
             '<div style="font-size:var(--text-micro); color:var(--muted); display:flex; align-items:center; gap:6px; margin-top:3px;"><span style="width:6px; height:6px; border-radius:50%; background:' + dot + '; flex-shrink:0;"></span>' + esc(verifyStatus()) + '</div></div></div>' +
           mItem('goCabinet', 'Личный кабинет', 'var(--ink)') +
-          mItem('logout', 'Выйти', '#b3261e') +
+          mItem('logout', 'Выйти', 'var(--err)') +
         '</div>';
       }
       auth = '<div style="position:relative;">' + btn + dropdown + '</div>';
@@ -437,7 +441,7 @@
         '<button data-action="goStudent" style="font-size:var(--text-caption); font-weight:600; color:var(--ink); background:none; border:1.5px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Найти стажировку</button>' +
         '<button data-action="goStartupForm" style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Разместить задачу</button></span>';
     }
-    return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1.5px solid var(--line);">' +
+    return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(10px); border-bottom:1.5px solid var(--line);">' +
       '<div class="hdr' + (state.navOpen ? ' nav-open' : '') + '" style="max-width:1180px; margin:0 auto; padding:16px 28px;">' +
         '<a href="/" data-action="goHome" style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
           '<span style="display:inline-block; width:58px; height:34px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:90px; height:90px; max-width:none; margin:-29px 0 0 -17px; display:block;"></span>' +
@@ -508,7 +512,11 @@
     var valItem = function (v, dark) {
       var line = dark ? 'rgba(255,255,255,0.12)' : 'var(--line)';
       var descColor = dark ? 'rgba(255,255,255,0.6)' : 'var(--muted)';
-      return '<div style="display:flex; gap:12px; padding:13px 0; border-top:1px solid ' + line + ';"><span style="color:var(--accent); font-weight:600; margin-top:1px;">✓</span><div><div style="font-weight:600; font-size:var(--text-body);">' + v.title + '</div><div style="font-size:var(--text-caption); color:' + descColor + '; margin-top:2px;">' + v.desc + '</div></div></div>';
+      /* Галочка тоже зависит от фона. Здесь уже подстраивались линия и описание,
+         а она оставалась базовым --accent — на тёмной карточке это давало 2.91:1
+         против нужных 4.5. Осветлённый вариант даёт 6.80. */
+      var tick = dark ? 'var(--accent-on-dark)' : 'var(--accent)';
+      return '<div style="display:flex; gap:12px; padding:13px 0; border-top:1px solid ' + line + ';"><span style="color:' + tick + '; font-weight:600; margin-top:1px;">✓</span><div><div style="font-weight:600; font-size:var(--text-body);">' + v.title + '</div><div style="font-size:var(--text-caption); color:' + descColor + '; margin-top:2px;">' + v.desc + '</div></div></div>';
     };
     var value = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:56px 28px;">' +
       '<div style="text-align:center; max-width:640px; margin:0 auto 44px;"><h2 style="font-weight:700; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:0;">Каждый получает то, чего ему не хватает</h2></div>' +
@@ -537,7 +545,7 @@
       '<div class="g-split" style="display:grid; gap:56px; align-items:center;">' +
         '<div><h2 style="font-weight:700; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:0 0 16px;">Профили проверены. Результат — оформлен официально.</h2><p style="font-size:var(--text-body); color:var(--muted); line-height:1.6;">Мы снижаем два главных риска: сомнительное качество исполнителей для компаний и юридическую неопределённость для обеих сторон. Верификация — бесплатная, а практика оформляется как учебная, а не как трудоустройство.</p>' +
           '<div style="margin-top:24px; padding:18px 20px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 20%, #fff); border-radius:14px; font-size:var(--text-caption); line-height:1.55;"><strong style="font-weight:600;">Официальный документ о практике</strong> — студент получает подтверждение пройденной учебной практики, которое можно приложить к резюме или заявке на поступление.</div>' +
-          '<div style="margin-top:14px; padding:18px 20px; background:color-mix(in srgb, #e2a53a 8%, #fff); border:1px solid color-mix(in srgb, #e2a53a 26%, #fff); border-radius:14px; font-size:var(--text-caption); line-height:1.55;"><strong style="font-weight:600;">Защита несовершеннолетних</strong> — участникам до 18 лет доступ открывается только после письменного согласия родителя (по законодательству РУз). <a href="' + CONSENT_TEMPLATE_URL + '" download style="font-weight:600; color:var(--accent); border-bottom:1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);">Скачать шаблон согласия</a> — он уже готов, останется подписать.</div>' +
+          '<div style="margin-top:14px; padding:18px 20px; background:color-mix(in srgb, var(--warn) 8%, #fff); border:1px solid color-mix(in srgb, var(--warn) 26%, #fff); border-radius:14px; font-size:var(--text-caption); line-height:1.55;"><strong style="font-weight:600;">Защита несовершеннолетних</strong> — участникам до 18 лет доступ открывается только после письменного согласия родителя (по законодательству РУз). <a href="' + CONSENT_TEMPLATE_URL + '" download style="font-weight:600; color:var(--accent); border-bottom:1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);">Скачать шаблон согласия</a> — он уже готов, останется подписать.</div>' +
         '</div>' +
         '<div class="g2" style="display:grid; gap:16px;">' + verifyItems.map(verifyCard).join('') + '</div>' +
       '</div></section>';
@@ -554,10 +562,10 @@
       '<a data-action="backToLogin" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Назад</a>' +
       '<h1 style="font-weight:700; font-size:var(--text-h1); letter-spacing:-0.02em; margin:10px 0 8px;">' + title + '</h1>' +
       '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 24px;">' + subtitle + '</p>' +
-      (noClient ? '<div style="padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:12px; margin-bottom:16px; font-size:var(--text-caption); color:#b3261e; line-height:1.5;">Supabase не настроен: укажите SUPABASE_URL и SUPABASE_ANON_KEY в int_app.js.</div>' : '') +
+      (noClient ? '<div style="padding:13px 15px; background:color-mix(in srgb, var(--err) 8%, #fff); border:1px solid color-mix(in srgb, var(--err) 22%, #fff); border-radius:12px; margin-bottom:16px; font-size:var(--text-caption); color:var(--err); line-height:1.5;">Supabase не настроен: укажите SUPABASE_URL и SUPABASE_ANON_KEY в int_app.js.</div>' : '') +
       '<div style="display:flex; flex-direction:column; gap:16px;">' +
         inputField('Email', 'semail', 'you@email.com') +
-        (state.otp.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
+        (state.otp.error ? '<span style="font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
         '<button data-action="sendOtp"' + (state.otp.loading || noClient ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading || noClient ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Отправка…' : 'Получить код') + '</button>' +
       '</div></div>';
   }
@@ -568,7 +576,7 @@
       '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 24px;">Шестизначный код отправлен на <strong style="color:var(--ink);">' + esc(state.otp.email) + '</strong>. Проверьте почту (и папку «Спам»).</p>' +
       '<div style="display:flex; flex-direction:column; gap:16px;">' +
         inputField('Код из письма', 'otpInput', '000000') +
-        (state.otp.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
+        (state.otp.error ? '<span style="font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
         '<button data-action="verifyOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Проверка…' : 'Подтвердить и войти') + '</button>' +
         '<button data-action="resendOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.ghost + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">Отправить код повторно</button>' +
       '</div></div>';
@@ -586,7 +594,7 @@
           '<span>' + (state.tgAuth.loading ? 'Открываем Telegram…' : 'Войти через Telegram') + '</span>' +
         '</button>' +
         (state.tgAuth.loading ? '<div style="margin-top:12px; text-align:center; font-size:var(--text-caption); color:var(--muted);">Проверяем вход через Telegram…</div>' : '') +
-        (state.tgAuth.error ? '<div style="margin-top:12px; padding:11px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:var(--text-caption); color:#b3261e; line-height:1.5;">' + esc(state.tgAuth.error) + '</div>' : '') +
+        (state.tgAuth.error ? '<div style="margin-top:12px; padding:11px 14px; background:color-mix(in srgb, var(--err) 8%, #fff); border:1px solid color-mix(in srgb, var(--err) 22%, #fff); border-radius:10px; font-size:var(--text-caption); color:var(--err); line-height:1.5;">' + esc(state.tgAuth.error) + '</div>' : '') +
         '<div style="display:flex; align-items:center; gap:14px; margin:20px 0;"><div style="flex:1; height:1px; background:var(--line);"></div><span style="font-size:var(--text-caption); color:var(--muted);">или</span><div style="flex:1; height:1px; background:var(--line);"></div></div>' +
         '<button data-action="continueEmail" style="width:100%; ' + S.ghost + '">Продолжить по email</button>' +
         '<div style="margin-top:28px; padding-top:22px; border-top:1.5px solid var(--line);"><div style="font-size:var(--text-micro); font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px;">Четыре шага регистрации</div>' +
@@ -602,11 +610,11 @@
         '<div style="display:inline-flex; align-items:center; gap:8px; font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Шаг 1 из 2 · Контакты</div>' +
         '<h1 style="font-weight:700; font-size:var(--text-h1); letter-spacing:-0.02em; margin:14px 0 8px;">Как с вами связаться</h1>' +
         '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 24px;">Email нужен для входа и уведомлений, Telegram — необязательно, только для связи.</p>' +
-        (state.tgDraft ? '<div style="display:flex; gap:11px; align-items:flex-start; padding:13px 15px; background:color-mix(in srgb, #229ED9 8%, #fff); border:1px solid color-mix(in srgb, #229ED9 22%, #fff); border-radius:12px; margin-bottom:20px;"><span style="color:#229ED9; font-weight:600;">✈</span><span style="font-size:var(--text-caption); color:var(--muted); line-height:1.5;">Данные подтянуты из Telegram. Проверьте email и при необходимости исправьте.</span></div>' : '') +
+        (state.tgDraft ? '<div style="display:flex; gap:11px; align-items:flex-start; padding:13px 15px; background:color-mix(in srgb, var(--tg) 8%, #fff); border:1px solid color-mix(in srgb, var(--tg) 22%, #fff); border-radius:12px; margin-bottom:20px;"><span style="color:var(--tg); font-weight:600;">✈</span><span style="font-size:var(--text-caption); color:var(--muted); line-height:1.5;">Данные подтянуты из Telegram. Проверьте email и при необходимости исправьте.</span></div>' : '') +
         '<div style="display:flex; flex-direction:column; gap:18px;">' +
           inputField('Email', 'semail', 'you@email.com') +
           inputField('Telegram для связи <span style="color:var(--muted); font-weight:400;">(необязательно)</span>', 'tg', '@username', 'Используется только как способ связи, не как отображаемое имя в профиле.') +
-          (state.profileSave.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
+          (state.profileSave.error ? '<span style="font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
           '<button data-action="goProfileDetails" style="margin-top:4px; ' + S.primary + '">Продолжить</button>' +
         '</div></div>';
     } else if (state.studentStep === 'profileDetails') {
@@ -618,7 +626,7 @@
         '<div style="display:flex; flex-direction:column; gap:18px;">' +
           '<label style="' + S.label + '"><span style="' + S.labelSpan + '">Ваш статус</span><select data-field="status" style="' + S.input + '">' + statusOptions() + '</select><span style="font-size:var(--text-micro); color:var(--muted);">Если вам ещё нет 18 — для доступа к каталогу потребуется согласие родителя.</span></label>' +
           '<div class="g2" style="display:grid; gap:14px;">' + inputField('Имя <span style="color:var(--muted); font-weight:400;">(как в документах)</span>', 'sfirst', 'Азиз') + inputField('Фамилия <span style="color:var(--muted); font-weight:400;">(как в документах)</span>', 'slast', 'Каримов') + '</div>' +
-          (state.profileSave.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
+          (state.profileSave.error ? '<span style="font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
           '<button data-action="saveStudentProfile"' + (state.profileSave.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.profileSave.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.profileSave.loading ? 'Сохранение…' : 'Сохранить и завершить') + '</button>' +
         '</div></div>';
     } else { // done
@@ -693,7 +701,7 @@
           inputField('LinkedIn или соцсети компании <span style="color:var(--muted); font-weight:400;">(необязательно)</span>', 'linkedin', 'Ссылка на профиль представителя или страницу') +
           '<div class="g2" style="display:grid; gap:14px;">' + inputField('Контактное лицо', 'contact', 'Имя') + inputField('Телефон для созвона', 'phone', '+998 ...') + '</div>' +
           '<div style="display:flex; gap:11px; align-items:flex-start; padding:14px 16px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px;"><span style="color:var(--accent); font-weight:600;">ⓘ</span><span style="font-size:var(--text-caption); color:var(--muted); line-height:1.5;">Для первых компаний обязателен короткий созвон с командой платформы — это даёт максимальное доверие для студентов. Занимает 10–15 минут.</span></div>' +
-          (state.companySubmit.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.companySubmit.error) + '</span>' : '') +
+          (state.companySubmit.error ? '<span style="font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(state.companySubmit.error) + '</span>' : '') +
           '<button data-action="submitCompany"' + (state.companySubmit.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.companySubmit.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.companySubmit.loading ? 'Отправка…' : 'Отправить заявку') + '</button>' +
           '<p style="font-size:var(--text-micro); color:var(--muted); text-align:center; margin:0;">Участие бесплатно на старте. Задачи можно размещать после подтверждения профиля.</p>' +
         '</div></div>';
@@ -736,7 +744,7 @@
       (st.loading ? 'Отправляем…' : 'Откликнуться') + '</button>';
     if (!st.error) return btn;
     return '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">' + btn +
-      '<span style="font-size:var(--text-micro); color:#b3261e; font-weight:600; max-width:180px; text-align:right;">' + esc(st.error) + '</span></div>';
+      '<span style="font-size:var(--text-micro); color:var(--err); font-weight:600; max-width:180px; text-align:right;">' + esc(st.error) + '</span></div>';
   }
   function gigCard(g) {
     return '<div data-lift style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:var(--text-body); flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:var(--text-body);">' + g.title + '</span><span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:2px;">' + companyLink(g) + '</div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:var(--text-micro); color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div>' + gigActionHtml(g.id) + '</div>';
@@ -744,9 +752,9 @@
   function minorLock(title) {
     var c = docStat('consent');
     var action;
-    if (c === 'pending') action = '<div style="display:inline-flex; align-items:center; gap:8px; font-size:var(--text-caption); font-weight:600; color:#8f5410; background:color-mix(in srgb, #e2a53a 14%, #fff); padding:10px 16px; border-radius:10px;"><span style="width:7px; height:7px; border-radius:50%; background:#e2a53a;"></span>Согласие на проверке · обычно 1–2 дня</div>';
+    if (c === 'pending') action = '<div style="display:inline-flex; align-items:center; gap:8px; font-size:var(--text-caption); font-weight:600; color:var(--warn); background:color-mix(in srgb, var(--warn) 14%, #fff); padding:10px 16px; border-radius:10px;"><span style="width:7px; height:7px; border-radius:50%; background:var(--warn);"></span>Согласие на проверке · обычно 1–2 дня</div>';
     else action = '<button data-action="openConsentDoc" style="' + S.primary.replace('padding:15px', 'padding:13px 24px') + '">' + (c === 'rejected' ? 'Загрузить согласие заново' : 'Загрузить согласие родителя') + '</button>';
-    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:52px 32px; text-align:center;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, #e2a53a 16%, #fff); display:flex; align-items:center; justify-content:center; font-size:var(--text-h1); margin:0 auto 20px;">🔒</div><h3 style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3><p style="color:var(--muted); font-size:var(--text-body); max-width:440px; margin:0 auto 22px; line-height:1.55;">Вам ещё нет 18 лет. Доступ откроется после загрузки и ручной проверки согласия родителя.</p>' + action + '</div>';
+    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:52px 32px; text-align:center;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--warn) 16%, #fff); display:flex; align-items:center; justify-content:center; font-size:var(--text-h1); margin:0 auto 20px;">🔒</div><h3 style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3><p style="color:var(--muted); font-size:var(--text-body); max-width:440px; margin:0 auto 22px; line-height:1.55;">Вам ещё нет 18 лет. Доступ откроется после загрузки и ручной проверки согласия родителя.</p>' + action + '</div>';
   }
 
   /* ---------- CATALOG ---------- */
@@ -781,7 +789,7 @@
       sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:var(--text-body);">' + esc(studentName()) + '</div><div style="font-size:var(--text-micro); color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
     } else if (role === 'company') {
       var scs = companyStatus();
-      var scColor = scs === 'approved' ? '#15803d' : scs === 'rejected' ? '#b3261e' : '#8f5410';
+      var scColor = scs === 'approved' ? 'var(--ok)' : scs === 'rejected' ? 'var(--err)' : 'var(--warn)';
       var scText = scs === 'approved' ? 'Профиль подтверждён' : scs === 'rejected' ? 'Заявка отклонена' : 'На подтверждении';
       var scPost = scs === 'approved'
         ? '<button data-action="openGigForm" style="margin-top:18px; width:100%; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
@@ -823,7 +831,7 @@
     var sp = state.studentProfile || {};
     var minor = isMinor();
     var cs = docStat('consent');
-    var statusColor = !minor ? '#15803d' : (cs === 'approved' ? '#15803d' : cs === 'pending' ? '#8f5410' : '#b3261e');
+    var statusColor = !minor ? 'var(--ok)' : (cs === 'approved' ? 'var(--ok)' : cs === 'pending' ? 'var(--warn)' : 'var(--err)');
     var card = 'background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:24px;';
     var cardTitle = 'font-weight:600; font-size:var(--text-body); margin-bottom:4px;';
     var row = function (label, right) {
@@ -831,11 +839,11 @@
     };
     var val = function (v) { return '<span style="font-size:var(--text-caption); font-weight:600; text-align:right; ' + S.wrap + '">' + esc(v || '—') + '</span>'; };
     var editBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + S.iconBtn + '">' + icon('pencil', 13) + '</button>'; };
-    var removeBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + S.iconBtn + ' color:#b3261e;">' + icon('x', 13) + '</button>'; };
+    var removeBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + S.iconBtn + ' color:var(--err);">' + icon('x', 13) + '</button>'; };
     var addBtn = function (type, label) { return '<button data-action="openItemModal" data-item-type="' + type + '" style="display:inline-flex; align-items:center; gap:7px; font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:9px; cursor:pointer;">' + icon('plus', 13) + label + '</button>'; };
     var chipIconStyle = 'width:20px; height:20px; border-radius:6px; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;';
     var chipEditBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted);">' + icon('pencil', 12) + '</button>'; };
-    var chipRemoveBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + chipIconStyle + ' color:#b3261e;">' + icon('x', 12) + '</button>'; };
+    var chipRemoveBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + chipIconStyle + ' color:var(--err);">' + icon('x', 12) + '</button>'; };
     var fileBadge = function (file) { return (file && file.url) ? '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" title="' + esc(file.name || 'файл') + '" style="color:var(--muted); display:inline-flex;">' + icon('paperclip', 13) + '</a>' + modBadge(file.path) : ''; };
     var editFieldBtn = function (field) { return '<button data-action="startFieldEdit" data-field-edit="' + field + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted); margin-left:6px;">' + icon('pencil', 12) + '</button>'; };
 
@@ -851,7 +859,7 @@
       avatarBlock +
       '<div style="min-width:0; flex:1;"><div style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em;">' + esc(studentName()) + '</div>' +
       '<div style="display:inline-flex; align-items:center; gap:7px; font-size:var(--text-caption); font-weight:600; color:' + statusColor + '; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:' + statusColor + ';"></span>' + esc(verifyStatus()) + (sp.institution ? ' · ' + esc(sp.institution) : '') + '</div>' +
-      (avatarUp.error ? '<div style="font-size:var(--text-micro); color:#b3261e; margin-top:4px;">' + esc(avatarUp.error) + '</div>' : '') +
+      (avatarUp.error ? '<div style="font-size:var(--text-micro); color:var(--err); margin-top:4px;">' + esc(avatarUp.error) + '</div>' : '') +
       (avatarUp.loading ? '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:4px;">Загрузка фото…</div>' : '') +
       '<div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">' + availTag + '</div></div></div>';
 
@@ -861,8 +869,8 @@
     var editableRow = function (field, label, kind, extra) {
       if (state.fieldEditConfirm && state.fieldEditConfirm.field === field) {
         return '<div style="padding:12px 0; border-top:1.5px solid var(--line);">' +
-          '<div style="display:flex; align-items:flex-start; gap:8px; font-size:var(--text-micro); color:#8f5410; font-weight:600; margin-bottom:10px;">' + icon('warn', 15) + '<span>' + esc(state.fieldEditConfirm.warning) + '</span></div>' +
-          '<div style="display:flex; gap:8px;"><button data-action="confirmFieldEdit" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#8f5410; border:none; padding:7px 14px; border-radius:8px; cursor:pointer;">Подтвердить</button>' +
+          '<div style="display:flex; align-items:flex-start; gap:8px; font-size:var(--text-micro); color:var(--warn); font-weight:600; margin-bottom:10px;">' + icon('warn', 15) + '<span>' + esc(state.fieldEditConfirm.warning) + '</span></div>' +
+          '<div style="display:flex; gap:8px;"><button data-action="confirmFieldEdit" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--warn); border:none; padding:7px 14px; border-radius:8px; cursor:pointer;">Подтвердить</button>' +
           '<button data-action="cancelFieldEditConfirm" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:7px 14px; border-radius:8px; cursor:pointer;">Отмена</button></div></div>';
       }
       if (state.fieldEdit === field) {
@@ -872,9 +880,9 @@
         else inputHtml = '<input id="field-edit-input" value="' + esc(sp[field] || '') + '" style="' + S.field + '">';
         return '<div style="padding:12px 0; border-top:1.5px solid var(--line);"><div style="font-size:var(--text-caption); color:var(--muted); margin-bottom:7px;">' + label + '</div>' +
           '<div style="display:flex; gap:8px; align-items:center;">' + inputHtml +
-          '<button data-action="saveFieldEdit" title="Сохранить" style="' + chipIconStyle + ' color:#15803d;">' + icon('check', 14) + '</button>' +
+          '<button data-action="saveFieldEdit" title="Сохранить" style="' + chipIconStyle + ' color:var(--ok);">' + icon('check', 14) + '</button>' +
           '<button data-action="cancelFieldEdit" title="Отмена" style="' + chipIconStyle + '">' + icon('x', 14) + '</button></div>' +
-          (state.fieldEditError ? '<div style="font-size:var(--text-micro); color:#b3261e; margin-top:6px;">' + esc(state.fieldEditError) + '</div>' : '') + '</div>';
+          (state.fieldEditError ? '<div style="font-size:var(--text-micro); color:var(--err); margin-top:6px;">' + esc(state.fieldEditError) + '</div>' : '') + '</div>';
       }
       return row(label, '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:2px;">' + val(sp[field]) + editFieldBtn(field) + (extra || '') + '</span>');
     };
@@ -891,7 +899,7 @@
     if (lk.telegram_id) {
       tgCell = '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
         val(lk.telegram_username ? '@' + lk.telegram_username : (sp.tg || '')) +
-        badge('вход', '#15803d', 'Подтверждён через Telegram — по нему можно входить') + '</span>';
+        badge('вход', 'var(--ok)', 'Подтверждён через Telegram — по нему можно входить') + '</span>';
     } else {
       tgCell = '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' + val(sp.tg) +
         '<button data-action="linkTelegram"' + (state.tgAuth.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + '">' +
@@ -905,7 +913,7 @@
     if (lk.login_is_synthetic) {
       emailMark = '<button data-action="startLinkEmail" style="' + linkBtnStyle + '">Сделать входом</button>';
     } else if (lk.login_email && sp.email && lk.login_email.toLowerCase() === sp.email.toLowerCase()) {
-      emailMark = badge('вход', '#15803d');
+      emailMark = badge('вход', 'var(--ok)');
     } else if (lk.login_email) {
       // Контактная почта и логин разошлись — показываем, каким адресом на самом деле входят.
       emailMark = '<span style="font-size:var(--text-micro); color:var(--muted); margin-left:6px;">вход: ' + esc(lk.login_email) + '</span>';
@@ -929,7 +937,7 @@
         '<button data-action="confirmLinkEmail"' + (el.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + ' margin-left:0;">' + (el.loading ? 'Проверяем…' : 'Подтвердить') + '</button>' +
         '<button data-action="cancelLinkEmail" style="' + linkBtnStyle + ' margin-left:0;">Отмена</button></div>';
     }
-    if (linkForm && el.error) linkForm += '<div style="font-size:var(--text-micro); color:#b3261e; margin-top:8px;">' + esc(el.error) + '</div>';
+    if (linkForm && el.error) linkForm += '<div style="font-size:var(--text-micro); color:var(--err); margin-top:8px;">' + esc(el.error) + '</div>';
     if (linkForm) linkForm += '</div>';
 
     // Статус меняется только заявкой с документом: напрямую его не отдать в редактирование,
@@ -938,12 +946,12 @@
     var statusRow;
     if (sr && sr.status === 'pending') {
       statusRow = row('Статус', '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
-        val(sp.status) + badge('на подтверждении', '#8f5410', 'Заявка на «' + (sr.to_status || '') + '» рассматривается') + '</span>');
+        val(sp.status) + badge('на подтверждении', 'var(--warn)', 'Заявка на «' + (sr.to_status || '') + '» рассматривается') + '</span>');
     } else {
       statusRow = row('Статус', '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
         val(sp.status) + '<button data-action="openStatusModal" style="' + linkBtnStyle + '">Изменить</button></span>');
       if (sr && sr.status === 'rejected' && sr.reason) {
-        statusRow += '<div style="font-size:var(--text-micro); color:#b3261e; padding:0 0 10px;">Заявка на «' + esc(sr.to_status || '') + '» отклонена: ' + esc(sr.reason) + '</div>';
+        statusRow += '<div style="font-size:var(--text-micro); color:var(--err); padding:0 0 10px;">Заявка на «' + esc(sr.to_status || '') + '» отклонена: ' + esc(sr.reason) + '</div>';
       }
     }
 
@@ -961,10 +969,10 @@
       else if (s === 'approved') right = '<span style="font-size:var(--text-micro); font-weight:600; color:' + docColor(s) + ';">✓ подтверждено</span>';
       else {
         var lbl = s === 'rejected' ? 'Загрузить заново' : (type === 'consent' ? 'Загрузить' : 'Подтвердить');
-        var bg = type === 'consent' ? '#8f5410' : 'var(--accent)';
+        var bg = type === 'consent' ? 'var(--warn)' : 'var(--accent)';
         var btn = '<button data-action="' + (type === 'consent' ? 'openConsentDoc' : 'openStudyDoc') + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:' + bg + '; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">' + lbl + '</button>';
         right = s === 'rejected'
-          ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:var(--text-micro); font-weight:600; color:#b3261e;">отклонено</span>' + btn + '</span>'
+          ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:var(--text-micro); font-weight:600; color:var(--err);">отклонено</span>' + btn + '</span>'
           : btn;
       }
       return row(label, right);
@@ -990,8 +998,8 @@
       '<div style="display:flex; flex-wrap:wrap; gap:8px;">' + SPECIALTIES.map(specPill).join('') + '</div></div>';
 
     var es = state.extrasSave;
-    var esNote = es.error ? '<span style="font-size:var(--text-micro); color:#b3261e; font-weight:600;">' + esc(es.error) + '</span>'
-      : (es.ok ? '<span style="font-size:var(--text-micro); color:#15803d; font-weight:600;">Сохранено ✓</span>' : '');
+    var esNote = es.error ? '<span style="font-size:var(--text-micro); color:var(--err); font-weight:600;">' + esc(es.error) + '</span>'
+      : (es.ok ? '<span style="font-size:var(--text-micro); color:var(--ok); font-weight:600;">Сохранено ✓</span>' : '');
     var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">О себе</div>' +
       '<label style="display:block;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:7px;">О себе <span style="color:var(--muted); font-weight:400;">(необязательно)</span></span>' +
         '<textarea id="desc-input" rows="4" placeholder="Коротко о себе: опыт, интересы, чем хотите заниматься…" style="' + S.field + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(sp.description || '') + '</textarea></label>' +
@@ -1136,7 +1144,7 @@
       '<div style="margin-top:20px;">' + historySection + '</div>' +
       '<div style="margin-top:20px;">' + documents + '</div>' +
       '<div style="margin-top:20px;">' + ratingSection + '</div>' +
-      '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:var(--text-caption); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
+      '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:var(--text-caption); font-weight:600; color:var(--err); background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
   }
 
@@ -1150,7 +1158,7 @@
     };
 
     var cs = companyStatus();
-    var stColor = cs === 'approved' ? '#15803d' : cs === 'rejected' ? '#b3261e' : '#8f5410';
+    var stColor = cs === 'approved' ? 'var(--ok)' : cs === 'rejected' ? 'var(--err)' : 'var(--warn)';
     var stText = cs === 'approved' ? 'Профиль подтверждён' : cs === 'rejected' ? 'Заявка отклонена' : 'На подтверждении';
     var profile = '<div style="' + card + ' display:flex; align-items:center; gap:18px;">' +
       '<span style="width:64px; height:64px; border-radius:16px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-h2); flex-shrink:0;">◆</span>' +
@@ -1163,9 +1171,9 @@
       row('LinkedIn / соцсети', cp.linkedin) + '</div>';
 
     var checksNote = cs === 'approved'
-      ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #15803d 8%, #fff); border:1px solid color-mix(in srgb, #15803d 24%, #fff); border-radius:12px; font-size:var(--text-caption); color:#15803d; line-height:1.5;">Профиль подтверждён — можно размещать задачи.</div>'
+      ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--ok) 8%, #fff); border:1px solid color-mix(in srgb, var(--ok) 24%, #fff); border-radius:12px; font-size:var(--text-caption); color:var(--ok); line-height:1.5;">Профиль подтверждён — можно размещать задачи.</div>'
       : cs === 'rejected'
-        ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 24%, #fff); border-radius:12px; font-size:var(--text-caption); color:#b3261e; line-height:1.5;">Заявка отклонена. Свяжитесь с командой платформы для уточнения.</div>'
+        ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--err) 8%, #fff); border:1px solid color-mix(in srgb, var(--err) 24%, #fff); border-radius:12px; font-size:var(--text-caption); color:var(--err); line-height:1.5;">Заявка отклонена. Свяжитесь с командой платформы для уточнения.</div>'
         : '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:var(--text-caption); color:var(--muted); line-height:1.5;">Заявка на проверке. Размещение задач откроется после подтверждения профиля админом.</div>';
     var postBtn = cs === 'approved'
       ? '<button data-action="openGigForm" style="margin-top:16px; width:100%; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
@@ -1245,7 +1253,7 @@
 
     var es = state.extrasSave;
     var saveText = es.loading ? 'Сохранение…' : es.error ? esc(es.error) : es.ok ? 'Все изменения сохранены ✓' : 'Изменения сохраняются автоматически';
-    var saveColor = es.error ? '#b3261e' : es.ok ? '#15803d' : 'var(--muted)';
+    var saveColor = es.error ? 'var(--err)' : es.ok ? 'var(--ok)' : 'var(--muted)';
     var saveBar = '<div style="display:flex; align-items:center; gap:8px; margin-top:18px; font-size:var(--text-micro); font-weight:600; color:' + saveColor + ';">' + icon(es.error ? 'warn' : 'check', 14) + '<span>' + saveText + '</span></div>';
 
     return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
@@ -1257,7 +1265,7 @@
       '<div style="margin-top:20px;">' + workspaceRules + '</div>' +
       '<div style="margin-top:20px;">' + jobTemplate + '</div>' +
       saveBar +
-      '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:var(--text-caption); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
+      '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:var(--text-caption); font-weight:600; color:var(--err); background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
   }
 
@@ -1307,9 +1315,9 @@
       var cert = (state.certs || []).filter(function (c) { return c.application_id === a.id; })[0];
       if (cert) {
         var ds = cert.doc_status;
-        var dsLine = ds === 'pending'  ? '<span style="color:#8f5410; font-weight:600;">на проверке</span>'
-                   : ds === 'approved' ? '<span style="color:#15803d; font-weight:600;">принято, студент может скачать</span>'
-                   : ds === 'rejected' ? '<span style="color:#b3261e; font-weight:600;">отклонено' + (cert.doc_reason ? ': ' + esc(cert.doc_reason) : '') + '</span>'
+        var dsLine = ds === 'pending'  ? '<span style="color:var(--warn); font-weight:600;">на проверке</span>'
+                   : ds === 'approved' ? '<span style="color:var(--ok); font-weight:600;">принято, студент может скачать</span>'
+                   : ds === 'rejected' ? '<span style="color:var(--err); font-weight:600;">отклонено' + (cert.doc_reason ? ': ' + esc(cert.doc_reason) : '') + '</span>'
                    : '<span style="color:var(--muted);">не приложено</span>';
         var busyDoc = state.certDocBusy === cert.id;
         decision = '<div style="margin-top:14px; padding-top:14px; border-top:1.5px solid var(--line);">' +
@@ -1331,8 +1339,8 @@
     }
     if (asCompany && a.status === 'pending') {
       decision = '<div style="display:flex; gap:8px; margin-top:12px;">' +
-        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="invited" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button>' +
-        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="rejected" style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1px solid color-mix(in srgb, #b3261e 30%, #fff); padding:8px 14px; border-radius:8px; cursor:pointer;">Отказать</button>' +
+        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="invited" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ok); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button>' +
+        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="rejected" style="font-size:var(--text-micro); font-weight:600; color:var(--err); background:#fff; border:1px solid color-mix(in srgb, var(--err) 30%, #fff); padding:8px 14px; border-radius:8px; cursor:pointer;">Отказать</button>' +
       '</div>';
     }
 
@@ -1407,8 +1415,8 @@
       // Страницу открывают редко и показывают работодателю — перерисовок здесь нет,
       // так что появление проиграется ровно один раз.
       '<div class="rise-in" style="' + RO_CARD + '">' +
-        '<div style="display:flex; align-items:center; gap:9px; font-size:var(--text-micro); font-weight:600; color:#15803d; margin-bottom:18px;">' +
-          '<span style="width:8px; height:8px; border-radius:50%; background:#15803d;"></span>Подтверждено платформой internship.uz</div>' +
+        '<div style="display:flex; align-items:center; gap:9px; font-size:var(--text-micro); font-weight:600; color:var(--ok); margin-bottom:18px;">' +
+          '<span style="width:8px; height:8px; border-radius:50%; background:var(--ok);"></span>Подтверждено платформой internship.uz</div>' +
         '<div style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.02em;">' + esc(d.student_name || 'Студент') + '</div>' +
         '<div style="font-size:var(--text-body); color:var(--muted); margin-top:6px;">' + esc(d.gig_title || '') + '</div>' +
         '<div style="font-size:var(--text-body); margin-top:2px;"><strong style="font-weight:600;">' + esc(d.company_name || '') + '</strong>' +
@@ -1453,9 +1461,9 @@
       var closed = !!g.closed_at;
       var full = taken >= seats;
 
-      var mark = closed ? ['снята с публикации', '#b3261e']
+      var mark = closed ? ['снята с публикации', 'var(--err)']
                : full   ? ['мест нет — не показывается в каталоге', 'var(--muted)']
-                        : ['в каталоге · занято ' + taken + ' из ' + seats, '#15803d'];
+                        : ['в каталоге · занято ' + taken + ' из ' + seats, 'var(--ok)'];
       var toggle = '<button data-action="toggleGigClosed" data-gig-id="' + esc(g.id) + '" data-closed="' + (closed ? '1' : '') + '" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer;">' +
         (closed ? 'Вернуть в каталог' : 'Снять с публикации') + '</button>';
 
@@ -1493,7 +1501,7 @@
   function aiVerdictBlock(v) {
     if (!v) return '';
     var verdict = v.verdict || '—';
-    var color = verdict === 'ok' ? '#15803d' : verdict === 'reject' ? '#b3261e' : '#8f5410';
+    var color = verdict === 'ok' ? 'var(--ok)' : verdict === 'reject' ? 'var(--err)' : 'var(--warn)';
     var fields = '';
     if (v.extracted && typeof v.extracted === 'object') {
       var parts = [];
@@ -1515,21 +1523,21 @@
     if (state.admin.rejectFor === f.id) {
       decide = '<div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
         '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
-        '<button data-action="adminConfirmReject" data-id="' + esc(f.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminConfirmReject" data-id="' + esc(f.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--err); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
         '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else {
       var approveLabel = f.status === 'approved' ? 'Одобрено' : 'Одобрить';
       decide = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
         '<button data-action="adminOpenFile" data-path="' + esc(f.path) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть файл</button>' +
-        '<button data-action="adminApprove" data-id="' + esc(f.id) + '"' + (busy || f.status === 'approved' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || f.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">' + approveLabel + '</button>' +
-        '<button data-action="adminStartReject" data-id="' + esc(f.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+        '<button data-action="adminApprove" data-id="' + esc(f.id) + '"' + (busy || f.status === 'approved' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ok); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || f.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">' + approveLabel + '</button>' +
+        '<button data-action="adminStartReject" data-id="' + esc(f.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:var(--err); background:#fff; border:1.5px solid color-mix(in srgb, var(--err) 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
     }
 
     var context = [f.student_status, f.student_institution].filter(Boolean).join(' · ');
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;">' +
         '<div style="min-width:0;">' +
-          '<div style="font-weight:600; font-size:var(--text-body);">' + esc(KIND_LABEL[f.kind] || f.kind) + (HUMAN_ONLY[f.kind] ? ' <span style="font-size:var(--text-micro); font-weight:600; color:#8f5410; background:color-mix(in srgb, #8f5410 12%, #fff); padding:2px 7px; border-radius:999px;">только вручную</span>' : '') + '</div>' +
+          '<div style="font-weight:600; font-size:var(--text-body);">' + esc(KIND_LABEL[f.kind] || f.kind) + (HUMAN_ONLY[f.kind] ? ' <span style="font-size:var(--text-micro); font-weight:600; color:var(--warn); background:color-mix(in srgb, var(--warn) 12%, #fff); padding:2px 7px; border-radius:999px;">только вручную</span>' : '') + '</div>' +
           '<div style="font-size:var(--text-caption); color:var(--muted); margin-top:3px;">' + esc(f.student_name || 'Студент') + (context ? ' · ' + esc(context) : '') + '</div>' +
           '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:3px;">' + esc(f.name || '—') + ' · ' + esc(fmtDate(f.created_at)) + '</div>' +
         '</div>' +
@@ -1538,13 +1546,13 @@
           (who ? '<span style="font-size:var(--text-micro); color:var(--muted);">' + who + '</span>' : '') +
         '</div>' +
       '</div>' +
-      (f.reason ? '<div style="margin-top:8px; font-size:var(--text-caption); color:#b3261e;">Причина: ' + esc(f.reason) + '</div>' : '') +
+      (f.reason ? '<div style="margin-top:8px; font-size:var(--text-caption); color:var(--err);">Причина: ' + esc(f.reason) + '</div>' : '') +
       aiVerdictBlock(f.ai_verdict) + decide + '</div>';
   }
 
   function adminCompanyCard(c) {
     var d = c.data || {};
-    var st = { pending: ['на проверке', '#8f5410'], approved: ['подтверждена', '#15803d'], rejected: ['отклонена', '#b3261e'] }[c.status] || ['—', 'var(--muted)'];
+    var st = { pending: ['на проверке', 'var(--warn)'], approved: ['подтверждена', 'var(--ok)'], rejected: ['отклонена', 'var(--err)'] }[c.status] || ['—', 'var(--muted)'];
     var rows = [['ИНН', d.inn], ['Руководитель', d.director], ['Контакт', d.contact], ['Телефон', d.phone], ['Почта', d.corpEmail], ['LinkedIn', d.linkedin]]
       .filter(function (r) { return r[1]; })
       .map(function (r) { return '<div style="font-size:var(--text-caption); color:var(--muted);">' + esc(r[0]) + ': <span style="color:var(--ink); font-weight:600;">' + esc(r[1]) + '</span></div>'; }).join('');
@@ -1556,34 +1564,34 @@
         '<span style="font-size:var(--text-micro); font-weight:600; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
       '</div>' +
       '<div style="margin-top:12px; display:flex; gap:8px;">' +
-        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="approved"' + (busy || c.status === 'approved' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || c.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">Подтвердить</button>' +
-        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="rejected"' + (busy || c.status === 'rejected' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="approved"' + (busy || c.status === 'approved' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ok); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || c.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">Подтвердить</button>' +
+        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="rejected"' + (busy || c.status === 'rejected' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:var(--err); background:#fff; border:1.5px solid color-mix(in srgb, var(--err) 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
       '</div></div>';
   }
 
   // Заявка на смену статуса. Отличается от файла тем, что решение меняет данные профиля,
   // поэтому рядом со ссылкой на документ показываем, что именно изменится.
   function adminStatusCard(r) {
-    var st = { pending: ['ждёт решения', '#8f5410'], approved: ['одобрена', '#15803d'], rejected: ['отклонена', '#b3261e'] }[r.status] || ['—', 'var(--muted)'];
+    var st = { pending: ['ждёт решения', 'var(--warn)'], approved: ['одобрена', 'var(--ok)'], rejected: ['отклонена', 'var(--err)'] }[r.status] || ['—', 'var(--muted)'];
     var busy = state.admin.busy === r.id;
     var actionsHtml = '';
     if (state.admin.rejectFor === r.id) {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
         '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
-        '<button data-action="adminStatusConfirmReject" data-id="' + esc(r.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminStatusConfirmReject" data-id="' + esc(r.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--err); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
         '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else if (r.status === 'pending') {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
         (r.path ? '<button data-action="adminOpenFile" data-path="' + esc(r.path) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть документ</button>' : '') +
-        '<button data-action="adminStatusApprove" data-id="' + esc(r.id) + '" data-path="' + esc(r.path || '') + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Подтвердить статус</button>' +
-        '<button data-action="adminStatusStartReject" data-id="' + esc(r.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+        '<button data-action="adminStatusApprove" data-id="' + esc(r.id) + '" data-path="' + esc(r.path || '') + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ok); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Подтвердить статус</button>' +
+        '<button data-action="adminStatusStartReject" data-id="' + esc(r.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:var(--err); background:#fff; border:1.5px solid color-mix(in srgb, var(--err) 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
     }
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
         '<div style="min-width:0;"><div style="font-weight:600; font-size:var(--text-body);">' + esc(r.student_name || 'Студент') + '</div>' +
         '<div style="margin-top:6px; font-size:var(--text-caption); color:var(--muted);">' + esc(r.from_status || '—') + ' → <span style="color:var(--ink); font-weight:600;">' + esc(r.to_status || '') + '</span></div>' +
-        (r.reason ? '<div style="margin-top:4px; font-size:var(--text-micro); color:#b3261e;">Причина отказа: ' + esc(r.reason) + '</div>' : '') +
-        (!r.path && r.status === 'pending' ? '<div style="margin-top:4px; font-size:var(--text-micro); color:#b3261e;">Документ не приложен</div>' : '') +
+        (r.reason ? '<div style="margin-top:4px; font-size:var(--text-micro); color:var(--err);">Причина отказа: ' + esc(r.reason) + '</div>' : '') +
+        (!r.path && r.status === 'pending' ? '<div style="margin-top:4px; font-size:var(--text-micro); color:var(--err);">Документ не приложен</div>' : '') +
         '</div>' +
         '<span style="font-size:var(--text-micro); font-weight:600; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
       '</div>' + actionsHtml + '</div>';
@@ -1592,19 +1600,19 @@
   // Справка о стажировке. Текст пойдёт на публичную страницу с именем человека, поэтому
   // читаем его целиком — это главное, что здесь проверяется.
   function adminCertCard(c) {
-    var st = { pending: ['на проверке', '#8f5410'], published: ['опубликована', '#15803d'], rejected: ['отклонена', '#b3261e'] }[c.status] || ['—', 'var(--muted)'];
+    var st = { pending: ['на проверке', 'var(--warn)'], published: ['опубликована', 'var(--ok)'], rejected: ['отклонена', 'var(--err)'] }[c.status] || ['—', 'var(--muted)'];
     var busy = state.admin.busy === c.id;
     var period = (c.started_at ? fmtDate(c.started_at) : '') + (c.finished_at ? ' — ' + fmtDate(c.finished_at) : '');
     var actionsHtml = '';
     if (state.admin.rejectFor === c.id) {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
         '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит компания" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
-        '<button data-action="adminCertConfirmReject" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCertConfirmReject" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--err); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
         '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else if (c.status === 'pending') {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
-        '<button data-action="adminCertPublish" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Опубликовать</button>' +
-        '<button data-action="adminCertStartReject" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+        '<button data-action="adminCertPublish" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ok); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Опубликовать</button>' +
+        '<button data-action="adminCertStartReject" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:var(--err); background:#fff; border:1.5px solid color-mix(in srgb, var(--err) 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
     } else if (c.status === 'published') {
       actionsHtml = '<div style="margin-top:12px;"><a href="/cert/' + esc(c.public_id) + '" target="_blank" rel="noopener" style="font-size:var(--text-micro); font-weight:600; color:var(--accent);">Открыть публичную страницу ↗</a></div>';
     }
@@ -1613,7 +1621,7 @@
     // опубликована, а бумагу компания приложит позже.
     var docBlock = '';
     if (c.doc_status) {
-      var dst = { pending: ['ждёт проверки', '#8f5410'], approved: ['принято', '#15803d'], rejected: ['отклонено', '#b3261e'] }[c.doc_status] || ['—', 'var(--muted)'];
+      var dst = { pending: ['ждёт проверки', 'var(--warn)'], approved: ['принято', 'var(--ok)'], rejected: ['отклонено', 'var(--err)'] }[c.doc_status] || ['—', 'var(--muted)'];
       docBlock = '<div style="margin-top:14px; padding-top:14px; border-top:1.5px solid var(--line);">' +
         '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Официальное свидетельство ' +
         '<span style="font-size:var(--text-micro); font-weight:600; color:' + dst[1] + '; background:color-mix(in srgb, ' + dst[1] + ' 12%, #fff); padding:3px 8px; border-radius:6px; margin-left:4px;">' + dst[0] + '</span></div>' +
@@ -1621,9 +1629,9 @@
         (c.doc_status === 'pending'
           ? '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
             (c.doc_path ? '<button data-action="adminOpenFile" data-path="' + esc(c.doc_path) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть документ</button>' : '') +
-            '<button data-action="adminCertDocApprove" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Принять</button>' +
-            '<button data-action="adminCertDocReject" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>'
-          : (c.doc_reason ? '<div style="font-size:var(--text-micro); color:#b3261e;">Причина: ' + esc(c.doc_reason) + '</div>' : '')) +
+            '<button data-action="adminCertDocApprove" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ok); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Принять</button>' +
+            '<button data-action="adminCertDocReject" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--err); background:#fff; border:1.5px solid color-mix(in srgb, var(--err) 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>'
+          : (c.doc_reason ? '<div style="font-size:var(--text-micro); color:var(--err);">Причина: ' + esc(c.doc_reason) + '</div>' : '')) +
         '</div>';
     }
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
@@ -1632,7 +1640,7 @@
         '<div style="margin-top:5px; font-size:var(--text-caption); color:var(--muted);">' + esc(c.company_name || '') + ' · ' + esc(c.gig_title || '') + (period ? ' · ' + esc(period) : '') + '</div>' +
         '<div style="margin-top:4px; font-size:var(--text-micro); color:var(--muted);">Оценка компании: <strong style="color:var(--ink);">' + esc(String(c.score)) + '/5</strong> <span style="opacity:0.7;">(в справку не попадёт)</span></div>' +
         '<div style="margin-top:10px; padding:12px 14px; background:var(--bg); border-radius:10px; font-size:var(--text-caption); line-height:1.6; white-space:pre-wrap; ' + S.wrap + '">' + esc(c.body || '') + '</div>' +
-        (c.reason ? '<div style="margin-top:6px; font-size:var(--text-micro); color:#b3261e;">Причина отказа: ' + esc(c.reason) + '</div>' : '') +
+        (c.reason ? '<div style="margin-top:6px; font-size:var(--text-micro); color:var(--err);">Причина отказа: ' + esc(c.reason) + '</div>' : '') +
         '</div>' +
         '<span style="font-size:var(--text-micro); font-weight:600; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
       '</div>' + actionsHtml + docBlock + '</div>';
@@ -1643,7 +1651,7 @@
     if (!gigs.length) return '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">Задач пока нет.</div>';
     var rows = gigs.map(function (g) {
       var seats = Math.max(parseInt(String(g.slots || '1').match(/\d+/), 10) || 1, 1);
-      var st = g.closed_at ? ['снята', '#b3261e'] : g.is_open ? ['в каталоге', '#15803d'] : ['мест нет', 'var(--muted)'];
+      var st = g.closed_at ? ['снята', 'var(--err)'] : g.is_open ? ['в каталоге', 'var(--ok)'] : ['мест нет', 'var(--muted)'];
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-top:1.5px solid var(--line); flex-wrap:wrap;">' +
         '<div style="min-width:0; flex:1;">' +
           '<div style="font-weight:600; font-size:var(--text-caption); ' + S.wrap + '">' + esc(g.title || 'Без названия') + '</div>' +
@@ -1689,7 +1697,7 @@
 
     var body;
     if (a.loading) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">Загружаем очередь…</div>';
-    else if (a.error) body = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:var(--text-caption); font-weight:600;">' + esc(a.error) + '</div>';
+    else if (a.error) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--err); font-size:var(--text-caption); font-weight:600;">' + esc(a.error) + '</div>';
     else if (!shown.length) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">' + (a.tab === 'pending' ? 'Ничего не ждёт решения — очередь пуста.' : 'Пока пусто.') + '</div>';
     else body = '<div style="display:flex; flex-direction:column; gap:12px;">' + shown.map(adminFileCard).join('') + '</div>';
 
@@ -1891,7 +1899,7 @@
     if (!pv) return homeView();
     var inner;
     if (pv.loading) inner = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">Загружаем профиль…</div>';
-    else if (pv.error) inner = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:var(--text-caption); font-weight:600;">' + esc(pv.error) + '</div>';
+    else if (pv.error) inner = '<div style="' + RO_CARD + ' text-align:center; color:var(--err); font-size:var(--text-caption); font-weight:600;">' + esc(pv.error) + '</div>';
     else inner = pv.kind === 'company' ? companyProfileHtml(pv.data) : studentProfileHtml(pv.data);
 
     return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
@@ -1955,7 +1963,7 @@
 
     var inner = head +
       '<div data-chat-thread style="background:var(--bg); border:1.5px solid var(--line); border-radius:16px; padding:18px; height:52vh; min-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">' + thread + '</div>' +
-      (c.error ? '<div style="margin-top:10px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(c.error) + '</div>' : '') +
+      (c.error ? '<div style="margin-top:10px; font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(c.error) + '</div>' : '') +
       composer;
 
     return '<main class="view-in" style="max-width:820px; margin:0 auto; padding:40px 28px 88px;">' + inner + '</main>';
@@ -3412,9 +3420,9 @@
   var focusChatInput = false;
 
   var APP_STATUS = {
-    pending:   { label: 'На рассмотрении', color: '#e2a53a' },
-    invited:   { label: 'Приглашение',     color: '#15803d' },
-    rejected:  { label: 'Отказ',           color: '#b3261e' },
+    pending:   { label: 'На рассмотрении', color: 'var(--warn)' },
+    invited:   { label: 'Приглашение',     color: 'var(--ok)' },
+    rejected:  { label: 'Отказ',           color: 'var(--err)' },
     // Без этой строки завершённая стажировка попадала в запасной вариант ниже
     // и показывалась как «На рассмотрении».
     completed: { label: 'Завершена',       color: 'var(--accent)' }
@@ -3572,9 +3580,9 @@
     var sp = state.studentProfile || {};
     var loading = state.docUpload.loading;
     var fileName = state.docUpload.fileName || '';
-    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
+    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
 
-    var warn = '<div style="padding:12px 14px; background:color-mix(in srgb, #8f5410 10%, #fff); border:1px solid color-mix(in srgb, #8f5410 26%, #fff); border-radius:10px; font-size:var(--text-caption); color:#8f5410; line-height:1.55; margin-bottom:16px;">' +
+    var warn = '<div style="padding:12px 14px; background:color-mix(in srgb, var(--warn) 10%, #fff); border:1px solid color-mix(in srgb, var(--warn) 26%, #fff); border-radius:10px; font-size:var(--text-caption); color:var(--warn); line-height:1.55; margin-bottom:16px;">' +
       'Пока новый статус не подтверждён, вы <b>не сможете откликаться на новые задачи</b>. Уже начатые проекты и переписка останутся доступны.</div>';
 
     var picker = '<label class="file-drop" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border:1.5px dashed var(--line); border-radius:12px; background:var(--bg); cursor:pointer;">' +
@@ -3622,7 +3630,7 @@
       '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Характеристика <span style="color:var(--muted); font-weight:400;">— попадёт в справку</span></div>' +
       '<div style="font-size:var(--text-micro); color:var(--muted); line-height:1.55; margin-bottom:8px;">Напишите по делу: что студент делал, что из этого получилось, с чем справился, как показал себя в работе с людьми. Общие слова вроде «молодец» справку обесценивают.</div>' +
       '<textarea data-field="certBody" rows="7" placeholder="Например: за 8 недель собрал посадочную страницу на React и настроил аналитику. Самостоятельно разобрался с вёрсткой под мобильные, хотя раньше не делал. Задавал точные вопросы, о задержках предупреждал заранее." style="' + S.field + ' width:100%; resize:vertical; font-family:inherit; line-height:1.55;">' + esc(body) + '</textarea>' +
-      '<div id="cert-left" style="font-size:var(--text-micro); color:' + (left > 0 ? 'var(--muted)' : '#15803d') + '; margin-top:6px;">' + (left > 0 ? 'Ещё минимум ' + left + ' символов' : 'Достаточно') + '</div>' +
+      '<div id="cert-left" style="font-size:var(--text-micro); color:' + (left > 0 ? 'var(--muted)' : 'var(--ok)') + '; margin-top:6px;">' + (left > 0 ? 'Ещё минимум ' + left + ' символов' : 'Достаточно') + '</div>' +
 
       '<div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">' +
         '<label style="flex:1; min-width:140px;"><span style="display:block; font-size:var(--text-caption); color:var(--muted); margin-bottom:6px;">Начало</span><input type="date" data-field="certStart" value="' + esc(state.form.certStart || '') + '" style="' + S.field + ' width:100%;"></label>' +
@@ -3630,7 +3638,7 @@
       '</div>' +
 
       '<div style="margin-top:16px; padding:11px 14px; background:var(--bg); border-radius:10px; font-size:var(--text-micro); color:var(--muted); line-height:1.5;">Справка уходит на проверку платформе и публикуется после неё. После выдачи текст не редактируется — исправления только через поддержку.</div>' +
-      (cm.error ? '<div style="margin-top:10px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(cm.error) + '</div>' : '') +
+      (cm.error ? '<div style="margin-top:10px; font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(cm.error) + '</div>' : '') +
       '<button data-action="submitComplete"' + (cm.loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (cm.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (cm.loading ? 'Отправляем…' : 'Завершить и выдать справку') + '</button>' +
       '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button></div>';
 
@@ -3663,7 +3671,7 @@
       '<span style="min-width:0; flex:1; font-size:var(--text-caption); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран · PDF или фото') + '</span>' +
       '<input id="doc-file" data-file-input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="display:none;">' +
     '</label>';
-    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
+    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
 
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:440px; width:100%; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0;">' + title + '</h3>' +
@@ -3729,7 +3737,7 @@
 
     var multi = isMultiFileType(type);
     var picker = filesDropzoneHtml(type, f.fileSlots || []);
-    var err = state.itemUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.itemUpload.error) + '</div>' : '';
+    var err = state.itemUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:var(--err); font-weight:600;">' + esc(state.itemUpload.error) + '</div>' : '';
     var loading = state.itemUpload.loading;
     var aiNote = type === 'achievement' ? '<div style="margin-top:8px; font-size:var(--text-micro); color:var(--muted); line-height:1.4;">Файл проверяется ИИ на релевантность — спам и нечитаемые файлы отклоняются с уведомлением.</div>' : '';
 
@@ -3751,7 +3759,7 @@
   function sectionsEditorHtml(sections) {
     var rows = sections.map(function (s) {
       return '<div style="border:1.5px solid var(--line); border-radius:10px; padding:12px; margin-bottom:8px; position:relative;">' +
-        '<button type="button" data-action="removeProjectSection" data-sec-id="' + esc(s.id) + '" title="Удалить раздел" style="position:absolute; top:8px; right:8px; ' + S.chipIcon + ' color:#b3261e;">' + icon('x', 12) + '</button>' +
+        '<button type="button" data-action="removeProjectSection" data-sec-id="' + esc(s.id) + '" title="Удалить раздел" style="position:absolute; top:8px; right:8px; ' + S.chipIcon + ' color:var(--err);">' + icon('x', 12) + '</button>' +
         '<input data-item-array-field="sections" data-item-array-id="' + esc(s.id) + '" data-item-array-key="title" value="' + esc(s.title) + '" placeholder="Название раздела" style="' + S.field + ' margin-bottom:6px; font-weight:600; padding-right:32px;">' +
         '<textarea data-item-array-field="sections" data-item-array-id="' + esc(s.id) + '" data-item-array-key="text" rows="2" placeholder="Подробности…" style="' + S.field + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(s.text) + '</textarea>' +
       '</div>';
@@ -3764,7 +3772,7 @@
       return '<div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">' +
         '<input data-item-array-field="details" data-item-array-id="' + esc(d.id) + '" data-item-array-key="label" value="' + esc(d.label) + '" placeholder="Например, Роль" style="' + S.field + ' flex:1;">' +
         '<input data-item-array-field="details" data-item-array-id="' + esc(d.id) + '" data-item-array-key="value" value="' + esc(d.value) + '" placeholder="Например, Frontend" style="' + S.field + ' flex:1;">' +
-        '<button type="button" data-action="removeProjectDetail" data-det-id="' + esc(d.id) + '" title="Удалить" style="' + S.chipIcon + ' color:#b3261e; flex-shrink:0;">' + icon('x', 12) + '</button>' +
+        '<button type="button" data-action="removeProjectDetail" data-det-id="' + esc(d.id) + '" title="Удалить" style="' + S.chipIcon + ' color:var(--err); flex-shrink:0;">' + icon('x', 12) + '</button>' +
       '</div>';
     }).join('');
     return rows + '<button type="button" data-action="addProjectDetail" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px dashed var(--line); padding:8px 14px; border-radius:9px; cursor:pointer;">+ Добавить деталь</button>';
@@ -3868,7 +3876,7 @@
   function testTick() {
     var left = Math.max(0, Math.round((testEndTime - Date.now()) / 1000));
     var el = document.getElementById('test-timer');
-    if (el) { el.textContent = fmtTime(left); if (left <= 30) el.style.color = '#b3261e'; }
+    if (el) { el.textContent = fmtTime(left); if (left <= 30) el.style.color = 'var(--err)'; }
     if (left <= 0) { stopTestTimer(); actions.submitTest(); }
   }
   function startTestTimer() {
@@ -3884,7 +3892,11 @@
     if (r >= 0.5) return 'Уверенный';
     return 'Базовый';
   }
-  function levelColor(level) { return { 'Продвинутый': '#15803d', 'Уверенный': '#8f5410', 'Базовый': '#5b616e' }[level] || 'var(--muted)'; }
+  /* Уровень владения — порядковая шкала, а не состояние. Раньше он красился
+     статусными цветами: «Уверенный» получал янтарь предупреждения, будто с ним
+     что-то не так, а «Продвинутый» — зелёный успеха. Один цвет должен значить
+     одно и то же везде, поэтому здесь нарастание акцента, а не светофор. */
+  function levelColor(level) { return { 'Продвинутый': 'var(--accent)', 'Уверенный': 'var(--ink)', 'Базовый': 'var(--muted)' }[level] || 'var(--muted)'; }
 
   // Детальная карточка навыка: описание, уверенность, сертификат, связанные работы.
   function skillDetailModalHtml() {
@@ -4007,7 +4019,7 @@
           li('Тест проходит в полноэкранном режиме. Переключение окна или выход из полноэкранного режима фиксируется как подозрительная активность.') +
           li('По результату вы получите <strong>уровень</strong> (Базовый / Уверенный / Продвинутый).') +
         '</ul></div>' +
-        (bank ? '' : '<div style="margin-top:16px; padding:12px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:var(--text-caption); color:#b3261e;">Для этой специальности пока нет вопросов.</div>') +
+        (bank ? '' : '<div style="margin-top:16px; padding:12px 14px; background:color-mix(in srgb, var(--err) 8%, #fff); border:1px solid color-mix(in srgb, var(--err) 22%, #fff); border-radius:10px; font-size:var(--text-caption); color:var(--err);">Для этой специальности пока нет вопросов.</div>') +
         '<div style="display:flex; gap:12px; margin-top:22px;"><button data-action="startTest"' + (bank ? '' : ' disabled') + ' style="' + S.primary.replace('padding:15px', 'padding:13px 26px') + (bank ? '' : ' opacity:0.5; cursor:not-allowed;') + '">Начать тест</button><button data-action="closeTest" style="' + S.ghost + '">Отмена</button></div>' +
       '</div>';
     } else if (state.testView === 'running' && bank) {
@@ -4019,7 +4031,7 @@
       }).join('');
       var openBlock = '<div style="margin-bottom:8px;"><div style="font-weight:600; font-size:var(--text-body); margin-bottom:6px;">9. ' + esc(bank.open) + '</div>' +
         '<textarea id="test-open" rows="5" placeholder="Ваш ответ…" style="width:100%; font-size:var(--text-caption); padding:12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;"></textarea></div>';
-      var warnBanner = state.testFullscreenWarn ? '<div style="padding:10px 24px; background:color-mix(in srgb, #b3261e 8%, #fff); border-bottom:1px solid color-mix(in srgb, #b3261e 22%, #fff); font-size:var(--text-micro); color:#b3261e; font-weight:600; flex-shrink:0;">Обнаружена подозрительная активность (переключение окна/выход из полноэкранного режима) — это зафиксировано вместе с результатом.</div>' : '';
+      var warnBanner = state.testFullscreenWarn ? '<div style="padding:10px 24px; background:color-mix(in srgb, var(--err) 8%, #fff); border-bottom:1px solid color-mix(in srgb, var(--err) 22%, #fff); font-size:var(--text-micro); color:var(--err); font-weight:600; flex-shrink:0;">Обнаружена подозрительная активность (переключение окна/выход из полноэкранного режима) — это зафиксировано вместе с результатом.</div>' : '';
       inner =
         '<div oncontextmenu="return false" oncopy="return false" onpaste="return false" style="display:flex; flex-direction:column; min-height:0; flex:1; user-select:none;">' +
         '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 24px; border-bottom:1.5px solid var(--line); flex-shrink:0;">' +
@@ -4039,7 +4051,7 @@
         '<div style="display:inline-flex; flex-direction:column; gap:6px; background:var(--bg); border:1.5px solid var(--line); border-radius:14px; padding:18px 30px; margin-bottom:20px;">' +
           '<span style="font-size:var(--text-caption); color:var(--muted);">Ваш уровень</span><span style="font-weight:600; font-size:var(--text-h2); color:' + levelColor(r.level) + ';">' + r.level + '</span>' +
           '<span style="font-size:var(--text-caption); color:var(--muted);">Верных ответов: ' + r.correct + ' из ' + r.total + '</span></div>' +
-        (r.flags ? '<div style="font-size:var(--text-micro); color:#b3261e; font-weight:600; margin-bottom:16px;">Зафиксировано подозрительных действий: ' + r.flags + '</div>' : '') +
+        (r.flags ? '<div style="font-size:var(--text-micro); color:var(--err); font-weight:600; margin-bottom:16px;">Зафиксировано подозрительных действий: ' + r.flags + '</div>' : '') +
         '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.5; max-width:420px; margin:0 auto 22px;">Открытый ответ в полной версии оценивается ИИ (Claude) по ясности, логике и релевантности. Сейчас засчитаны вопросы с вариантами.</p>' +
         '<button data-action="closeTest" style="' + S.primary.replace('padding:15px', 'padding:13px 30px') + '">Готово</button>' +
       '</div>';
@@ -4068,7 +4080,7 @@
       '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Описание</span><textarea data-field="gigDesc" rows="4" placeholder="Что нужно сделать, объём работы, требования…" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;">' + esc(f.gigDesc || '') + '</textarea></label>' +
       '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Формат</span><select data-field="gigFormat" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' + fmtOpts + '</select></label>' +
       '<div class="g2" style="display:grid; gap:14px;">' + field('Длительность', 'gigDuration', 'Напр. 2 недели') + field('Сколько человек нужно', 'gigSlots', 'Напр. 1') + '</div>' +
-      (gs.error ? '<div style="font-size:var(--text-caption); color:#b3261e; font-weight:600; margin-bottom:8px;">' + esc(gs.error) + '</div>' : '') +
+      (gs.error ? '<div style="font-size:var(--text-caption); color:var(--err); font-weight:600; margin-bottom:8px;">' + esc(gs.error) + '</div>' : '') +
       '<button data-action="submitGig"' + (gs.loading ? ' disabled' : '') + ' style="width:100%; ' + S.primary + (gs.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (gs.loading ? 'Публикация…' : 'Опубликовать задачу') + '</button>' +
       '<button data-action="closeGigForm" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
     '</div>';
@@ -4284,7 +4296,7 @@
         if (cl) {
           var rest = 120 - e.target.value.trim().length;
           cl.textContent = rest > 0 ? 'Ещё минимум ' + rest + ' символов' : 'Достаточно';
-          cl.style.color = rest > 0 ? 'var(--muted)' : '#15803d';
+          cl.style.color = rest > 0 ? 'var(--muted)' : 'var(--ok)';
         }
       }
       // Подпись у ползунка обновляем точечно, а не через render(): перерисовка заменит
