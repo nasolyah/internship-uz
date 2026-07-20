@@ -373,9 +373,18 @@
   }
 
   /* ---------- header ---------- */
-  function navLink(action, label) {
+  // Пункт меню. Раньше это всегда был <a> без href — такой элемент не фокусируется
+  // с клавиатуры и не объявляется скринридером как ссылка, то есть вся навигация была
+  // недоступна. Теперь: якорь на секцию — настоящая <a href="#...">, её можно скопировать
+  // и открыть; переключатель вида — <button>, потому что семантически это кнопка, а не
+  // ссылка на документ.
+  function navLink(action, label, href) {
     var active = state.view === action.replace(/^go/, '').toLowerCase();
-    return '<a data-action="' + action + '" class="nav-link" style="font-size:14.5px; font-weight:500; color:' + (active ? 'var(--ink)' : 'var(--muted)') + ';">' + label + '</a>';
+    var css = 'font-size:14.5px; font-weight:500; color:' + (active ? 'var(--ink)' : 'var(--muted)') + ';';
+    if (href) {
+      return '<a href="' + href + '" data-action="' + action + '" class="nav-link" style="' + css + '">' + label + '</a>';
+    }
+    return '<button type="button" data-action="' + action + '" class="nav-link" style="' + css + ' background:none; border:none; padding:0; cursor:pointer; font-family:inherit;">' + label + '</button>';
   }
   function header() {
     var role = state.authRole;
@@ -389,7 +398,7 @@
       // сами, откликаясь), а чужие задачи компании ни к чему.
       nav = navLink('goVacancies', 'Мои вакансии') + navLink('goResponses', 'Отклики') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
     } else {
-      nav = navLink('scrollHow', 'Как это работает') + navLink('scrollVerify', 'Верификация') + navLink('goCatalog', 'Каталог');
+      nav = navLink('scrollHow', 'Как это работает', '#sec-how') + navLink('scrollVerify', 'Верификация', '#sec-verify') + navLink('goCatalog', 'Каталог');
     }
 
     // правая часть — кнопки для гостя или аватар с выпадающим меню
@@ -421,12 +430,12 @@
       if (state.menuOpen) overlay = '<div data-menu-overlay data-action="toggleMenu" style="position:fixed; inset:0; z-index:40;"></div>';
     } else {
       auth = '<span style="display:flex; align-items:center; gap:12px;">' +
-        '<button data-action="goStudent" style="font-size:14.5px; font-weight:600; color:var(--ink); background:none; border:1.5px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Войти как студент</button>' +
-        '<button data-action="goStartupForm" style="font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Регистрация компании</button></span>';
+        '<button data-action="goStudent" style="font-size:14.5px; font-weight:600; color:var(--ink); background:none; border:1.5px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Найти стажировку</button>' +
+        '<button data-action="goStartupForm" style="font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Разместить задачу</button></span>';
     }
     return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1.5px solid var(--line);">' +
       '<div class="hdr" style="max-width:1180px; margin:0 auto; padding:16px 28px;">' +
-        '<a data-action="goHome" style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
+        '<a href="/" data-action="goHome" style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
           '<span style="display:inline-block; width:58px; height:34px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:90px; height:90px; max-width:none; margin:-29px 0 0 -17px; display:block;"></span>' +
           '<span class="brand-name" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
         '</a>' +
@@ -465,8 +474,8 @@
           '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(30px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:22px 0 0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
           '<p class="hero-up" style="font-size:18px; line-height:1.55; color:var(--muted); max-width:500px; margin:22px 0 0; animation-delay:.14s;">internship.uz связывает узбекские стартапы со студентами и школьниками: живые проекты, верифицированные профили и официальный документ о пройденной практике.</p>' +
           '<div class="hero-up" style="display:flex; gap:12px; margin-top:30px; flex-wrap:wrap; animation-delay:.2s;">' +
-            '<button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 24px; border-radius:11px; cursor:pointer;">Я стартап — нужна помощь</button>' +
-            '<button data-action="goStudent" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:14px 24px; border-radius:11px; cursor:pointer;">Я студент — ищу опыт</button>' +
+            '<button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 24px; border-radius:11px; cursor:pointer;">Разместить задачу</button>' +
+            '<button data-action="goStudent" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:14px 24px; border-radius:11px; cursor:pointer;">Найти стажировку</button>' +
           '</div>' +
           '<div class="hero-up" style="display:flex; gap:22px; margin-top:26px; flex-wrap:wrap; font-size:13.5px; color:var(--muted); animation-delay:.26s;">' + trust + '</div>' +
         '</div>' +
@@ -480,8 +489,8 @@
     var value = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:56px 28px;">' +
       '<div style="text-align:center; max-width:640px; margin:0 auto 44px;"><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Две стороны, одна выгода</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 0;">Каждый получает то, чего ему не хватает</h2></div>' +
       '<div class="g2" style="display:grid; gap:24px;">' +
-        '<div data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:32px;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">◆</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для стартапов</span></div><p style="color:var(--muted); font-size:15px; margin:0 0 20px;">Ранние команды с ограниченным бюджетом — быстрые руки без затрат на найм.</p>' + startupValue.map(function (v) { return valItem(v, false); }).join('') + '<button data-action="goStartupForm" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px; border-radius:11px; cursor:pointer;">Подтвердить компанию</button></div>' +
-        '<div data-stagger style="background:var(--ink); border:1px solid var(--ink); border-radius:18px; padding:32px; color:#fff;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">●</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для студентов и школьников</span></div><p style="color:rgba(255,255,255,0.62); font-size:15px; margin:0 0 20px;">Реальные проекты в резюме и официальный документ — сильный аргумент при поступлении.</p>' + studentValue.map(function (v) { return valItem(v, true); }).join('') + '<button data-action="goStudent" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:13px; border-radius:11px; cursor:pointer;">Создать профиль студента</button></div>' +
+        '<div data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:32px;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">◆</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для стартапов</span></div><p style="color:var(--muted); font-size:15px; margin:0 0 20px;">Ранние команды с ограниченным бюджетом — быстрые руки без затрат на найм.</p>' + startupValue.map(function (v) { return valItem(v, false); }).join('') + '<button data-action="goStartupForm" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px; border-radius:11px; cursor:pointer;">Разместить задачу</button></div>' +
+        '<div data-stagger style="background:var(--ink); border:1px solid var(--ink); border-radius:18px; padding:32px; color:#fff;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">●</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для студентов и школьников</span></div><p style="color:rgba(255,255,255,0.62); font-size:15px; margin:0 0 20px;">Реальные проекты в резюме и официальный документ — сильный аргумент при поступлении.</p>' + studentValue.map(function (v) { return valItem(v, true); }).join('') + '<button data-action="goStudent" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:13px; border-radius:11px; cursor:pointer;">Найти стажировку</button></div>' +
       '</div></section>';
 
     var stepItem = function (s, accent) {
@@ -509,7 +518,7 @@
         '<div class="g2" style="display:grid; gap:16px;">' + verifyItems.map(verifyCard).join('') + '</div>' +
       '</div></section>';
 
-    var waitlist = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:32px 28px 88px;"><div style="background:var(--ink); border-radius:22px; padding:56px 40px; text-align:center; color:#fff; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 60%); opacity:0.5;"></div><div style="position:relative;"><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3.2vw,42px); letter-spacing:-0.02em; margin:0;">Присоединяйтесь к пилоту</h2><p style="font-size:17px; color:rgba(255,255,255,0.66); max-width:480px; margin:14px auto 0;">Набираем первые 5–10 стартапов и 10–20 студентов. Ранние участники получают бесплатный доступ и приоритет в матчинге.</p><div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;"><button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Записать стартап</button><button data-action="goStudent" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Записаться студентом</button></div></div></div></section>';
+    var waitlist = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:32px 28px 88px;"><div style="background:var(--ink); border-radius:22px; padding:56px 40px; text-align:center; color:#fff; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 60%); opacity:0.5;"></div><div style="position:relative;"><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3.2vw,42px); letter-spacing:-0.02em; margin:0;">Присоединяйтесь к пилоту</h2><p style="font-size:17px; color:rgba(255,255,255,0.66); max-width:480px; margin:14px auto 0;">Набираем первые 5–10 стартапов и 10–20 студентов. Ранние участники получают бесплатный доступ и приоритет в матчинге.</p><div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;"><button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Разместить задачу</button><button data-action="goStudent" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Найти стажировку</button></div></div></div></section>';
 
     return '<main class="view-in">' + hero + value + how + verify + waitlist + '</main>';
   }
@@ -546,7 +555,7 @@
     var inner = '';
     if (state.studentStep === 'login') {
       inner = '<div style="max-width:440px;">' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:20px 0 8px;">Войти как студент</h1>' +
+        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:20px 0 8px;">Найти стажировку</h1>' +
         '<p style="color:var(--muted); font-size:16px; margin:0 0 28px;">Быстрый вход без барьеров. При входе через Telegram имя и фамилия подтянутся автоматически — останется только подтвердить их.</p>' +
         '<button data-action="loginTelegram" class="tg-btn"' + (state.tgAuth.loading ? ' disabled' : '') + '>' +
           '<svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>' +
@@ -2983,10 +2992,24 @@
     }
   };
   function scrollToId(id) {
+    // Адрес обновляем, чтобы ссылка из меню была настоящей: её можно скопировать,
+    // отправить и открыть — обработчик ниже поймает хэш при загрузке.
+    try { history.replaceState(null, '', '#' + id); } catch (e) {}
     if (state.view !== 'home') { setState({ view: 'home' }); setTimeout(function () { doScroll(id); }, 60); }
     else doScroll(id);
   }
-  function doScroll(id) { var el = document.getElementById(id); if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: 'smooth' }); }
+  function doScroll(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    // Системная настройка «уменьшить движение» не отменяет behavior:'smooth', заданный
+    // из JS, — CSS-правило scroll-behavior на него не влияет. Проверяем сами.
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Высоту шапки меряем, а не хардкодим: на мобильном она в две строки (132px
+    // против ~70 на десктопе), и фиксированное число прятало заголовок секции.
+    var head = document.querySelector('header');
+    var offset = (head ? head.getBoundingClientRect().height : 70) + 16;
+    window.scrollTo({ top: Math.max(0, el.offsetTop - offset), behavior: reduce ? 'auto' : 'smooth' });
+  }
 
   function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
 
@@ -4180,6 +4203,14 @@
       restoreSession();  // роль (студент/компания) определяется внутри по данным аккаунта
     }
     loadGigs();
+
+    // Пришли по ссылке вида /#sec-how — доводим до секции после первой отрисовки.
+    // Без этого href в меню обещал бы работающий адрес, который на самом деле не работает.
+    var wantId = (window.location.hash || '').replace('#', '');
+    if (wantId && /^sec-[a-z-]+$/.test(wantId)) {
+      setTimeout(function () { doScroll(wantId); }, 80);
+    }
+
     root.addEventListener('click', function (e) {
       var t = e.target.closest('[data-action]');
       if (t && actions[t.getAttribute('data-action')]) {
