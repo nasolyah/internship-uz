@@ -325,6 +325,23 @@
     }
     return '';
   }
+  // Цвет к тому же статусу. Раньше он захардкоживался по роли — компания всегда была
+  // оранжевой, студент всегда зелёным, — и подпись «Профиль подтверждён» соседствовала
+  // с точкой «на проверке». Теперь цвет считается из того же состояния, что и текст.
+  function verifyColor() {
+    if (state.authRole === 'company') {
+      var cs = companyStatus();
+      return cs === 'approved' ? '#16a34a' : cs === 'rejected' ? '#b3261e' : '#e2a53a';
+    }
+    if (state.authRole === 'student') {
+      if (isMinor()) {
+        var c = docStat('consent');
+        return c === 'approved' ? '#16a34a' : c === 'rejected' ? '#b3261e' : c === 'pending' ? '#e2a53a' : '#b3261e';
+      }
+      return '#16a34a';
+    }
+    return 'var(--muted)';
+  }
   function companyDirector() { return state.companyProfile ? (state.companyProfile.director || '') : ''; }
 
   /* ---------- shared style snippets ---------- */
@@ -389,7 +406,7 @@
 
       var dropdown = '';
       if (state.menuOpen) {
-        var dot = role === 'company' ? '#e2a53a' : '#4ade80';
+        var dot = verifyColor();
         var mItem = function (action, label, color) {
           return '<a data-action="' + action + '" class="menu-item" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; font-size:14px; font-weight:600; color:' + color + '; cursor:pointer;">' + label + '</a>';
         };
@@ -1323,7 +1340,7 @@
         : emptyState('◎', 'Пока нет откликов', 'Как только студенты откликнутся на ваши задачи, они появятся здесь — все вакансии в одном списке.', 'goVacancies', 'Мои вакансии'), 1200);
     }
 
-    var counts = { pending: 0, invited: 0, rejected: 0 };
+    var counts = { pending: 0, invited: 0, rejected: 0, completed: 0 };
     mine.forEach(function (a) { if (counts[a.status] != null) counts[a.status]++; });
     var tab = state.respTab || 'pending';
     var shown = tab === 'all' ? mine : mine.filter(function (a) { return a.status === tab; });
@@ -1337,6 +1354,8 @@
       tb('pending', 'Ждут ответа', counts.pending) +
       tb('invited', 'Приглашены', counts.invited) +
       tb('rejected', 'Отказ', counts.rejected) +
+      // Завершённые — не архив: именно здесь компания прикладывает свидетельство.
+      tb('completed', 'Завершены', counts.completed) +
       tb('all', 'Все', mine.length) + '</div>';
 
     // К какой задаче относится отклик — в плоском списке это главное, чего не хватает
@@ -3305,9 +3324,12 @@
   var focusChatInput = false;
 
   var APP_STATUS = {
-    pending:  { label: 'На рассмотрении', color: '#e2a53a' },
-    invited:  { label: 'Приглашение',     color: '#16a34a' },
-    rejected: { label: 'Отказ',           color: '#b3261e' }
+    pending:   { label: 'На рассмотрении', color: '#e2a53a' },
+    invited:   { label: 'Приглашение',     color: '#16a34a' },
+    rejected:  { label: 'Отказ',           color: '#b3261e' },
+    // Без этой строки завершённая стажировка попадала в запасной вариант ниже
+    // и показывалась как «На рассмотрении».
+    completed: { label: 'Завершена',       color: 'var(--accent)' }
   };
   function appStatusMeta(status) { return APP_STATUS[status] || APP_STATUS.pending; }
 
