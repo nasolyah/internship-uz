@@ -786,11 +786,26 @@
     // sidebar
     var sidebar;
     if (role === 'student') {
-      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:var(--text-body);">' + esc(studentName()) + '</div><div style="font-size:var(--text-micro); color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
+      /* Раньше здесь безусловно стояло «✓ Профиль подтверждён» синим: текст не
+         спрашивал состояние вообще. Несовершеннолетний с отклонённым или ещё не
+         загруженным согласием родителя видел в каталоге подтверждение, которого
+         нет, — и это на той самой группе, ради которой согласие и собирается.
+         Такого статуса у студента к тому же не существует: verifyStatus() даёт
+         «Профиль активен» либо состояние согласия. Берём текст и цвет оттуда же,
+         откуда их берёт соседняя ветка компании. Галочка — только у ok-состояния,
+         иначе она утверждает то же самое молча. */
+      var svText = verifyStatus();
+      var svColor = verifyColor();
+      var svTick = svColor === 'var(--ok)' ? '✓ ' : '';
+      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:var(--text-body);">' + esc(studentName()) + '</div><div style="font-size:var(--text-micro); color:' + svColor + '; font-weight:600;">' + svTick + esc(svText) + '</div></div></div></aside>';
     } else if (role === 'company') {
       var scs = companyStatus();
-      var scColor = scs === 'approved' ? 'var(--ok)' : scs === 'rejected' ? 'var(--err)' : 'var(--warn)';
-      var scText = scs === 'approved' ? 'Профиль подтверждён' : scs === 'rejected' ? 'Заявка отклонена' : 'На подтверждении';
+      /* Текст и цвет здесь дословно повторяли verifyStatus()/verifyColor() для
+         роли компании. Пока совпадало, но две копии одного правила расходятся
+         при первой же правке — а расхождение в статусе верификации выглядит
+         именно так, как выглядел баг в студенческой ветке выше. */
+      var scColor = verifyColor();
+      var scText = verifyStatus();
       var scPost = scs === 'approved'
         ? '<button data-action="openGigForm" style="margin-top:18px; width:100%; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
         : '<button disabled style="margin-top:18px; width:100%; font-size:var(--text-caption); font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
@@ -1158,8 +1173,11 @@
     };
 
     var cs = companyStatus();
-    var stColor = cs === 'approved' ? 'var(--ok)' : cs === 'rejected' ? 'var(--err)' : 'var(--warn)';
-    var stText = cs === 'approved' ? 'Профиль подтверждён' : cs === 'rejected' ? 'Заявка отклонена' : 'На подтверждении';
+    /* Третья копия того же правила. Вид отдаётся только при authRole === 'company'
+       (диспетчер ниже), поэтому verifyStatus()/verifyColor() дают здесь ровно те
+       же значения — но уже из одного места. */
+    var stColor = verifyColor();
+    var stText = verifyStatus();
     var profile = '<div style="' + card + ' display:flex; align-items:center; gap:18px;">' +
       '<span style="width:64px; height:64px; border-radius:16px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-h2); flex-shrink:0;">◆</span>' +
       '<div style="min-width:0;"><div style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em;">' + esc(companyName()) + '</div>' +
