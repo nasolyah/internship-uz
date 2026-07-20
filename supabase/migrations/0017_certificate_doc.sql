@@ -86,6 +86,10 @@ grant execute on function public.admin_decide_certificate_doc(uuid, text, text) 
 
 -- Панели нужно видеть, от кого свидетельство и кому — эти поля в справке уже есть,
 -- добавляем к ним сам файл и его статус.
+--
+-- drop, а не только create or replace: у функции меняется набор возвращаемых полей,
+-- а заменить возвращаемый тип на месте Postgres не даёт.
+drop function if exists public.admin_certificate_queue(text);
 create or replace function public.admin_certificate_queue(p_status text default null)
 returns table (
   id uuid, public_id text, student_name text, company_name text, gig_title text,
@@ -113,6 +117,8 @@ revoke all on function public.admin_certificate_queue(text) from public;
 grant execute on function public.admin_certificate_queue(text) to authenticated;
 
 -- Студенту отдаём путь только у одобренного свидетельства: до проверки скачивать нечего.
+-- Тоже с drop — набор полей вырос на три штуки.
+drop function if exists public.student_history(uuid);
 create or replace function public.student_history(p_student uuid)
 returns table (
   public_id text, company_name text, gig_title text,
