@@ -665,7 +665,7 @@
           '<p style="font-size:12.5px; color:var(--muted); text-align:center; margin:0;">Участие бесплатно на старте. Задачи можно размещать после подтверждения профиля.</p>' +
         '</div></div>';
     } else {
-      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:16px; max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goVacancies" style="' + S.ghost + '">Мои вакансии</button></div></div>';
+      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;" class="pop-in">✓</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:16px; max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goVacancies" style="' + S.ghost + '">Мои вакансии</button></div></div>';
     }
     return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
   }
@@ -1371,7 +1371,9 @@
     var d = c.data;
     var period = (d.started_at ? fmtDate(d.started_at) : '') + (d.finished_at ? ' — ' + fmtDate(d.finished_at) : '');
     return pageWrap('Справка о стажировке',
-      '<div style="' + RO_CARD + '">' +
+      // Страницу открывают редко и показывают работодателю — перерисовок здесь нет,
+      // так что появление проиграется ровно один раз.
+      '<div class="rise-in" style="' + RO_CARD + '">' +
         '<div style="display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:#16a34a; margin-bottom:18px;">' +
           '<span style="width:8px; height:8px; border-radius:50%; background:#16a34a;"></span>Подтверждено платформой internship.uz</div>' +
         '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:26px; letter-spacing:-0.02em;">' + esc(d.student_name || 'Студент') + '</div>' +
@@ -4032,10 +4034,27 @@
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
+  // Какой вид был отрисован в прошлый раз — чтобы отличить смену вида от обычного
+  // обновления состояния.
+  var lastRenderedView = null;
+
   function render() {
     var keepChatFocus = state.view === 'chat' && (chatInputHasFocus() || focusChatInput);
     focusChatInput = false;
     root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml();
+
+    // render() переписывает весь root, поэтому <main class="view-in"> создаётся заново
+    // при каждом изменении состояния — и анимация появления стартовала с нуля на каждый
+    // клик: страница снова уезжала на 14px и всплывала. При просмотре каталога или
+    // разборе очереди это повторялось десятки раз подряд и читалось как подтормаживание.
+    // Снимаем класс до отрисовки кадра, если вид не менялся: анимация остаётся там, где
+    // она осмысленна — на переходе между экранами.
+    if (state.view === lastRenderedView) {
+      var main = root.querySelector('main.view-in');
+      if (main) main.classList.remove('view-in');
+    }
+    lastRenderedView = state.view;
+
     setupReveal();
     if (state.view === 'chat') restoreChatUi(keepChatFocus);
   }
