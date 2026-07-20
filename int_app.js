@@ -55,10 +55,14 @@
     isAdmin: false,
     // Админка: очередь модерации. tab — что показываем, rejectFor — id, для которого
     // открыт ввод причины отказа.
-    admin: { tab: 'pending', items: [], companies: [], statusReqs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null },
+    admin: { tab: 'pending', items: [], companies: [], statusReqs: [], certs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null },
     tgDraft: false,
     // Фильтр в плоском списке откликов компании: по умолчанию — те, что ждут ответа.
     respTab: 'pending',
+    // Форма завершения стажировки и публичная страница справки.
+    certModal: { appId: null, score: 5, error: '', loading: false },
+    cert: { loading: false, data: null, error: '' },
+    history: [],
     menuOpen: false,
     modal: null,               // null | 'study' | 'consent'
     testView: null,            // null | 'intro' | 'running' | 'result'
@@ -1026,15 +1030,18 @@
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-top:' + (projects.length ? '14px' : '0') + ';">' + projects.map(projectCard).join('') + addProjectCard + '</div></div>';
 
     // ---- История на платформе (завершённые стажировки) ----
-    var history = (sp.platformHistory || []);
+    // Источник — опубликованные справки (0016), а не profiles.data: туда студент пишет
+    // сам и мог бы приписать себе стажировки в компаниях, где никогда не был.
+    var history = state.history || [];
     var historyItem = function (h) {
-      var review = h.review ? '<div style="margin-top:8px; padding:11px 13px; background:var(--bg); border-radius:10px; font-size:13px; color:var(--muted); line-height:1.5;">' +
-        (typeof h.review.score === 'number' ? '<div style="margin-bottom:4px;">' + starRating(h.review.score) + '</div>' : '') +
-        (h.review.text ? esc(h.review.text) : '') + (h.review.founder ? ' <span style="color:var(--ink); font-weight:600;">— ' + esc(h.review.founder) + '</span>' : '') + '</div>' : '';
+      var period = (h.started_at ? fmtDate(h.started_at) : '') + (h.finished_at ? ' — ' + fmtDate(h.finished_at) : '');
       return '<div style="display:flex; gap:14px; padding:16px 0; border-top:1.5px solid var(--line);">' +
         '<div style="width:9px; height:9px; border-radius:50%; background:var(--accent); margin-top:6px; flex-shrink:0;"></div>' +
-        '<div style="flex:1; min-width:0;"><div style="font-weight:600; font-size:14.5px;">' + esc(h.title) + '</div>' +
-        '<div style="font-size:12.5px; color:var(--muted); margin-top:2px;">' + esc(h.company || '') + (h.period ? ' · ' + esc(h.period) : '') + '</div>' + review + '</div></div>';
+        '<div style="flex:1; min-width:0;"><div style="font-weight:600; font-size:14.5px; ' + S.wrap + '">' + esc(h.gig_title || 'Стажировка') + '</div>' +
+        '<div style="font-size:12.5px; color:var(--muted); margin-top:2px;">' + esc(h.company_name || '') + (period ? ' · ' + esc(period) : '') + '</div>' +
+        (h.body ? '<div style="margin-top:8px; padding:11px 13px; background:var(--bg); border-radius:10px; font-size:13px; color:var(--muted); line-height:1.55; white-space:pre-wrap; ' + S.wrap + '">' + esc(h.body) + '</div>' : '') +
+        '<a href="/cert/' + esc(h.public_id) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:8px; font-size:12.5px; font-weight:600; color:var(--accent);">Ссылка на справку ↗</a>' +
+        '</div></div>';
     };
     var historySection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">История на платформе</div>' +
       '<p style="font-size:13px; color:var(--muted); margin:0 0 4px;">Завершённые стажировки, подтверждённые компаниями через internship.uz.</p>' +
@@ -1058,15 +1065,18 @@
       '<button disabled style="width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed; margin-bottom:18px;">Скачать документ о практике</button>' +
       '<div style="display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:6px;">' + achievements.map(achCard).join('') + addAchCard + '</div></div>';
 
-    // ---- Рейтинг профиля ----
-    var reviewed = history.filter(function (h) { return h.review && typeof h.review.score === 'number'; });
-    var avgScore = reviewed.length ? (reviewed.reduce(function (s, h) { return s + h.review.score; }, 0) / reviewed.length) : 0;
+    // ---- Завершённые стажировки ----
+    // Числовой оценки здесь намеренно нет: компания ставит её, зная, что она внутренняя,
+    // а показывать подростку «3 из 5» — верный способ получить спор вместо пользы.
+    // Характеристики студент видит: они всё равно попадают на публичную страницу.
     var ratingSection = '<div style="' + card + ' text-align:center;">' +
-      '<div style="' + cardTitle + ' margin-bottom:10px;">Рейтинг профиля</div>' +
-      (reviewed.length
-        ? '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:26px;">' + avgScore.toFixed(1) + '</div><div style="margin:6px 0 8px;">' + starRating(avgScore) + '</div><div style="font-size:13px; color:var(--muted);">' + reviewed.length + ' ' + pluralRu(reviewed.length, 'отзыв', 'отзыва', 'отзывов') + '</div>'
-        : '<div style="margin-bottom:8px;">' + starRating(0) + '</div><div style="font-size:13px; color:var(--muted);">Пока нет оценок — появятся после первой стажировки</div>') +
-      '<a data-action="openReviews" style="display:inline-block; margin-top:12px; font-size:13.5px; font-weight:600; color:var(--accent); cursor:pointer;">Смотреть отзывы и обратную связь →</a></div>';
+      '<div style="' + cardTitle + ' margin-bottom:10px;">Завершённые стажировки</div>' +
+      (history.length
+        ? '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:26px;">' + history.length + '</div>' +
+          '<div style="font-size:13px; color:var(--muted); margin-top:6px;">' + pluralRu(history.length, 'справка выдана', 'справки выдано', 'справок выдано') + '</div>' +
+          '<a data-action="openReviews" style="display:inline-block; margin-top:12px; font-size:13.5px; font-weight:600; color:var(--accent); cursor:pointer;">Смотреть характеристики →</a>'
+        : '<div style="font-size:13px; color:var(--muted); line-height:1.55;">Появятся после первой завершённой стажировки. Компания напишет характеристику, а вы получите справку с проверяемой ссылкой.</div>') +
+      '</div>';
 
     return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет</h1>' +
@@ -1244,6 +1254,11 @@
     }
 
     var decision = '';
+    // Завершить можно только то, что начиналось: студента должны были пригласить.
+    if (asCompany && a.status === 'invited') {
+      decision = '<div style="display:flex; gap:8px; margin-top:12px;">' +
+        '<button data-action="openCompleteModal" data-app-id="' + esc(a.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Завершить стажировку</button></div>';
+    }
     if (asCompany && a.status === 'pending') {
       decision = '<div style="display:flex; gap:8px; margin-top:12px;">' +
         '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="invited" style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button>' +
@@ -1300,6 +1315,37 @@
         (tab === 'pending' ? 'Все отклики разобраны — никто не ждёт ответа.' : 'Пусто.') + '</div>';
 
     return pageWrap('Отклики', tabs + list, 1200);
+  }
+
+  // Публичная страница справки. Открывается по ссылке без входа: её показывают
+  // работодателю, которого на платформе нет. Оценки здесь нет — только характеристика.
+  function certView() {
+    var c = state.cert;
+    if (c.loading) return pageWrap('Справка о стажировке', '<div style="text-align:center; padding:48px; color:var(--muted); font-size:14px;">Проверяем справку…</div>', 780);
+    if (!c.data) {
+      return pageWrap('Справка о стажировке',
+        '<div style="' + RO_CARD + ' text-align:center;">' +
+        '<div style="font-size:34px; margin-bottom:12px;">🔍</div>' +
+        '<div style="font-weight:600; font-size:18px; margin-bottom:8px;">Справка не найдена</div>' +
+        '<p style="color:var(--muted); font-size:14px; line-height:1.55; margin:0;">Такой справки нет или она ещё не опубликована. Проверьте ссылку целиком — она длинная и легко обрезается при копировании.</p></div>', 780);
+    }
+    var d = c.data;
+    var period = (d.started_at ? fmtDate(d.started_at) : '') + (d.finished_at ? ' — ' + fmtDate(d.finished_at) : '');
+    return pageWrap('Справка о стажировке',
+      '<div style="' + RO_CARD + '">' +
+        '<div style="display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:#16a34a; margin-bottom:18px;">' +
+          '<span style="width:8px; height:8px; border-radius:50%; background:#16a34a;"></span>Подтверждено платформой internship.uz</div>' +
+        '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:26px; letter-spacing:-0.02em;">' + esc(d.student_name || 'Студент') + '</div>' +
+        '<div style="font-size:15px; color:var(--muted); margin-top:6px;">' + esc(d.gig_title || '') + '</div>' +
+        '<div style="font-size:15px; margin-top:2px;"><strong style="font-weight:600;">' + esc(d.company_name || '') + '</strong>' +
+          (period ? '<span style="color:var(--muted);"> · ' + esc(period) + '</span>' : '') + '</div>' +
+        '<div style="margin-top:22px; padding-top:22px; border-top:1.5px solid var(--line);">' +
+          '<div style="font-size:13px; color:var(--muted); margin-bottom:8px;">Характеристика от компании</div>' +
+          '<div style="font-size:15px; line-height:1.65; white-space:pre-wrap; ' + S.wrap + '">' + esc(d.body || '') + '</div></div>' +
+        '<div style="margin-top:22px; padding-top:18px; border-top:1.5px solid var(--line); font-size:12.5px; color:var(--muted); line-height:1.6;">' +
+          'Справка №' + esc(d.public_id) + (d.issued_at ? ' · выдана ' + esc(fmtDate(d.issued_at)) : '') + '<br>' +
+          'Текст написан компанией и проверен платформой. После выдачи не редактируется.</div>' +
+      '</div>', 780);
   }
 
   function responsesView() {
@@ -1451,6 +1497,37 @@
       '</div>' + actionsHtml + '</div>';
   }
 
+  // Справка о стажировке. Текст пойдёт на публичную страницу с именем человека, поэтому
+  // читаем его целиком — это главное, что здесь проверяется.
+  function adminCertCard(c) {
+    var st = { pending: ['на проверке', '#b26b12'], published: ['опубликована', '#16a34a'], rejected: ['отклонена', '#b3261e'] }[c.status] || ['—', 'var(--muted)'];
+    var busy = state.admin.busy === c.id;
+    var period = (c.started_at ? fmtDate(c.started_at) : '') + (c.finished_at ? ' — ' + fmtDate(c.finished_at) : '');
+    var actionsHtml = '';
+    if (state.admin.rejectFor === c.id) {
+      actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит компания" style="flex:1; min-width:240px; font-size:13.5px; padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<button data-action="adminCertConfirmReject" data-id="' + esc(c.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCancelReject" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
+    } else if (c.status === 'pending') {
+      actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
+        '<button data-action="adminCertPublish" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Опубликовать</button>' +
+        '<button data-action="adminCertStartReject" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+    } else if (c.status === 'published') {
+      actionsHtml = '<div style="margin-top:12px;"><a href="/cert/' + esc(c.public_id) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent);">Открыть публичную страницу ↗</a></div>';
+    }
+    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
+        '<div style="min-width:0;"><div style="font-weight:600; font-size:16px;">' + esc(c.student_name || 'Студент') + '</div>' +
+        '<div style="margin-top:5px; font-size:13px; color:var(--muted);">' + esc(c.company_name || '') + ' · ' + esc(c.gig_title || '') + (period ? ' · ' + esc(period) : '') + '</div>' +
+        '<div style="margin-top:4px; font-size:12.5px; color:var(--muted);">Оценка компании: <strong style="color:var(--ink);">' + esc(String(c.score)) + '/5</strong> <span style="opacity:0.7;">(в справку не попадёт)</span></div>' +
+        '<div style="margin-top:10px; padding:12px 14px; background:var(--bg); border-radius:10px; font-size:13.5px; line-height:1.6; white-space:pre-wrap; ' + S.wrap + '">' + esc(c.body || '') + '</div>' +
+        (c.reason ? '<div style="margin-top:6px; font-size:12.5px; color:#b3261e;">Причина отказа: ' + esc(c.reason) + '</div>' : '') +
+        '</div>' +
+        '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
+      '</div>' + actionsHtml + '</div>';
+  }
+
   function adminView() {
     if (!state.isAdmin) return homeView();
     var a = state.admin;
@@ -1488,8 +1565,16 @@
       : '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Смена статуса</div>' +
         '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + sShown.map(adminStatusCard).join('') + '</div>';
 
+    // Справки: текст уходит на публичную страницу с именем человека, поэтому раздел
+    // держим сразу под заявками на статус — пропускать его нельзя.
+    var certs = a.certs || [];
+    var cShown = a.tab === 'all' ? certs : certs.filter(function (c) { return c.status === 'pending'; });
+    var certsBlock = (a.tab === 'ai' || !cShown.length) ? ''
+      : '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Справки о стажировке</div>' +
+        '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + cShown.map(adminCertCard).join('') + '</div>';
+
     var title = '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Файлы студентов</div>';
-    return pageWrap('Модерация', tabs + companies + statuses + title + body, 1200);
+    return pageWrap('Модерация', tabs + companies + statuses + certsBlock + title + body, 1200);
   }
 
   /* ---------- PROFILE (чужой) ---------- */
@@ -1746,6 +1831,7 @@
       case 'chat': return chatView();
       case 'profile': return profileViewPage();
       case 'admin': return adminView();
+      case 'cert': return certView();
       default: return homeView();
     }
   }
@@ -1788,6 +1874,37 @@
     goResponses: function () { loadApplications(); setState({ view: 'responses' }); top(); },
     goVacancies: function () { loadApplications(); setState({ view: 'vacancies' }); top(); },
     respTab: function (el) { setState({ respTab: el.getAttribute('data-tab') }); },
+    openCompleteModal: function (el) {
+      var a = findApplication(el.getAttribute('data-app-id'));
+      if (!a) return;
+      state.form.certBody = '';
+      // Начало подставляем датой отклика, окончание — сегодняшним: компания поправит.
+      state.form.certStart = (a.created_at || '').slice(0, 10);
+      state.form.certEnd = new Date().toISOString().slice(0, 10);
+      setState({ modal: 'complete', certModal: { appId: a.id, score: 5, error: '', loading: false } });
+    },
+    setCertScore: function (el) {
+      state.certModal.score = Number(el.getAttribute('data-score'));
+      setState({});
+    },
+    submitComplete: function () {
+      var cm = state.certModal;
+      var body = (state.form.certBody || '').trim();
+      if (body.length < 120) { setState({ certModal: Object.assign({}, cm, { error: 'Характеристика слишком короткая — опишите, что студент делал и чего добился' }) }); return; }
+      setState({ certModal: Object.assign({}, cm, { error: '', loading: true }) });
+      supabase.rpc('complete_internship', {
+        p_application_id: cm.appId, p_score: cm.score, p_body: body,
+        p_started_at: state.form.certStart || null, p_finished_at: state.form.certEnd || null
+      }).then(function (r) {
+        if (r.error) {
+          setState({ certModal: Object.assign({}, state.certModal, { loading: false, error: r.error.message || 'Не удалось завершить стажировку' }) });
+          return;
+        }
+        state.form.certBody = '';
+        setState({ modal: null, certModal: { appId: null, score: 5, error: '', loading: false } });
+        loadApplications();
+      });
+    },
     // Меню открывается/закрывается без полной перерисовки — иначе тело страницы «дёргается» (повтор анимаций).
     toggleMenu: function () { state.menuOpen = !state.menuOpen; paintHeader(); },
     // Открывает окно авторизации Telegram через JS-API (своя кнопка вместо iframe-виджета).
@@ -2632,6 +2749,11 @@
       var reason = (state.form.adminReason || '').trim();
       adminDecideFile(el.getAttribute('data-id'), 'rejected', reason || 'Без указания причины');
     },
+    adminCertStartReject: function (el) { state.admin.rejectFor = el.getAttribute('data-id'); state.admin.reason = ''; setState({}); },
+    adminCertPublish: function (el) { adminDecideCertificate(el.getAttribute('data-id'), 'published', null); },
+    adminCertConfirmReject: function (el) {
+      adminDecideCertificate(el.getAttribute('data-id'), 'rejected', (state.form.adminReason || '').trim() || 'Без указания причины');
+    },
     adminStatusStartReject: function (el) { state.admin.rejectFor = el.getAttribute('data-id'); state.admin.reason = ''; setState({}); },
     adminStatusApprove: function (el) { adminDecideStatus(el.getAttribute('data-id'), 'approved', null, el.getAttribute('data-path')); },
     adminStatusConfirmReject: function (el) {
@@ -2712,13 +2834,13 @@
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', companyStep: 'login', otpRole: 'student',
         files: [], filesLoading: false, isAdmin: false,
-        admin: { tab: 'pending', items: [], companies: [], statusReqs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false, respTab: 'pending',
+        admin: { tab: 'pending', items: [], companies: [], statusReqs: [], certs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false, respTab: 'pending',
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         // Иначе следующий вход в этом же браузере увидел бы привязки предыдущего человека.
         links: { telegram_id: null, telegram_username: '', login_email: '', login_is_synthetic: false, loading: false, error: '' },
         emailLink: { step: null, email: '', error: '', loading: false },
-        statusReq: null,
+        statusReq: null, history: [], cert: { loading: false, data: null, error: '' },
         profileSave: { loading: false, error: '' },
         docUpload: { loading: false, error: '', fileName: '' },
         extrasSave: { loading: false, error: '', ok: false },
@@ -2802,6 +2924,7 @@
         loadStudentFiles();   // статусы документов и файлов — из student_files, не из профиля
         loadAccountLinks();   // привязан ли Telegram, настоящий ли логин-email
         loadStatusRequest();  // не висит ли заявка на смену статуса
+        loadStudentHistory(); // завершённые стажировки — из справок, не из профиля
         return true;
       }
       return false;
@@ -2850,6 +2973,30 @@
         login_is_synthetic: !!row.login_is_synthetic,
         loading: false, error: '',
       };
+      render();
+    });
+  }
+
+  // Решение по справке. Публикация делает страницу доступной по ссылке всем.
+  function adminDecideCertificate(id, decision, reason) {
+    if (!supabase || !id) return;
+    state.admin.busy = id; render();
+    supabase.rpc('admin_decide_certificate', { p_id: id, p_status: decision, p_reason: reason }).then(function (r) {
+      state.admin.busy = null;
+      state.admin.rejectFor = null;
+      state.form.adminReason = '';
+      if (r.error) { state.admin.error = 'Не удалось сохранить решение'; render(); return; }
+      loadAdminQueue();
+    });
+  }
+
+  // История стажировок студента. Выводится из опубликованных справок, а не из
+  // profiles.data: туда студент пишет сам и мог бы приписать себе чужие компании.
+  function loadStudentHistory() {
+    if (!supabase || !currentUserId()) return;
+    supabase.rpc('student_history', { p_student: currentUserId() }).then(function (r) {
+      if (r.error) return;   // 0016 не применена — блок останется пустым
+      state.history = r.data || [];
       render();
     });
   }
@@ -2911,7 +3058,8 @@
     Promise.all([
       supabase.rpc('admin_moderation_queue', { p_status: null }),
       supabase.from('company_applications').select('id, data, status, created_at').order('created_at', { ascending: false }),
-      supabase.rpc('admin_status_queue', { p_status: null })
+      supabase.rpc('admin_status_queue', { p_status: null }),
+      supabase.rpc('admin_certificate_queue', { p_status: null })
     ]).then(function (res) {
       state.admin.loading = false;
       if (res[0].error) state.admin.error = 'Не удалось загрузить очередь';
@@ -2919,6 +3067,8 @@
       if (!res[1].error) state.admin.companies = res[1].data || [];
       // 0014 могла быть ещё не применена — тогда просто не показываем этот раздел.
       state.admin.statusReqs = res[2].error ? [] : (res[2].data || []);
+      // 0016 могла быть ещё не применена — тогда раздел просто не показываем.
+      state.admin.certs = res[3].error ? [] : (res[3].data || []);
       render();
     });
   }
@@ -3179,19 +3329,21 @@
 
   /* ---------- document upload modal ---------- */
   function reviewsModalHtml() {
-    var sp = state.studentProfile || {};
-    var history = (sp.platformHistory || []).filter(function (h) { return h.review && (h.review.text || typeof h.review.score === 'number'); });
+    // Источник — опубликованные справки; оценки здесь нет по той же причине, что и в
+    // кабинете: она внутренняя. Показываем то, что написала компания.
+    var history = state.history || [];
     var items = history.length
       ? history.map(function (h) {
+          var period = (h.started_at ? fmtDate(h.started_at) : '') + (h.finished_at ? ' — ' + fmtDate(h.finished_at) : '');
           return '<div style="padding:14px 0; border-top:1.5px solid var(--line);">' +
-            '<div style="font-weight:600; font-size:14px;">' + esc(h.title) + (h.company ? ' <span style="color:var(--muted); font-weight:500;">· ' + esc(h.company) + '</span>' : '') + '</div>' +
-            (typeof h.review.score === 'number' ? '<div style="margin:6px 0;">' + starRating(h.review.score) + '</div>' : '') +
-            (h.review.text ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.5; margin:6px 0 0;">' + esc(h.review.text) + '</p>' : '') +
-            (h.review.founder ? '<div style="font-size:12.5px; font-weight:600; margin-top:6px;">— ' + esc(h.review.founder) + '</div>' : '') + '</div>';
+            '<div style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(h.gig_title || 'Стажировка') + (h.company_name ? ' <span style="color:var(--muted); font-weight:500;">· ' + esc(h.company_name) + '</span>' : '') + '</div>' +
+            (period ? '<div style="font-size:12px; color:var(--muted); margin-top:2px;">' + esc(period) + '</div>' : '') +
+            '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:8px 0 0; white-space:pre-wrap; ' + S.wrap + '">' + esc(h.body || '') + '</p>' +
+            '<a href="/cert/' + esc(h.public_id) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:8px; font-size:12.5px; font-weight:600; color:var(--accent);">Ссылка на справку ↗</a></div>';
         }).join('')
-      : '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 0;">Пока нет отзывов — они появятся здесь после завершения стажировок на платформе.</p>';
+      : '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 0;">Пока пусто — характеристики появятся здесь после завершения стажировок.</p>';
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:460px; width:100%; max-height:80vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Отзывы и обратная связь</h3>' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Характеристики от компаний</h3>' +
         '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
       items +
       '<button data-action="closeModal" style="margin-top:18px; width:100%; ' + S.ghost + '">Закрыть</button></div>';
@@ -3230,10 +3382,52 @@
       '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
+  // Завершение стажировки. Характеристика — то, ради чего справка существует, поэтому
+  // здесь подсказки и минимальная длина: без них компании отписываются одной строкой
+  // «молодец, всё хорошо», и документ обесценивается.
+  function completeModalHtml() {
+    var cm = state.certModal;
+    var a = findApplication(cm.appId) || {};
+    var body = state.form.certBody || '';
+    var left = 120 - body.trim().length;
+
+    var scoreBtns = [1, 2, 3, 4, 5].map(function (n) {
+      var on = cm.score === n;
+      return '<button data-action="setCertScore" data-score="' + n + '" style="font-size:14px; font-weight:700; width:42px; height:42px; border-radius:10px; cursor:pointer; border:1.5px solid ' + (on ? 'var(--ink)' : 'var(--line)') + '; background:' + (on ? 'var(--ink)' : '#fff') + '; color:' + (on ? '#fff' : 'var(--muted)') + ';">' + n + '</button>';
+    }).join('');
+
+    var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:560px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Завершить стажировку</h3>' +
+        '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 18px;">' + esc(a.student_name || 'Студент') + ' получит справку о стажировке с вашей характеристикой. Справку проверяют по ссылке, поэтому написанное здесь увидят будущие работодатели.</p>' +
+
+      '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Оценка работы <span style="color:var(--muted); font-weight:500;">— видна только внутри платформы</span></div>' +
+      '<div style="display:flex; gap:8px; margin-bottom:18px;">' + scoreBtns + '</div>' +
+
+      '<div style="font-size:13px; font-weight:600; margin-bottom:6px;">Характеристика <span style="color:var(--muted); font-weight:500;">— попадёт в справку</span></div>' +
+      '<div style="font-size:12.5px; color:var(--muted); line-height:1.55; margin-bottom:8px;">Напишите по делу: что студент делал, что из этого получилось, с чем справился, как показал себя в работе с людьми. Общие слова вроде «молодец» справку обесценивают.</div>' +
+      '<textarea data-field="certBody" rows="7" placeholder="Например: за 8 недель собрал посадочную страницу на React и настроил аналитику. Самостоятельно разобрался с вёрсткой под мобильные, хотя раньше не делал. Задавал точные вопросы, о задержках предупреждал заранее." style="' + S.field + ' width:100%; resize:vertical; font-family:inherit; line-height:1.55;">' + esc(body) + '</textarea>' +
+      '<div id="cert-left" style="font-size:12px; color:' + (left > 0 ? 'var(--muted)' : '#16a34a') + '; margin-top:6px;">' + (left > 0 ? 'Ещё минимум ' + left + ' символов' : 'Достаточно') + '</div>' +
+
+      '<div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">' +
+        '<label style="flex:1; min-width:140px;"><span style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Начало</span><input type="date" data-field="certStart" value="' + esc(state.form.certStart || '') + '" style="' + S.field + ' width:100%;"></label>' +
+        '<label style="flex:1; min-width:140px;"><span style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Окончание</span><input type="date" data-field="certEnd" value="' + esc(state.form.certEnd || '') + '" style="' + S.field + ' width:100%;"></label>' +
+      '</div>' +
+
+      '<div style="margin-top:16px; padding:11px 14px; background:var(--bg); border-radius:10px; font-size:12.5px; color:var(--muted); line-height:1.5;">Справка уходит на проверку платформе и публикуется после неё. После выдачи текст не редактируется — исправления только через поддержку.</div>' +
+      (cm.error ? '<div style="margin-top:10px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(cm.error) + '</div>' : '') +
+      '<button data-action="submitComplete"' + (cm.loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (cm.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (cm.loading ? 'Отправляем…' : 'Завершить и выдать справку') + '</button>' +
+      '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button></div>';
+
+    return '<div data-action="closeModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
+      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+  }
+
   function modalHtml() {
     if (!state.modal) return '';
     if (state.modal === 'reviews') return reviewsModalHtml();
     if (state.modal === 'status') return statusModalHtml();
+    if (state.modal === 'complete') return completeModalHtml();
     var type = state.modal;
     var isConsent = type === 'consent';
     var title = isConsent ? 'Согласие родителя' : 'Подтверждение места учёбы';
@@ -3769,9 +3963,37 @@
 
   function init() {
     root = document.getElementById('root');
-    var tgUser = readTelegramReturn();
-    var tgIntent = takeTelegramIntent();
-    if (tgUser && tgIntent === 'link') {
+    // Публичная справка: /cert/<public_id>. Cloudflare Pages на неизвестный путь отдаёт
+    // index.html, поэтому маршрут разбираем здесь. Открывается без входа.
+    var certMatch = (window.location.pathname || '').match(/\/cert\/([A-Za-z0-9_-]+)\/?$/);
+    if (certMatch) {
+      // Справка школьника не должна всплывать в гугле по его имени: ссылку студент
+      // даёт сам, но индексировать её не нужно.
+      var meta = document.createElement('meta');
+      meta.name = 'robots';
+      meta.content = 'noindex, nofollow';
+      document.head.appendChild(meta);
+
+      state.view = 'cert';
+      state.cert = { loading: true, data: null, error: '' };
+      if (supabase) {
+        supabase.rpc('certificate_public', { p_public_id: certMatch[1] }).then(function (r) {
+          state.cert = { loading: false, data: (r.data && r.data[0]) || null, error: r.error ? 'Не удалось загрузить справку' : '' };
+          render();
+        });
+      } else {
+        state.cert = { loading: false, data: null, error: 'Supabase не настроен' };
+      }
+    }
+
+    var tgUser = certMatch ? null : readTelegramReturn();
+    var tgIntent = certMatch ? null : takeTelegramIntent();
+    // Сессию на странице справки не восстанавливаем: она публичная и открывается
+    // посторонним человеком. Но обработчики ниже вешаются в обоих случаях — иначе
+    // на этой странице не работали бы ссылки в шапке.
+    if (certMatch) {
+      render();
+    } else if (tgUser && tgIntent === 'link') {
       // Возврат после привязки: сессия уже есть (человек не выходил), меняем не её,
       // а связь telegram_id → аккаунт. Профиль восстанавливаем как обычно.
       restoreSession();
@@ -3817,6 +4039,15 @@
     root.addEventListener('input', function (e) {
       var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value;
       var itf = e.target.getAttribute && e.target.getAttribute('data-item-field'); if (itf) { state.itemForm = state.itemForm || {}; state.itemForm[itf] = e.target.value; }
+      // Счётчик длины характеристики — тоже точечно: render() сбросил бы фокус и каретку.
+      if (f === 'certBody') {
+        var cl = document.getElementById('cert-left');
+        if (cl) {
+          var rest = 120 - e.target.value.trim().length;
+          cl.textContent = rest > 0 ? 'Ещё минимум ' + rest + ' символов' : 'Достаточно';
+          cl.style.color = rest > 0 ? 'var(--muted)' : '#16a34a';
+        }
+      }
       // Подпись у ползунка обновляем точечно, а не через render(): перерисовка заменит
       // сам input, и перетаскивание оборвётся на первом же движении.
       if (itf === 'confidence') {
