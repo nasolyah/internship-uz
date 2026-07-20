@@ -773,8 +773,11 @@
     } else if (minorLocked) {
       listings = minorLock('Каталог заблокирован');
     } else {
-      listings = state.gigs.length
-        ? '<div style="display:flex; flex-direction:column; gap:14px;">' + state.gigs.map(function (r) { return gigCard(gigView(r)); }).join('') + '</div>'
+      // Каталог — это «куда можно откликнуться». Обычному студенту закрытые задачи
+      // не приходят вовсе (политика), а админу приходят все — здесь их и отсеиваем.
+      var openGigs = state.gigs.filter(function (r) { return r.is_open !== false; });
+      listings = openGigs.length
+        ? '<div style="display:flex; flex-direction:column; gap:14px;">' + openGigs.map(function (r) { return gigCard(gigView(r)); }).join('') + '</div>'
         : emptyCard('Пока нет задач', 'Компании ещё не разместили задачи. Загляните позже — здесь появятся реальные проекты.');
     }
 
@@ -3308,7 +3311,9 @@
   // Загружает задачи из БД (публичное чтение) в каталог.
   function loadGigs() {
     if (!supabase) return;
-    supabase.from('gigs').select('*').order('created_at', { ascending: false }).limit(100).then(function (r) {
+    // is_open — вычисляемое поле (0019): у админа политика отдаёт все задачи, включая
+    // закрытые, поэтому отличить их иначе клиент не может.
+    supabase.from('gigs').select('*, is_open').order('created_at', { ascending: false }).limit(100).then(function (r) {
       if (r.error || !r.data) return;
       state.gigs = r.data;
       render();
