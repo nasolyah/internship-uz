@@ -1464,6 +1464,16 @@
   // Read-only карточки под вид личного кабинета: тот же стиль, но без кнопок редактирования.
   var RO_CARD = 'background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:24px;';
   var RO_TITLE = 'font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px;';
+  // Ссылка на подтверждающий файл в чужом профиле. Сюда доходят только одобренные файлы:
+  // неодобренные вырезает student_public ещё в базе. url — подписанная ссылка, выданная
+  // при загрузке, поэтому компании отдельный доступ к приватному бакету не нужен.
+  function roFileLink(file, inline) {
+    if (!file || !file.url) return '';
+    return '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" style="display:inline-block; ' +
+      (inline ? '' : 'margin-top:10px; ') + 'font-size:12.5px; font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' +
+      esc(file.name || 'Документ') + ' ↗</a>';
+  }
+
   function roCard(title, inner) {
     return '<div style="' + RO_CARD + '">' + (title ? '<div style="' + RO_TITLE + ' margin-bottom:14px;">' + title + '</div>' : '') + inner + '</div>';
   }
@@ -1547,7 +1557,9 @@
             var nm = typeof sk === 'string' ? sk : sk.name;
             var conf = typeof sk === 'object' ? sk.confidence : null;
             return '<div style="border:1.5px solid var(--line); border-radius:12px; padding:13px 14px;"><div style="display:flex; align-items:center; gap:8px;"><span style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(nm) + '</span>' +
-              (typeof conf === 'number' ? '<span style="font-size:11px; font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div></div>';
+              (typeof conf === 'number' ? '<span style="font-size:11px; font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div>' +
+              (sk && sk.description ? '<p style="font-size:12.5px; color:var(--muted); line-height:1.5; margin:8px 0 0; ' + S.wrap + '">' + esc(sk.description) + '</p>' : '') +
+              roFileLink(sk && sk.file) + '</div>';
           }).join('') + '</div>';
       }
       if (langs.length) {
@@ -1555,7 +1567,7 @@
           langs.map(function (l) {
             var nm = typeof l === 'string' ? l : l.name;
             var lvl = typeof l === 'object' ? l.level : '';
-            return '<div style="display:flex; align-items:center; gap:8px; padding:10px 0; border-top:1.5px solid var(--line); font-size:13.5px;"><strong style="font-weight:600;">' + esc(nm) + '</strong>' + (lvl ? '<span style="color:var(--muted);">— ' + esc(lvl) + '</span>' : '') + '</div>';
+            return '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 0; border-top:1.5px solid var(--line); font-size:13.5px;"><strong style="font-weight:600;">' + esc(nm) + '</strong>' + (lvl ? '<span style="color:var(--muted);">— ' + esc(lvl) + '</span>' : '') + roFileLink(l && l.file, true) + '</div>';
           }).join('');
       }
       cards.push(roCard('Матрица навыков', inner));
@@ -3230,7 +3242,7 @@
           }).join('') + '</div>'
         : '<div style="font-size:12.5px; color:var(--muted); margin-top:6px;">Сначала добавьте проекты, чтобы связать их с навыком.</div>';
       fields = itemField('Навык', 'name', f.name, 'Например, Frontend, Figma, Python') +
-        '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Уверенность: <span style="color:' + confidenceColor(Number(confVal)) + '; font-weight:700;">' + confVal + '/10</span></span>' +
+        '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Уверенность: <span id="conf-badge" style="color:' + confidenceColor(Number(confVal)) + '; font-weight:700;">' + confVal + '/10</span></span>' +
           '<input type="range" min="1" max="10" step="1" data-item-field="confidence" value="' + esc(confVal) + '" style="width:100%;"></label>' +
         itemTextarea('Описание навыка', 'description', f.description, 'Например: полтора года пишу на React, делал лендинги и SPA…') +
         '<div style="margin-bottom:4px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Работы, где применялся навык</span>' + projChips + '</div>';
@@ -3759,6 +3771,12 @@
     root.addEventListener('input', function (e) {
       var f = e.target.getAttribute && e.target.getAttribute('data-field'); if (f) state.form[f] = e.target.value;
       var itf = e.target.getAttribute && e.target.getAttribute('data-item-field'); if (itf) { state.itemForm = state.itemForm || {}; state.itemForm[itf] = e.target.value; }
+      // Подпись у ползунка обновляем точечно, а не через render(): перерисовка заменит
+      // сам input, и перетаскивание оборвётся на первом же движении.
+      if (itf === 'confidence') {
+        var cb = document.getElementById('conf-badge');
+        if (cb) { var cn = Number(e.target.value); cb.textContent = cn + '/10'; cb.style.color = confidenceColor(cn); }
+      }
       var cf = e.target.getAttribute && e.target.getAttribute('data-company-field'); if (cf && state.companyProfile) state.companyProfile[cf] = e.target.value;
       applyItemArrayField(e.target);
     });
