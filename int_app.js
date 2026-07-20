@@ -61,6 +61,8 @@
     tgDraft: false,
     // Фильтр в плоском списке откликов компании: по умолчанию — те, что ждут ответа.
     respTab: 'pending',
+    certs: [],            // справки компании — чтобы приложить свидетельство
+    certDocBusy: null,
     // Форма завершения стажировки и публичная страница справки.
     certModal: { appId: null, score: 5, error: '', loading: false },
     cert: { loading: false, data: null, error: '' },
@@ -1042,8 +1044,16 @@
         '<div style="flex:1; min-width:0;"><div style="font-weight:600; font-size:14.5px; ' + S.wrap + '">' + esc(h.gig_title || 'Стажировка') + '</div>' +
         '<div style="font-size:12.5px; color:var(--muted); margin-top:2px;">' + esc(h.company_name || '') + (period ? ' · ' + esc(period) : '') + '</div>' +
         (h.body ? '<div style="margin-top:8px; padding:11px 13px; background:var(--bg); border-radius:10px; font-size:13px; color:var(--muted); line-height:1.55; white-space:pre-wrap; ' + S.wrap + '">' + esc(h.body) + '</div>' : '') +
-        '<a href="/cert/' + esc(h.public_id) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:8px; font-size:12.5px; font-weight:600; color:var(--accent);">Ссылка на справку ↗</a>' +
-        '</div></div>';
+        '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px;">' +
+        '<a href="/cert/' + esc(h.public_id) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent);">Ссылка на справку ↗</a>' +
+        // Официальное свидетельство лежит в приватном бакете, прямой ссылки нет —
+        // подписываем по клику.
+        (h.doc_status === 'approved' && h.doc_path
+          ? '<a data-action="downloadCertDoc" data-path="' + esc(h.doc_path) + '" style="font-size:12.5px; font-weight:600; color:var(--accent); cursor:pointer;">📄 Официальное свидетельство ↓</a>'
+          : h.doc_status === 'pending'
+            ? '<span style="font-size:12.5px; color:var(--muted);">Свидетельство от компании на проверке</span>'
+            : '') +
+        '</div></div></div>';
     };
     var historySection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">История на платформе</div>' +
       '<p style="font-size:13px; color:var(--muted); margin:0 0 4px;">Завершённые стажировки, подтверждённые компаниями через internship.uz.</p>' +
@@ -1256,6 +1266,29 @@
     }
 
     var decision = '';
+    // Завершённая стажировка: слот под официальное свидетельство. Шаблона нет —
+    // компания составляет документ сама, платформа только принимает и проверяет.
+    if (asCompany && a.status === 'completed') {
+      var cert = (state.certs || []).filter(function (c) { return c.application_id === a.id; })[0];
+      if (cert) {
+        var ds = cert.doc_status;
+        var dsLine = ds === 'pending'  ? '<span style="color:#b26b12; font-weight:600;">на проверке</span>'
+                   : ds === 'approved' ? '<span style="color:#16a34a; font-weight:600;">принято, студент может скачать</span>'
+                   : ds === 'rejected' ? '<span style="color:#b3261e; font-weight:600;">отклонено' + (cert.doc_reason ? ': ' + esc(cert.doc_reason) : '') + '</span>'
+                   : '<span style="color:var(--muted);">не приложено</span>';
+        var busyDoc = state.certDocBusy === cert.id;
+        decision = '<div style="margin-top:14px; padding-top:14px; border-top:1.5px solid var(--line);">' +
+          '<div style="font-size:13px; font-weight:600; margin-bottom:4px;">Официальное свидетельство</div>' +
+          '<div style="font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:8px;">Документ на вашем бланке с подписью и печатью. Студент приложит его в Common App или портфолио. Проверяется платформой перед выдачей.</div>' +
+          '<div style="font-size:12.5px; margin-bottom:8px;">Статус: ' + dsLine + (cert.doc_name ? ' <span style="color:var(--muted);">· ' + esc(cert.doc_name) + '</span>' : '') + '</div>' +
+          (busyDoc
+            ? '<div style="font-size:12.5px; color:var(--muted);">Загружаем…</div>'
+            : '<label style="display:inline-flex; align-items:center; gap:9px; cursor:pointer; font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:8px 14px; border-radius:8px;">' +
+              (ds ? 'Заменить файл' : 'Загрузить свидетельство') +
+              '<input data-cert-doc-input data-cert-id="' + esc(cert.id) + '" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="display:none;"></label>') +
+          '</div>';
+      }
+    }
     // Завершить можно только то, что начиналось: студента должны были пригласить.
     if (asCompany && a.status === 'invited') {
       decision = '<div style="display:flex; gap:8px; margin-top:12px;">' +
@@ -1518,6 +1551,24 @@
     } else if (c.status === 'published') {
       actionsHtml = '<div style="margin-top:12px;"><a href="/cert/' + esc(c.public_id) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent);">Открыть публичную страницу ↗</a></div>';
     }
+
+    // Официальное свидетельство от компании — отдельное решение: справка может быть уже
+    // опубликована, а бумагу компания приложит позже.
+    var docBlock = '';
+    if (c.doc_status) {
+      var dst = { pending: ['ждёт проверки', '#b26b12'], approved: ['принято', '#16a34a'], rejected: ['отклонено', '#b3261e'] }[c.doc_status] || ['—', 'var(--muted)'];
+      docBlock = '<div style="margin-top:14px; padding-top:14px; border-top:1.5px solid var(--line);">' +
+        '<div style="font-size:13px; font-weight:600; margin-bottom:6px;">Официальное свидетельство ' +
+        '<span style="font-size:11.5px; font-weight:700; color:' + dst[1] + '; background:color-mix(in srgb, ' + dst[1] + ' 12%, #fff); padding:3px 8px; border-radius:6px; margin-left:4px;">' + dst[0] + '</span></div>' +
+        '<div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">От: ' + esc(c.company_name || '') + ' · Для: ' + esc(c.student_name || '') + (c.doc_name ? ' · ' + esc(c.doc_name) : '') + '</div>' +
+        (c.doc_status === 'pending'
+          ? '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+            (c.doc_path ? '<button data-action="adminOpenFile" data-path="' + esc(c.doc_path) + '" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть документ</button>' : '') +
+            '<button data-action="adminCertDocApprove" data-id="' + esc(c.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Принять</button>' +
+            '<button data-action="adminCertDocReject" data-id="' + esc(c.id) + '" style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>'
+          : (c.doc_reason ? '<div style="font-size:12.5px; color:#b3261e;">Причина: ' + esc(c.doc_reason) + '</div>' : '')) +
+        '</div>';
+    }
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
         '<div style="min-width:0;"><div style="font-weight:600; font-size:16px;">' + esc(c.student_name || 'Студент') + '</div>' +
@@ -1527,7 +1578,7 @@
         (c.reason ? '<div style="margin-top:6px; font-size:12.5px; color:#b3261e;">Причина отказа: ' + esc(c.reason) + '</div>' : '') +
         '</div>' +
         '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
-      '</div>' + actionsHtml + '</div>';
+      '</div>' + actionsHtml + docBlock + '</div>';
   }
 
   function adminView() {
@@ -2751,6 +2802,20 @@
       var reason = (state.form.adminReason || '').trim();
       adminDecideFile(el.getAttribute('data-id'), 'rejected', reason || 'Без указания причины');
     },
+    downloadCertDoc: function (el) {
+      var path = el.getAttribute('data-path');
+      if (!supabase || !path) return;
+      supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 300).then(function (r) {
+        if (r.data && r.data.signedUrl) window.open(r.data.signedUrl, '_blank', 'noopener');
+        else alert('Не удалось открыть файл');
+      });
+    },
+    adminCertDocApprove: function (el) { adminDecideCertDoc(el.getAttribute('data-id'), 'approved', null); },
+    adminCertDocReject: function (el) {
+      var why = window.prompt('Причина отказа — её увидит компания:', '');
+      if (why === null) return;
+      adminDecideCertDoc(el.getAttribute('data-id'), 'rejected', why.trim() || 'Без указания причины');
+    },
     adminCertStartReject: function (el) { state.admin.rejectFor = el.getAttribute('data-id'); state.admin.reason = ''; setState({}); },
     adminCertPublish: function (el) { adminDecideCertificate(el.getAttribute('data-id'), 'published', null); },
     adminCertConfirmReject: function (el) {
@@ -2842,7 +2907,7 @@
         // Иначе следующий вход в этом же браузере увидел бы привязки предыдущего человека.
         links: { telegram_id: null, telegram_username: '', login_email: '', login_is_synthetic: false, loading: false, error: '' },
         emailLink: { step: null, email: '', error: '', loading: false },
-        statusReq: null, history: [], cert: { loading: false, data: null, error: '' },
+        statusReq: null, history: [], certs: [], certDocBusy: null, cert: { loading: false, data: null, error: '' },
         profileSave: { loading: false, error: '' },
         docUpload: { loading: false, error: '', fileName: '' },
         extrasSave: { loading: false, error: '', ok: false },
@@ -2977,6 +3042,37 @@
       };
       render();
     });
+  }
+
+  function adminDecideCertDoc(id, decision, reason) {
+    if (!supabase || !id) return;
+    state.admin.busy = id; render();
+    supabase.rpc('admin_decide_certificate_doc', { p_id: id, p_status: decision, p_reason: reason }).then(function (r) {
+      state.admin.busy = null;
+      if (r.error) { state.admin.error = 'Не удалось сохранить решение'; render(); return; }
+      loadAdminQueue();
+    });
+  }
+
+  // Загрузка официального свидетельства компанией. Кладём в certs/<id справки>/ —
+  // в папку студента компания писать не может, да и не должна.
+  function uploadCertDoc(certId, file) {
+    if (!supabase || !certId || !file) return;
+    if (file.size > 10 * 1024 * 1024) { state.admin.error = ''; alert('Файл больше 10 МБ'); return; }
+    var ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf';
+    var path = 'certs/' + certId + '/' + Date.now() + '.' + ext;
+    state.certDocBusy = certId; render();
+    supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' })
+      .then(function (up) {
+        if (up.error) { state.certDocBusy = null; render(); alert('Ошибка загрузки: ' + up.error.message); return; }
+        return supabase.rpc('attach_certificate_doc', {
+          p_certificate_id: certId, p_path: path, p_name: file.name || '', p_mime: file.type || '', p_size: file.size || 0
+        }).then(function (r) {
+          state.certDocBusy = null;
+          if (r.error) { render(); alert(r.error.message || 'Не удалось приложить свидетельство'); return; }
+          loadApplications();
+        });
+      });
   }
 
   // Решение по справке. Публикация делает страницу доступной по ссылке всем.
@@ -3242,6 +3338,13 @@
       .then(function (r) {
         state.appsLoading = false;
         if (!r.error && r.data) state.applications = r.data;
+        // Компании нужен id справки, чтобы приложить к ней свидетельство. RLS отдаёт
+        // только свои — по политике certificates_select_involved.
+        if (state.authRole === 'company') {
+          supabase.from('certificates')
+            .select('id, application_id, doc_path, doc_name, doc_status, doc_reason, status')
+            .then(function (c) { if (!c.error) state.certs = c.data || []; render(); });
+        }
         render();
       });
   }
@@ -4070,6 +4173,12 @@
       if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-file-input')) {
         pendingDocFile = (e.target.files && e.target.files[0]) || null;
         setState({ docUpload: { loading: false, error: '', fileName: pendingDocFile ? pendingDocFile.name : '' } });
+        return;
+      }
+      // Официальное свидетельство: грузим сразу по выбору файла — отдельная модалка тут
+      // ничего не добавляет, компания просто прикладывает готовый документ.
+      if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-cert-doc-input')) {
+        uploadCertDoc(e.target.getAttribute('data-cert-id'), (e.target.files && e.target.files[0]) || null);
         return;
       }
       // выбор файла(ов) в модалке добавления/редактирования элемента профиля
