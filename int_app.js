@@ -1608,9 +1608,14 @@
     var byAi = items.filter(function (f) { return f.decided_by === 'ai'; });
     var shown = a.tab === 'pending' ? pending : a.tab === 'ai' ? byAi : items;
     var pendingCompanies = (a.companies || []).filter(function (c) { return c.status === 'pending'; });
+    var certs = a.certs || [];
 
     var tabs = '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">' +
-      adminTab('pending', 'Ждут решения', pending.length) +
+      // Считаем всё, что ждёт решения, а не только файлы: иначе счётчик показывает 0,
+      // когда в очереди висит справка или заявка на смену статуса.
+      adminTab('pending', 'Ждут решения', pending.length + pendingCompanies.length +
+        (a.statusReqs || []).filter(function (r) { return r.status === 'pending'; }).length +
+        certs.filter(function (c) { return c.status === 'pending' || c.doc_status === 'pending'; }).length) +
       adminTab('ai', 'Одобрено ИИ', byAi.length) +
       adminTab('all', 'Все решения', items.length) +
       '<button data-action="adminRefresh" style="font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 16px; border-radius:10px; cursor:pointer; margin-left:auto;">Обновить</button></div>';
@@ -1639,8 +1644,11 @@
 
     // Справки: текст уходит на публичную страницу с именем человека, поэтому раздел
     // держим сразу под заявками на статус — пропускать его нельзя.
-    var certs = a.certs || [];
-    var cShown = a.tab === 'all' ? certs : certs.filter(function (c) { return c.status === 'pending'; });
+    // Решения ждёт либо сама справка, либо приложенное к ней свидетельство: справка
+    // может быть давно опубликована, а бумагу компания принесёт через неделю.
+    var cShown = a.tab === 'all' ? certs : certs.filter(function (c) {
+      return c.status === 'pending' || c.doc_status === 'pending';
+    });
     var certsBlock = (a.tab === 'ai' || !cShown.length) ? ''
       : '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Справки о стажировке</div>' +
         '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + cShown.map(adminCertCard).join('') + '</div>';
