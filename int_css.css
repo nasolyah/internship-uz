@@ -97,6 +97,29 @@ p { text-wrap: pretty; }
   .g4 { grid-template-columns: repeat(2, 1fr); }
 }
 
+@media (max-width: 620px) {
+  /* Заголовок отклика делил строку с плашкой статуса и кнопкой чата: колонка сжималась
+     до ~90px, и «удалена» рвалось на «удален / а». Отправляем правый блок на свою строку. */
+  .row-split { flex-wrap: wrap; }
+  .row-split > div:last-child { width: 100%; justify-content: flex-start; }
+
+  /* Футер одной колонкой по левому краю: на телефоне ссылки прижимались влево,
+     а текст вправо, и блок выглядел разъехавшимся. */
+  .foot-row { flex-direction: column; align-items: flex-start !important; gap: 16px !important; }
+  .foot-meta { text-align: left !important; }
+}
+
+/* Меню профиля прижато к правому краю кнопки (right:0), а сама кнопка стоит слева —
+   на узком экране меню уезжало за левый край. Прижимаем к левому краю кнопки и
+   ограничиваем шириной экрана. */
+@media (max-width: 560px) {
+  .profile-menu {
+    right: auto !important;
+    left: 0 !important;
+    width: min(252px, calc(100vw - 32px)) !important;
+  }
+}
+
 /* Порог для шапки выше, чем для сеток, и выбран по содержимому, а не по «модному»
    размеру: логотип 178 + меню 331 + кнопки 375 + отступы = ~990px. Всё, что уже,
    десктопная шапка ломает — на 768px она вылезала на 191px. */

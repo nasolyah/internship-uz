@@ -417,7 +417,7 @@
         var mItem = function (action, label, color) {
           return '<a data-action="' + action + '" class="menu-item" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; font-size:14px; font-weight:600; color:' + color + '; cursor:pointer;">' + label + '</a>';
         };
-        dropdown = '<div style="position:absolute; right:0; top:calc(100% + 10px); width:252px; background:#fff; border:1.5px solid var(--line); border-radius:14px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34); padding:8px; z-index:60;">' +
+        dropdown = '<div class="profile-menu" style="position:absolute; right:0; top:calc(100% + 10px); width:252px; background:#fff; border:1.5px solid var(--line); border-radius:14px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34); padding:8px; z-index:60;">' +
           '<div style="display:flex; align-items:center; gap:11px; padding:8px 10px 12px; border-bottom:1.5px solid var(--line); margin-bottom:6px;">' + avatar +
             '<div style="min-width:0;"><div style="font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + esc(name) + '</div>' +
             '<div style="font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; margin-top:3px;"><span style="width:6px; height:6px; border-radius:50%; background:' + dot + '; flex-shrink:0;"></span>' + esc(verifyStatus()) + '</div></div></div>' +
@@ -447,7 +447,7 @@
   /* ---------- footer ---------- */
   function footer() {
     return '<footer style="border-top:1.5px solid var(--line); background:#fff;">' +
-      '<div style="max-width:1180px; margin:0 auto; padding:36px 28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">' +
+      '<div class="foot-row" style="max-width:1180px; margin:0 auto; padding:36px 28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">' +
         '<div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:51px; height:30px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:80px; height:80px; max-width:none; margin:-26px 0 0 -15px; display:block;"></span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">internship.uz</span></div>' +
         // Раньше в футере были только логотип и слоган — ноль ссылок. Для платформы,
         // которая просит у несовершеннолетних имя как в паспорте и подписанное согласие
@@ -458,7 +458,7 @@
           '<a href="#sec-verify" data-action="scrollVerify" class="nav-link">Верификация</a>' +
           '<a href="' + CONSENT_TEMPLATE_URL + '" download class="nav-link">Шаблон согласия родителя</a>' +
         '</nav>' +
-        '<div style="font-size:13px; color:var(--muted); text-align:right; line-height:1.7;">' +
+        '<div class="foot-meta" style="font-size:13px; color:var(--muted); text-align:right; line-height:1.7;">' +
           'Платформа стажировок для стартапов и студентов Узбекистана<br>' +
           // Живой контакт: родителю, решающему подписать согласие, и компании, решающей
           // заплатить, нужен адрес, по которому отвечает человек.
@@ -1328,7 +1328,7 @@
     }
 
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px 26px;">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">' +
+      '<div class="row-split" style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">' +
         '<div style="min-width:0;">' +
           '<div style="font-weight:600; font-size:17.5px; letter-spacing:-0.01em; ' + S.wrap + '">' + title + '</div>' +
           '<div style="font-size:13.5px; color:var(--muted); margin-top:4px;">' + subtitle + '</div>' +
