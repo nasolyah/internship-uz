@@ -449,6 +449,15 @@
     return '<footer style="border-top:1.5px solid var(--line); background:#fff;">' +
       '<div style="max-width:1180px; margin:0 auto; padding:36px 28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">' +
         '<div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:51px; height:30px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:80px; height:80px; max-width:none; margin:-26px 0 0 -15px; display:block;"></span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">internship.uz</span></div>' +
+        // Раньше в футере были только логотип и слоган — ноль ссылок. Для платформы,
+        // которая просит у несовершеннолетних имя как в паспорте и подписанное согласие
+        // родителя, анонимный низ страницы — крупнейшая утечка доверия. Контакты и
+        // юрлицо добавляются отдельно: выдумывать их нельзя.
+        '<nav style="display:flex; align-items:center; gap:22px; flex-wrap:wrap; font-size:13px; color:var(--muted);">' +
+          '<a href="#sec-how" data-action="scrollHow" class="nav-link">Как это работает</a>' +
+          '<a href="#sec-verify" data-action="scrollVerify" class="nav-link">Верификация</a>' +
+          '<a href="' + CONSENT_TEMPLATE_URL + '" download class="nav-link">Шаблон согласия родителя</a>' +
+        '</nav>' +
         '<div style="font-size:13px; color:var(--muted); text-align:right;">Платформа стажировок для стартапов и студентов Узбекистана<br>Пилот · 2026</div>' +
       '</div></footer>';
   }
@@ -513,7 +522,7 @@
       '<div class="g-split" style="display:grid; gap:56px; align-items:center;">' +
         '<div><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Доверие и качество</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 16px;">Профили проверены. Результат — оформлен официально.</h2><p style="font-size:16px; color:var(--muted); line-height:1.6;">Мы снижаем два главных риска: сомнительное качество исполнителей для компаний и юридическую неопределённость для обеих сторон. Верификация — бесплатная, а практика оформляется как учебная, а не как трудоустройство.</p>' +
           '<div style="margin-top:24px; padding:18px 20px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 20%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Официальный документ о практике</strong> — студент получает подтверждение пройденной учебной практики, которое можно приложить к резюме или заявке на поступление.</div>' +
-          '<div style="margin-top:14px; padding:18px 20px; background:color-mix(in srgb, #e2a53a 8%, #fff); border:1px solid color-mix(in srgb, #e2a53a 26%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Защита несовершеннолетних</strong> — участникам до 18 лет доступ открывается только после письменного согласия родителя (по законодательству РУз). Готовый шаблон согласия — в один клик.</div>' +
+          '<div style="margin-top:14px; padding:18px 20px; background:color-mix(in srgb, #e2a53a 8%, #fff); border:1px solid color-mix(in srgb, #e2a53a 26%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Защита несовершеннолетних</strong> — участникам до 18 лет доступ открывается только после письменного согласия родителя (по законодательству РУз). <a href="' + CONSENT_TEMPLATE_URL + '" download style="font-weight:700; color:var(--accent); border-bottom:1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);">Скачать шаблон согласия</a> — он уже готов, останется подписать.</div>' +
         '</div>' +
         '<div class="g2" style="display:grid; gap:16px;">' + verifyItems.map(verifyCard).join('') + '</div>' +
       '</div></section>';
