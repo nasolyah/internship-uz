@@ -61,6 +61,7 @@
     tgDraft: false,
     // Фильтр в плоском списке откликов компании: по умолчанию — те, что ждут ответа.
     respTab: 'pending',
+    navOpen: false,        // мобильное меню под бургером
     certs: [],            // справки компании — чтобы приложить свидетельство
     certDocBusy: null,
     // Форма завершения стажировки и публичная страница справки.
@@ -434,11 +435,15 @@
         '<button data-action="goStartupForm" style="font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Разместить задачу</button></span>';
     }
     return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1.5px solid var(--line);">' +
-      '<div class="hdr" style="max-width:1180px; margin:0 auto; padding:16px 28px;">' +
+      '<div class="hdr' + (state.navOpen ? ' nav-open' : '') + '" style="max-width:1180px; margin:0 auto; padding:16px 28px;">' +
         '<a href="/" data-action="goHome" style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
           '<span style="display:inline-block; width:58px; height:34px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:90px; height:90px; max-width:none; margin:-29px 0 0 -17px; display:block;"></span>' +
           '<span class="brand-name" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
         '</a>' +
+        // Бургер виден только на узком экране (см. CSS). До него шапка занимала две
+        // строки, меню приходилось листать вбок, и вся страница ощущалась «ездящей».
+        '<button type="button" data-action="toggleNav" class="burger" aria-label="Меню" aria-expanded="' + (state.navOpen ? 'true' : 'false') + '">' +
+          '<span></span><span></span><span></span></button>' +
         '<nav style="display:flex; align-items:center; justify-content:center; gap:30px; white-space:nowrap;">' + nav + '</nav>' +
         '<div style="display:flex; align-items:center; justify-content:flex-end; gap:12px;">' + auth + '</div>' +
       '</div></header>';
@@ -769,7 +774,7 @@
     // sidebar
     var sidebar;
     if (role === 'student') {
-      sidebar = '<aside style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:15px;">' + esc(studentName()) + '</div><div style="font-size:12px; color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
+      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:15px;">' + esc(studentName()) + '</div><div style="font-size:12px; color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
     } else if (role === 'company') {
       var scs = companyStatus();
       var scColor = scs === 'approved' ? '#16a34a' : scs === 'rejected' ? '#b3261e' : '#b26b12';
@@ -777,7 +782,7 @@
       var scPost = scs === 'approved'
         ? '<button data-action="openGigForm" style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
         : '<button disabled style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
-      sidebar = '<aside style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;">◆</div><div><div style="font-weight:600; font-size:15px;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:' + scColor + '; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:' + scColor + ';"></span>' + scText + '</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1.5px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Что дальше</div><div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div>' + scPost + '<button data-action="goCabinet" style="margin-top:10px; width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
+      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;">◆</div><div><div style="font-weight:600; font-size:15px;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:' + scColor + '; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:' + scColor + ';"></span>' + scText + '</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1.5px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Что дальше</div><div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div>' + scPost + '<button data-action="goCabinet" style="margin-top:10px; width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
     } else {
       sidebar = '<div aria-hidden="true"></div>';
     }
@@ -1975,7 +1980,13 @@
   /* ---------- actions ---------- */
   var root;
   var pendingDocFile = null;  // выбранный в модалке файл (хранится вне DOM, чтобы переживать перерисовку)
-  function setState(patch) { for (var k in patch) state[k] = patch[k]; render(); }
+  function setState(patch) {
+    // Переход на другой экран закрывает мобильное меню — иначе оно остаётся
+    // открытым поверх нового содержимого.
+    if (patch.view && patch.view !== state.view) state.navOpen = false;
+    for (var k in patch) state[k] = patch[k];
+    render();
+  }
   function top() { try { window.scrollTo(0, 0); } catch (e) {} }
   // Экран входа по коду общий для студента и компании — шаг пишется в свою ветку состояния.
   // У компании нет входа через Telegram, поэтому её первый экран — сразу ввод почты.
@@ -2046,6 +2057,7 @@
     },
     // Меню открывается/закрывается без полной перерисовки — иначе тело страницы «дёргается» (повтор анимаций).
     toggleMenu: function () { state.menuOpen = !state.menuOpen; paintHeader(); },
+    toggleNav: function () { state.navOpen = !state.navOpen; paintHeader(); },
     // Открывает окно авторизации Telegram через JS-API (своя кнопка вместо iframe-виджета).
     loginTelegram: function () { goToTelegram('login'); },
     // Привязка Telegram к открытому аккаунту. Уходим тем же редиректом, что и вход;

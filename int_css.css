@@ -88,8 +88,9 @@ p { text-wrap: pretty; }
 
 @media (max-width: 900px) {
   .g-cat { grid-template-columns: 1fr; }
-  /* Боковая колонка каталога уходит под список: на узком экране она не «сбоку». */
-  .g-cat > aside { position: static; }
+  /* Боковая колонка каталога уходит под список и перестаёт прилипать: на телефоне
+     карточка профиля залипала под шапкой и ехала за содержимым при прокрутке. */
+  .g-cat > aside, .cat-aside { position: static !important; top: auto !important; }
 }
 
 @media (max-width: 760px) {
@@ -123,47 +124,80 @@ p { text-wrap: pretty; }
 /* Порог для шапки выше, чем для сеток, и выбран по содержимому, а не по «модному»
    размеру: логотип 178 + меню 331 + кнопки 375 + отступы = ~990px. Всё, что уже,
    десктопная шапка ломает — на 768px она вылезала на 191px. */
+/* Бургер: на десктопе скрыт. */
+.burger { display: none; }
+
 @media (max-width: 1000px) {
-  /* Шапка в две строки: сверху знак и навигация, снизу кнопки входа во всю ширину.
-     Пытаться уместить логотип, меню и две кнопки в одну строку на 320px нельзя —
-     не хватает ~50px даже при мелком шрифте. Прятать навигацию тоже нельзя:
-     это единственный путь к каталогу. */
+  /* Одна строка: знак слева, бургер справа. Двухстрочная шапка с боковой прокруткой
+     меню читалась как «страница ездит влево-вправо» — на телефоне это заметно сразу. */
   .hdr {
-    /* minmax(0, 1fr), а не 1fr: иначе минимальная ширина меню распирает трек,
-       и overflow-x на самом меню уже ничего не спасает. */
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 10px 14px;
+    grid-template-columns: auto 1fr;
+    gap: 0;
     padding-left: 18px;
     padding-right: 18px;
   }
-  .hdr > nav {
-    justify-content: flex-start !important;
-    gap: 18px !important;
-    overflow-x: auto;              /* длинное меню прокручивается, а не ломает сетку */
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .hdr > nav::-webkit-scrollbar { display: none; }
 
-  /* Кнопки входа — на свою строку, поровну по ширине.
-     У гостя они лежат внутри <span>, у вошедшего — внутри <div> с меню профиля,
-     поэтому растягиваем и обёртку, и сами кнопки. */
-  .hdr > div:last-child {
+  .burger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    justify-self: end;
+    width: 44px;               /* цель под палец */
+    height: 44px;
+    padding: 0 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  .burger > span {
+    display: block;
+    height: 2px;
+    background: var(--ink);
+    border-radius: 2px;
+    transition: transform .2s cubic-bezier(.16,1,.3,1), opacity .15s ease;
+  }
+  /* Три полоски складываются в крестик — понятно, что нажатие закроет меню. */
+  .nav-open .burger > span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-open .burger > span:nth-child(2) { opacity: 0; }
+  .nav-open .burger > span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* Меню и кнопки входа спрятаны, пока бургер не нажат.
+     !important обязателен: у обоих элементов display:flex стоит инлайн в разметке,
+     а инлайн перебивает класс. */
+  .hdr > nav,
+  .hdr > div:last-child { display: none !important; }
+
+  .nav-open > nav,
+  .nav-open > div:last-child {
+    display: flex !important;
     grid-column: 1 / -1;
-    justify-content: stretch !important;
-    min-width: 0;
+    width: 100%;
   }
-  .hdr > div:last-child > span { flex: 1; display: flex; gap: 10px !important; }
-  .hdr > div:last-child > span > button,
-  .hdr > div:last-child > button {
-    flex: 1;
-    /* Инлайн white-space:nowrap не давал кнопкам сжиматься ниже длины надписи —
-       на 320px две кнопки требовали ~285px при доступных 250px. */
-    white-space: normal !important;
-    font-size: 13px !important;
-    padding: 10px 10px !important;
-    line-height: 1.25;
+  .nav-open > nav {
+    flex-direction: column;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1.5px solid var(--line);
   }
+  .nav-open > nav > .nav-link {
+    padding: 13px 2px !important;
+    font-size: 16px !important;
+    text-align: left;
+    justify-content: flex-start;
+  }
+  .nav-open > div:last-child {
+    flex-direction: column;
+    gap: 10px !important;
+    margin-top: 10px;
+    padding-bottom: 4px;
+  }
+  .nav-open > div:last-child > span { flex-direction: column; gap: 10px !important; width: 100%; }
+  .nav-open > div:last-child > span > button,
+  .nav-open > div:last-child > button { width: 100%; white-space: normal !important; }
 
   /* Логотип сжимается до знака: словесная часть съедала место в первой строке.
      Название дублируется в заголовке вкладки и в футере. */
