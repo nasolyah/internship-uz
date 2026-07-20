@@ -30,7 +30,9 @@
   var GENERATE_TEST_FN = SUPABASE_URL + '/functions/v1/generate-test';
   var DOC_BUCKET = 'student-docs';
   // Путь к шаблону согласия (статика Netlify). Положите файл в /templates/.
-  var CONSENT_TEMPLATE_URL = 'templates/parental-consent-template.pdf';
+  // Пути к своим файлам — от корня, а не относительные: на вложенном адресе вроде
+  // /cert/<id> относительный путь разрешается в /cert/templates/... и даёт 404.
+  var CONSENT_TEMPLATE_URL = '/templates/parental-consent-template.pdf';
 
   /* ---------- заявки компаний ---------- */
   var SUBMIT_COMPANY_FN = SUPABASE_URL + '/functions/v1/submit-company';
@@ -408,7 +410,7 @@
     return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1.5px solid var(--line);">' +
       '<div style="max-width:1180px; margin:0 auto; padding:16px 28px; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:24px;">' +
         '<a data-action="goHome" style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
-          '<span style="display:inline-block; width:58px; height:34px; overflow:hidden; flex-shrink:0;"><img src="logo.png" alt="" style="width:90px; height:90px; max-width:none; margin:-29px 0 0 -17px; display:block;"></span>' +
+          '<span style="display:inline-block; width:58px; height:34px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:90px; height:90px; max-width:none; margin:-29px 0 0 -17px; display:block;"></span>' +
           '<span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
         '</a>' +
         '<nav style="display:flex; align-items:center; justify-content:center; gap:30px; white-space:nowrap;">' + nav + '</nav>' +
@@ -420,7 +422,7 @@
   function footer() {
     return '<footer style="border-top:1.5px solid var(--line); background:#fff;">' +
       '<div style="max-width:1180px; margin:0 auto; padding:36px 28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">' +
-        '<div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:51px; height:30px; overflow:hidden; flex-shrink:0;"><img src="logo.png" alt="" style="width:80px; height:80px; max-width:none; margin:-26px 0 0 -15px; display:block;"></span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">internship.uz</span></div>' +
+        '<div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:51px; height:30px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:80px; height:80px; max-width:none; margin:-26px 0 0 -15px; display:block;"></span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">internship.uz</span></div>' +
         '<div style="font-size:13px; color:var(--muted); text-align:right;">Платформа стажировок для стартапов и студентов Узбекистана<br>Пилот · 2026</div>' +
       '</div></footer>';
   }
