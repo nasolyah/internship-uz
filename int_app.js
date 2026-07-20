@@ -55,7 +55,7 @@
     isAdmin: false,
     // Админка: очередь модерации. tab — что показываем, rejectFor — id, для которого
     // открыт ввод причины отказа.
-    admin: { tab: 'pending', items: [], companies: [], loading: false, error: '', rejectFor: null, reason: '', busy: null },
+    admin: { tab: 'pending', items: [], companies: [], statusReqs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null },
     tgDraft: false,
     menuOpen: false,
     modal: null,               // null | 'study' | 'consent'
@@ -68,6 +68,10 @@
     links: { telegram_id: null, telegram_username: '', login_email: '', login_is_synthetic: false, loading: false, error: '' },
     // Привязка почты к тг-аккаунту: 'form' — ввод адреса, 'code' — ввод кода из письма.
     emailLink: { step: null, email: '', error: '', loading: false },
+    // Своя заявка на смену статуса, пока она на рассмотрении. Пока она есть — откликаться
+    // нельзя; то же условие продублировано в политике вставки отклика, чтобы его нельзя
+    // было снять через консоль.
+    statusReq: null,
     profileSave: { loading: false, error: '' },
     docUpload: { loading: false, error: '', fileName: '' },
     extrasSave: { loading: false, error: '', ok: false },
@@ -885,11 +889,26 @@
     if (linkForm && el.error) linkForm += '<div style="font-size:12px; color:#b3261e; margin-top:8px;">' + esc(el.error) + '</div>';
     if (linkForm) linkForm += '</div>';
 
+    // Статус меняется только заявкой с документом: напрямую его не отдать в редактирование,
+    // потому что от него зависит гейт про согласие родителя (см. 0014).
+    var sr = state.statusReq;
+    var statusRow;
+    if (sr && sr.status === 'pending') {
+      statusRow = row('Статус', '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
+        val(sp.status) + badge('на подтверждении', '#b26b12', 'Заявка на «' + (sr.to_status || '') + '» рассматривается') + '</span>');
+    } else {
+      statusRow = row('Статус', '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
+        val(sp.status) + '<button data-action="openStatusModal" style="' + linkBtnStyle + '">Изменить</button></span>');
+      if (sr && sr.status === 'rejected' && sr.reason) {
+        statusRow += '<div style="font-size:12px; color:#b3261e; padding:0 0 10px;">Заявка на «' + esc(sr.to_status || '') + '» отклонена: ' + esc(sr.reason) + '</div>';
+      }
+    }
+
     var contacts = '<div style="' + card + '"><div style="' + cardTitle + '">Контакты и статус</div>' +
       editableRow('email', 'Email', 'text', emailMark) +
       row('Telegram', tgCell) +
       linkForm +
-      editableRow('status', 'Статус', 'status') + editableRow('institution', 'Место учёбы', 'institution') + '</div>';
+      statusRow + editableRow('institution', 'Место учёбы', 'institution') + '</div>';
 
     // строка документа со статусом и кнопкой загрузки (открывает модалку)
     var docRow = function (label, type) {
@@ -1359,6 +1378,34 @@
       '</div></div>';
   }
 
+  // Заявка на смену статуса. Отличается от файла тем, что решение меняет данные профиля,
+  // поэтому рядом со ссылкой на документ показываем, что именно изменится.
+  function adminStatusCard(r) {
+    var st = { pending: ['ждёт решения', '#b26b12'], approved: ['одобрена', '#16a34a'], rejected: ['отклонена', '#b3261e'] }[r.status] || ['—', 'var(--muted)'];
+    var busy = state.admin.busy === r.id;
+    var actionsHtml = '';
+    if (state.admin.rejectFor === r.id) {
+      actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:13.5px; padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<button data-action="adminStatusConfirmReject" data-id="' + esc(r.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCancelReject" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
+    } else if (r.status === 'pending') {
+      actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
+        (r.path ? '<button data-action="adminOpenFile" data-path="' + esc(r.path) + '" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть документ</button>' : '') +
+        '<button data-action="adminStatusApprove" data-id="' + esc(r.id) + '" data-path="' + esc(r.path || '') + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Подтвердить статус</button>' +
+        '<button data-action="adminStatusStartReject" data-id="' + esc(r.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+    }
+    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
+        '<div style="min-width:0;"><div style="font-weight:600; font-size:16px;">' + esc(r.student_name || 'Студент') + '</div>' +
+        '<div style="margin-top:6px; font-size:13px; color:var(--muted);">' + esc(r.from_status || '—') + ' → <span style="color:var(--ink); font-weight:600;">' + esc(r.to_status || '') + '</span></div>' +
+        (r.reason ? '<div style="margin-top:4px; font-size:12.5px; color:#b3261e;">Причина отказа: ' + esc(r.reason) + '</div>' : '') +
+        (!r.path && r.status === 'pending' ? '<div style="margin-top:4px; font-size:12.5px; color:#b3261e;">Документ не приложен</div>' : '') +
+        '</div>' +
+        '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
+      '</div>' + actionsHtml + '</div>';
+  }
+
   function adminView() {
     if (!state.isAdmin) return homeView();
     var a = state.admin;
@@ -1388,8 +1435,16 @@
     else if (!shown.length) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">' + (a.tab === 'pending' ? 'Ничего не ждёт решения — очередь пуста.' : 'Пока пусто.') + '</div>';
     else body = '<div style="display:flex; flex-direction:column; gap:12px;">' + shown.map(adminFileCard).join('') + '</div>';
 
+    // Заявки на смену статуса: решение меняет данные профиля, поэтому держим их
+    // отдельным блоком выше файлов — их мало, и пропускать их нельзя.
+    var sReqs = a.statusReqs || [];
+    var sShown = a.tab === 'all' ? sReqs : sReqs.filter(function (r) { return r.status === 'pending'; });
+    var statuses = (a.tab === 'ai' || !sShown.length) ? ''
+      : '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Смена статуса</div>' +
+        '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + sShown.map(adminStatusCard).join('') + '</div>';
+
     var title = '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Файлы студентов</div>';
-    return pageWrap('Модерация', tabs + companies + title + body, 1200);
+    return pageWrap('Модерация', tabs + companies + statuses + title + body, 1200);
   }
 
   /* ---------- PROFILE (чужой) ---------- */
@@ -2332,6 +2387,46 @@
     // Модальные окна загрузки документов
     openStudyDoc: function () { pendingDocFile = null; setState({ modal: 'study', docUpload: { loading: false, error: '', fileName: '' } }); },
     openConsentDoc: function () { pendingDocFile = null; setState({ modal: 'consent', docUpload: { loading: false, error: '', fileName: '' } }); },
+    openStatusModal: function () { pendingDocFile = null; setState({ modal: 'status', docUpload: { loading: false, error: '', fileName: '' } }); },
+    // Заявка на смену статуса: файл в приватный бакет, затем строка в status_requests.
+    // Сам статус в профиле не трогаем — его поставит админ при одобрении (триггер из 0014
+    // прямую запись отклонит).
+    submitStatusRequest: function () {
+      var sel = document.getElementById('status-new');
+      var to = sel ? sel.value : '';
+      var sp = state.studentProfile || {};
+      if (!to) { setState({ docUpload: { loading: false, error: 'Выберите новый статус', fileName: state.docUpload.fileName } }); return; }
+      if (to === sp.status) { setState({ docUpload: { loading: false, error: 'Это ваш текущий статус', fileName: state.docUpload.fileName } }); return; }
+      var file = pendingDocFile;
+      if (!file) { setState({ docUpload: { loading: false, error: 'Приложите документ, подтверждающий личность', fileName: '' } }); return; }
+      if (file.size > 10 * 1024 * 1024) { setState({ docUpload: { loading: false, error: 'Файл больше 10 МБ', fileName: file.name } }); return; }
+      var userId = currentUserId();
+      if (!supabase || !userId) { setState({ docUpload: { loading: false, error: 'Сессия истекла — войдите заново', fileName: file.name } }); return; }
+
+      var ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf';
+      var path = userId + '/identity-' + Date.now() + '.' + ext;
+      setState({ docUpload: { loading: true, error: '', fileName: file.name } });
+      supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true, contentType: file.type || 'application/octet-stream' }).then(function (up) {
+        if (up.error) { setState({ docUpload: { loading: false, error: 'Ошибка загрузки: ' + up.error.message, fileName: file.name } }); return; }
+        return supabase.from('status_requests').insert({
+          student_id: userId, from_status: sp.status || null, to_status: to,
+          path: path, name: file.name || '', mime: file.type || '', size: file.size || 0, status: 'pending'
+        }).then(function (ins) {
+          if (ins.error) {
+            var msg = /status_requests_one_pending|duplicate/i.test(ins.error.message || '')
+              ? 'Заявка уже подана и ждёт решения модератора.'
+              : 'Не удалось отправить заявку';
+            setState({ docUpload: { loading: false, error: msg, fileName: file.name } });
+            return;
+          }
+          pendingDocFile = null;
+          setState({ modal: null, docUpload: { loading: false, error: '', fileName: '' } });
+          loadStatusRequest();
+        });
+      }).catch(function (err) {
+        setState({ docUpload: { loading: false, error: 'Сеть недоступна: ' + (err && err.message ? err.message : err), fileName: file.name } });
+      });
+    },
     closeModal: function () { pendingDocFile = null; setState({ modal: null, docUpload: { loading: false, error: '', fileName: '' } }); },
     submitDoc: function () {
       var type = state.modal;
@@ -2428,7 +2523,11 @@
       if (state.authRole !== 'student') { actions.goStudent(); return; }
       var existing = applicationForGig(gigId);
       if (existing) { openChat(existing.id); return; }
-      // Для несовершеннолетних каталог и так закрыт, но кнопка может прийти из старой разметки.
+      // Обе проверки продублированы в политике вставки (0014) — здесь они только для того,
+      // чтобы объяснить причину, а не показать сухую ошибку от сервера.
+      // Уводим в кабинет: там на строке статуса стоит бейдж «на подтверждении», то есть
+      // причина видна на месте — так же, как это сделано для согласия родителя.
+      if (state.statusReq && state.statusReq.status === 'pending') { setState({ view: 'cabinet' }); top(); return; }
       if (isMinor() && docStat('consent') !== 'approved') { setState({ view: 'cabinet' }); top(); return; }
       var gig = findGig(gigId);
       if (!gig || !supabase || !state.session) return;
@@ -2474,6 +2573,14 @@
     adminConfirmReject: function (el) {
       var reason = (state.form.adminReason || '').trim();
       adminDecideFile(el.getAttribute('data-id'), 'rejected', reason || 'Без указания причины');
+    },
+    adminStatusStartReject: function (el) { state.admin.rejectFor = el.getAttribute('data-id'); state.admin.reason = ''; setState({}); },
+    adminStatusApprove: function (el) { adminDecideStatus(el.getAttribute('data-id'), 'approved', null, el.getAttribute('data-path')); },
+    adminStatusConfirmReject: function (el) {
+      var reason = (state.form.adminReason || '').trim();
+      // Путь берём из очереди: у кнопки отказа его нет, а файл всё равно надо стереть.
+      var req = (state.admin.statusReqs || []).filter(function (r) { return r.id === el.getAttribute('data-id'); })[0];
+      adminDecideStatus(el.getAttribute('data-id'), 'rejected', reason || 'Без указания причины', req && req.path);
     },
     adminCompanyDecide: function (el) {
       var id = el.getAttribute('data-id'), status = el.getAttribute('data-status');
@@ -2547,12 +2654,13 @@
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', companyStep: 'login', otpRole: 'student',
         files: [], filesLoading: false, isAdmin: false,
-        admin: { tab: 'pending', items: [], companies: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false,
+        admin: { tab: 'pending', items: [], companies: [], statusReqs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false,
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         // Иначе следующий вход в этом же браузере увидел бы привязки предыдущего человека.
         links: { telegram_id: null, telegram_username: '', login_email: '', login_is_synthetic: false, loading: false, error: '' },
         emailLink: { step: null, email: '', error: '', loading: false },
+        statusReq: null,
         profileSave: { loading: false, error: '' },
         docUpload: { loading: false, error: '', fileName: '' },
         extrasSave: { loading: false, error: '', ok: false },
@@ -2635,11 +2743,41 @@
         state.studentStep = 'done';
         loadStudentFiles();   // статусы документов и файлов — из student_files, не из профиля
         loadAccountLinks();   // привязан ли Telegram, настоящий ли логин-email
+        loadStatusRequest();  // не висит ли заявка на смену статуса
         return true;
       }
       return false;
     });
   }
+  // Заявка на смену статуса. Берём последнюю: если она в ожидании — статус менять нельзя
+  // и откликаться тоже, если отклонена — показываем причину, чтобы человек знал, что не так.
+  function loadStatusRequest() {
+    if (!supabase || !currentUserId()) return;
+    supabase.from('status_requests')
+      .select('id,to_status,status,reason,created_at')
+      .eq('student_id', currentUserId())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(function (r) {
+        if (r.error) return;   // 0014 не применена — кабинет работает как раньше
+        state.statusReq = r.data || null;
+        var sp = state.studentProfile;
+        // Заявку одобрили, пока вкладка была открыта — подтянем новый статус точечно.
+        // Без этого кабинет показывал бы старый до перезагрузки страницы.
+        if (sp && r.data && r.data.status === 'approved' && sp.status !== r.data.to_status) {
+          supabase.from('profiles').select('data').eq('id', currentUserId()).maybeSingle().then(function (p) {
+            var d = p && p.data && p.data.data;
+            if (d) { sp.status = d.status || ''; sp.minor = !!d.minor; sp.institution = d.institution || ''; }
+            loadStudentFiles();   // справку о месте учёбы при смене статуса сбрасывает 0010
+            render();
+          });
+          return;
+        }
+        render();
+      });
+  }
+
   // Привязки аккаунта. Логин-email лежит в auth.users и клиенту напрямую не виден
   // (в сессии он есть, но после смены почты сессия ещё старая) — поэтому спрашиваем базу.
   function loadAccountLinks() {
@@ -2655,6 +2793,30 @@
         loading: false, error: '',
       };
       render();
+    });
+  }
+
+  // Решение по заявке на смену статуса. Сам статус в профиле проставляет функция
+  // admin_decide_status — напрямую в чужой профиль админу писать нельзя.
+  // Документ удаляем сразу после решения: хранить сканы удостоверений (в том числе
+  // детских) дольше проверки незачем, а при утечке бакета терять будет нечего.
+  function adminDecideStatus(id, decision, reason, path) {
+    if (!supabase || !id) return;
+    state.admin.busy = id; render();
+    supabase.rpc('admin_decide_status', { p_id: id, p_status: decision, p_reason: reason }).then(function (r) {
+      state.admin.busy = null;
+      state.admin.rejectFor = null;
+      state.form.adminReason = '';
+      if (r.error) { state.admin.error = 'Не удалось сохранить решение'; render(); return; }
+      // Файл убираем после успешного решения. Если удаление не удалось — решение всё
+      // равно записано, файл просто останется в бакете; молчать об этом нельзя.
+      var done = function () { loadAdminQueue(); };
+      if (path) {
+        supabase.storage.from(DOC_BUCKET).remove([path]).then(function (rm) {
+          if (rm && rm.error) state.admin.error = 'Решение сохранено, но документ не удалился из хранилища';
+          done();
+        });
+      } else done();
     });
   }
 
@@ -2690,12 +2852,15 @@
     state.admin.loading = true; state.admin.error = ''; render();
     Promise.all([
       supabase.rpc('admin_moderation_queue', { p_status: null }),
-      supabase.from('company_applications').select('id, data, status, created_at').order('created_at', { ascending: false })
+      supabase.from('company_applications').select('id, data, status, created_at').order('created_at', { ascending: false }),
+      supabase.rpc('admin_status_queue', { p_status: null })
     ]).then(function (res) {
       state.admin.loading = false;
       if (res[0].error) state.admin.error = 'Не удалось загрузить очередь';
       else state.admin.items = res[0].data || [];
       if (!res[1].error) state.admin.companies = res[1].data || [];
+      // 0014 могла быть ещё не применена — тогда просто не показываем этот раздел.
+      state.admin.statusReqs = res[2].error ? [] : (res[2].data || []);
       render();
     });
   }
@@ -2976,9 +3141,41 @@
       '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
+  // Смена статуса: объясняем последствия до того, как человек начнёт, — иначе он подаст
+  // заявку и удивится, что не может откликаться.
+  function statusModalHtml() {
+    var sp = state.studentProfile || {};
+    var loading = state.docUpload.loading;
+    var fileName = state.docUpload.fileName || '';
+    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
+
+    var warn = '<div style="padding:12px 14px; background:color-mix(in srgb, #b26b12 10%, #fff); border:1px solid color-mix(in srgb, #b26b12 26%, #fff); border-radius:10px; font-size:13px; color:#b26b12; line-height:1.55; margin-bottom:16px;">' +
+      'Пока новый статус не подтверждён, вы <b>не сможете откликаться на новые задачи</b>. Уже начатые проекты и переписка останутся доступны.</div>';
+
+    var picker = '<label class="file-drop" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border:1.5px dashed var(--line); border-radius:12px; background:var(--bg); cursor:pointer;">' +
+      '<span style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">Выбрать файл</span>' +
+      '<span style="min-width:0; flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран · PDF или фото') + '</span>' +
+      '<input id="doc-file" data-file-input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="display:none;"></label>';
+
+    var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:460px; width:100%; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Смена статуса</h3>' +
+        '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 16px;">Статус влияет на то, какие задачи вам доступны и нужно ли согласие родителя, поэтому его подтверждает модератор. Приложите документ, подтверждающий личность.</p>' +
+      warn +
+      '<div style="font-size:13px; color:var(--muted); margin-bottom:7px;">Новый статус</div>' +
+      '<select id="status-new" style="' + S.field + ' width:100%; margin-bottom:14px;">' + statusOptions(sp.status) + '</select>' +
+      picker + err +
+      '<button data-action="submitStatusRequest"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Отправка…' : 'Отправить на проверку') + '</button>' +
+      '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button></div>';
+
+    return '<div data-action="closeModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
+      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+  }
+
   function modalHtml() {
     if (!state.modal) return '';
     if (state.modal === 'reviews') return reviewsModalHtml();
+    if (state.modal === 'status') return statusModalHtml();
     var type = state.modal;
     var isConsent = type === 'consent';
     var title = isConsent ? 'Согласие родителя' : 'Подтверждение места учёбы';
