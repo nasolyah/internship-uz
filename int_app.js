@@ -179,27 +179,27 @@
     for (var i = 0; i < list.length; i++) if (list[i].path === path) return list[i];
     return null;
   }
-  var MOD_BADGE = { pending: ['на проверке', '#b26b12'], approved: ['одобрено', '#16a34a'], rejected: ['отклонено', '#b3261e'] };
+  var MOD_BADGE = { pending: ['на проверке', '#8f5410'], approved: ['одобрено', '#15803d'], rejected: ['отклонено', '#b3261e'] };
   // Бейдж модерации рядом с файлом: студент видит, дошёл ли файл до компаний.
   function modBadge(path) {
     var f = fileStatusByPath(path);
     var m = f && MOD_BADGE[f.status];
     if (!m) return '';
     var tip = (f.status === 'rejected' && f.reason) ? ' title="' + esc(f.reason) + '"' : '';
-    return '<span' + tip + ' style="font-size:10.5px; font-weight:700; color:' + m[1] + '; background:color-mix(in srgb, ' + m[1] + ' 12%, #fff); padding:2px 7px; border-radius:999px; white-space:nowrap;">' + m[0] + '</span>';
+    return '<span' + tip + ' style="font-size:var(--text-micro); font-weight:700; color:' + m[1] + '; background:color-mix(in srgb, ' + m[1] + ' 12%, #fff); padding:2px 7px; border-radius:999px; white-space:nowrap;">' + m[0] + '</span>';
   }
   function docLabel(status) {
     return { pending: 'на проверке', approved: 'подтверждено', rejected: 'отклонено — загрузите заново', none: '' }[status] || '';
   }
   function docColor(status) {
-    return { pending: '#b26b12', approved: '#16a34a', rejected: '#b3261e', none: 'var(--muted)' }[status] || 'var(--muted)';
+    return { pending: '#8f5410', approved: '#15803d', rejected: '#b3261e', none: 'var(--muted)' }[status] || 'var(--muted)';
   }
   // Динамический тег доступности студента: looking | team | hired.
   function availLabel(v) {
     return { looking: 'Ищу проекты', team: 'В команде', hired: 'Нанят(а)' }[v] || 'Статус не указан';
   }
   function availColor(v) {
-    return { looking: 'var(--accent)', team: '#b26b12', hired: '#16a34a' }[v] || 'var(--muted)';
+    return { looking: 'var(--accent)', team: '#8f5410', hired: '#15803d' }[v] || 'var(--muted)';
   }
   function availOptions(selected) {
     return [['', 'Указать статус'], ['looking', 'Ищу проекты'], ['team', 'В команде'], ['hired', 'Нанят(а)']].map(function (o) {
@@ -228,8 +228,8 @@
   }
   function confidenceColor(n) {
     if (n == null) return 'var(--muted)';
-    if (n >= 8) return '#16a34a';
-    if (n >= 5) return '#b26b12';
+    if (n >= 8) return '#15803d';
+    if (n >= 5) return '#8f5410';
     return '#b3261e';
   }
   // Рекомендуемые hard skills по специальности — подсказки при выборе специальностей.
@@ -301,7 +301,7 @@
     if (sp && sp.photoUrl) {
       return '<img src="' + esc(sp.photoUrl) + '" style="width:' + size + 'px; height:' + size + 'px; border-radius:' + radius + 'px; object-fit:cover; flex-shrink:0; display:block;">';
     }
-    return '<span style="width:' + size + 'px; height:' + size + 'px; border-radius:' + radius + 'px; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:' + Math.round(size * 0.37) + 'px; flex-shrink:0;">' + esc(studentInitials()) + '</span>';
+    return '<span style="width:' + size + 'px; height:' + size + 'px; border-radius:' + radius + 'px; background:color-mix(in srgb, var(--accent) 14%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:600; font-size:' + Math.round(size * 0.37) + 'px; flex-shrink:0;">' + esc(studentInitials()) + '</span>';
   }
   function companyStatus() { return (state.companyProfile && state.companyProfile.status) || 'pending'; }
   // Короткий статус верификации для шапки/меню.
@@ -330,14 +330,14 @@
   function verifyColor() {
     if (state.authRole === 'company') {
       var cs = companyStatus();
-      return cs === 'approved' ? '#16a34a' : cs === 'rejected' ? '#b3261e' : '#e2a53a';
+      return cs === 'approved' ? '#15803d' : cs === 'rejected' ? '#b3261e' : '#e2a53a';
     }
     if (state.authRole === 'student') {
       if (isMinor()) {
         var c = docStat('consent');
-        return c === 'approved' ? '#16a34a' : c === 'rejected' ? '#b3261e' : c === 'pending' ? '#e2a53a' : '#b3261e';
+        return c === 'approved' ? '#15803d' : c === 'rejected' ? '#b3261e' : c === 'pending' ? '#e2a53a' : '#b3261e';
       }
-      return '#16a34a';
+      return '#15803d';
     }
     return 'var(--muted)';
   }
@@ -345,15 +345,18 @@
 
   /* ---------- shared style snippets ---------- */
   var S = {
-    input: 'padding:13px 14px; border:1.5px solid var(--line); border-radius:11px; font-size:15px; background:#fff; width:100%;',
+    /* Поля ввода строго на --text-body (16px): мобильный Safari принудительно
+       зумит страницу при фокусе на поле с кеглем меньше 16px. Было 15px и 14px,
+       то есть зумило на каждой форме сайта. */
+    input: 'padding:13px 14px; border:1.5px solid var(--line); border-radius:11px; font-size:var(--text-body); background:#fff; width:100%;',
     label: 'display:flex; flex-direction:column; gap:7px;',
-    labelSpan: 'font-size:14px; font-weight:600;',
-    primary: 'font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:15px; border-radius:11px; cursor:pointer;',
-    dark: 'font-size:15px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px 24px; border-radius:11px; cursor:pointer;',
-    ghost: 'font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:14px; border-radius:11px; cursor:pointer;',
-    back: 'font-size:14px; color:var(--muted); cursor:pointer; font-weight:500;',
-    field: 'width:100%; font-size:14px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);',
-    iconBtn: 'width:26px; height:26px; border-radius:8px; border:1.5px solid var(--line); background:#fff; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; flex-shrink:0; padding:0;',
+    labelSpan: 'font-size:var(--text-caption); font-weight:600;',
+    primary: 'font-size:var(--text-body); font-weight:600; color:#fff; background:var(--accent); border:none; padding:15px; border-radius:11px; cursor:pointer;',
+    dark: 'font-size:var(--text-body); font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px 24px; border-radius:11px; cursor:pointer;',
+    ghost: 'font-size:var(--text-body); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:14px; border-radius:11px; cursor:pointer;',
+    back: 'font-size:var(--text-caption); color:var(--muted); cursor:pointer; font-weight:500;',
+    field: 'width:100%; font-size:var(--text-body); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);',
+    iconBtn: 'width:26px; height:26px; border-radius:8px; border:1.5px solid var(--line); background:#fff; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:var(--text-caption); flex-shrink:0; padding:0;',
     chipIcon: 'width:20px; height:20px; border-radius:6px; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;',
     wrap: 'overflow-wrap:anywhere; word-break:break-word;'
   };
@@ -361,15 +364,15 @@
   function inputField(label, field, ph, hint) {
     return '<label style="' + S.label + '"><span style="' + S.labelSpan + '">' + label + '</span>' +
       '<input data-field="' + field + '" value="' + fv(field) + '" placeholder="' + esc(ph) + '" style="' + S.input + '">' +
-      (hint ? '<span style="font-size:12px; color:var(--muted);">' + hint + '</span>' : '') + '</label>';
+      (hint ? '<span style="font-size:var(--text-micro); color:var(--muted);">' + hint + '</span>' : '') + '</label>';
   }
   // Поле в модалке добавления/редактирования элемента профиля (data-item-field, не data-field).
   function itemField(label, key, val, ph, optional) {
-    return '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + label + (optional ? ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span>' : '') + '</span>' +
+    return '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">' + label + (optional ? ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span>' : '') + '</span>' +
       '<input data-item-field="' + key + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '" style="' + S.field + '"></label>';
   }
   function itemTextarea(label, key, val, ph) {
-    return '<label style="display:block;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + label + ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' +
+    return '<label style="display:block;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">' + label + ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' +
       '<textarea data-item-field="' + key + '" rows="2" placeholder="' + esc(ph) + '" style="' + S.field + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(val || '') + '</textarea></label>';
   }
 
@@ -381,7 +384,7 @@
   // ссылка на документ.
   function navLink(action, label, href) {
     var active = state.view === action.replace(/^go/, '').toLowerCase();
-    var css = 'font-size:14.5px; font-weight:500; color:' + (active ? 'var(--ink)' : 'var(--muted)') + ';';
+    var css = 'font-size:var(--text-caption); font-weight:500; color:' + (active ? 'var(--ink)' : 'var(--muted)') + ';';
     if (href) {
       return '<a href="' + href + '" data-action="' + action + '" class="nav-link" style="' + css + '">' + label + '</a>';
     }
@@ -407,21 +410,21 @@
     if (role === 'student' || role === 'company') {
       var avatar = role === 'student'
         ? avatarHtml(30, 15)
-        : '<span style="width:30px; height:30px; border-radius:8px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0;">◆</span>';
+        : '<span style="width:30px; height:30px; border-radius:8px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-body); flex-shrink:0;">◆</span>';
       var name = role === 'student' ? studentName() : companyName();
-      var caret = '<span style="color:var(--muted); font-size:10px;' + (state.menuOpen ? ' transform:rotate(180deg);' : '') + '">▾</span>';
-      var btn = '<button data-action="toggleMenu" style="display:flex; align-items:center; gap:9px; font-size:14.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid ' + (state.menuOpen ? 'var(--accent)' : 'var(--line)') + '; padding:6px 13px 6px 6px; border-radius:999px; cursor:pointer;">' + avatar + '<span style="max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(name) + '</span>' + caret + '</button>';
+      var caret = '<span style="color:var(--muted); font-size:var(--text-micro);' + (state.menuOpen ? ' transform:rotate(180deg);' : '') + '">▾</span>';
+      var btn = '<button data-action="toggleMenu" style="display:flex; align-items:center; gap:9px; font-size:var(--text-caption); font-weight:600; color:var(--ink); background:#fff; border:1px solid ' + (state.menuOpen ? 'var(--accent)' : 'var(--line)') + '; padding:6px 13px 6px 6px; border-radius:999px; cursor:pointer;">' + avatar + '<span style="max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(name) + '</span>' + caret + '</button>';
 
       var dropdown = '';
       if (state.menuOpen) {
         var dot = verifyColor();
         var mItem = function (action, label, color) {
-          return '<a data-action="' + action + '" class="menu-item" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; font-size:14px; font-weight:600; color:' + color + '; cursor:pointer;">' + label + '</a>';
+          return '<a data-action="' + action + '" class="menu-item" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; font-size:var(--text-caption); font-weight:600; color:' + color + '; cursor:pointer;">' + label + '</a>';
         };
         dropdown = '<div class="profile-menu" style="position:absolute; right:0; top:calc(100% + 10px); width:252px; background:#fff; border:1.5px solid var(--line); border-radius:14px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34); padding:8px; z-index:60;">' +
           '<div style="display:flex; align-items:center; gap:11px; padding:8px 10px 12px; border-bottom:1.5px solid var(--line); margin-bottom:6px;">' + avatar +
-            '<div style="min-width:0;"><div style="font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + esc(name) + '</div>' +
-            '<div style="font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; margin-top:3px;"><span style="width:6px; height:6px; border-radius:50%; background:' + dot + '; flex-shrink:0;"></span>' + esc(verifyStatus()) + '</div></div></div>' +
+            '<div style="min-width:0;"><div style="font-weight:700; font-size:var(--text-caption); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + esc(name) + '</div>' +
+            '<div style="font-size:var(--text-micro); color:var(--muted); display:flex; align-items:center; gap:6px; margin-top:3px;"><span style="width:6px; height:6px; border-radius:50%; background:' + dot + '; flex-shrink:0;"></span>' + esc(verifyStatus()) + '</div></div></div>' +
           mItem('goCabinet', 'Личный кабинет', 'var(--ink)') +
           mItem('logout', 'Выйти', '#b3261e') +
         '</div>';
@@ -431,14 +434,14 @@
       if (state.menuOpen) overlay = '<div data-menu-overlay data-action="toggleMenu" style="position:fixed; inset:0; z-index:40;"></div>';
     } else {
       auth = '<span style="display:flex; align-items:center; gap:12px;">' +
-        '<button data-action="goStudent" style="font-size:14.5px; font-weight:600; color:var(--ink); background:none; border:1.5px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Найти стажировку</button>' +
-        '<button data-action="goStartupForm" style="font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Разместить задачу</button></span>';
+        '<button data-action="goStudent" style="font-size:var(--text-caption); font-weight:600; color:var(--ink); background:none; border:1.5px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Найти стажировку</button>' +
+        '<button data-action="goStartupForm" style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Разместить задачу</button></span>';
     }
     return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1.5px solid var(--line);">' +
       '<div class="hdr' + (state.navOpen ? ' nav-open' : '') + '" style="max-width:1180px; margin:0 auto; padding:16px 28px;">' +
         '<a href="/" data-action="goHome" style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
           '<span style="display:inline-block; width:58px; height:34px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:90px; height:90px; max-width:none; margin:-29px 0 0 -17px; display:block;"></span>' +
-          '<span class="brand-name" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
+          '<span class="brand-name" style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
         '</a>' +
         // Бургер виден только на узком экране (см. CSS). До него шапка занимала две
         // строки, меню приходилось листать вбок, и вся страница ощущалась «ездящей».
@@ -453,17 +456,17 @@
   function footer() {
     return '<footer style="border-top:1.5px solid var(--line); background:#fff;">' +
       '<div class="foot-row" style="max-width:1180px; margin:0 auto; padding:36px 28px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">' +
-        '<div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:51px; height:30px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:80px; height:80px; max-width:none; margin:-26px 0 0 -15px; display:block;"></span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">internship.uz</span></div>' +
+        '<div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:51px; height:30px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:80px; height:80px; max-width:none; margin:-26px 0 0 -15px; display:block;"></span><span style="font-weight:600; font-size:var(--text-body);">internship.uz</span></div>' +
         // Раньше в футере были только логотип и слоган — ноль ссылок. Для платформы,
         // которая просит у несовершеннолетних имя как в паспорте и подписанное согласие
         // родителя, анонимный низ страницы — крупнейшая утечка доверия. Контакты и
         // юрлицо добавляются отдельно: выдумывать их нельзя.
-        '<nav style="display:flex; align-items:center; gap:22px; flex-wrap:wrap; font-size:13px; color:var(--muted);">' +
+        '<nav style="display:flex; align-items:center; gap:22px; flex-wrap:wrap; font-size:var(--text-caption); color:var(--muted);">' +
           '<a href="#sec-how" data-action="scrollHow" class="nav-link">Как это работает</a>' +
           '<a href="#sec-verify" data-action="scrollVerify" class="nav-link">Верификация</a>' +
           '<a href="' + CONSENT_TEMPLATE_URL + '" download class="nav-link">Шаблон согласия родителя</a>' +
         '</nav>' +
-        '<div class="foot-meta" style="font-size:13px; color:var(--muted); text-align:right; line-height:1.7;">' +
+        '<div class="foot-meta" style="font-size:var(--text-caption); color:var(--muted); text-align:right; line-height:1.7;">' +
           'Платформа стажировок для стартапов и студентов Узбекистана<br>' +
           // Живой контакт: родителю, решающему подписать согласие, и компании, решающей
           // заплатить, нужен адрес, по которому отвечает человек.
@@ -492,54 +495,54 @@
         '<div>' +
           // Пилюля с точкой «Платформа стажировок · Узбекистан» убрана: она дублировала
           // подзаголовок и была ровно тем ИИ-штампом, который отмечала критика.
-          '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(30px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
-          '<p class="hero-up" style="font-size:18px; line-height:1.55; color:var(--muted); max-width:500px; margin:22px 0 0; animation-delay:.14s;">internship.uz связывает узбекские стартапы со студентами и школьниками: живые проекты, верифицированные профили и официальный документ о пройденной практике.</p>' +
+          '<h1 class="hero-up" style="font-weight:600; font-size:var(--text-display); line-height:1.04; letter-spacing:-0.025em; margin:0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
+          '<p class="hero-up" style="font-size:var(--text-title); line-height:1.55; color:var(--muted); max-width:500px; margin:22px 0 0; animation-delay:.14s;">internship.uz связывает узбекские стартапы со студентами и школьниками: живые проекты, верифицированные профили и официальный документ о пройденной практике.</p>' +
           '<div class="hero-up" style="display:flex; gap:12px; margin-top:30px; flex-wrap:wrap; animation-delay:.2s;">' +
-            '<button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 24px; border-radius:11px; cursor:pointer;">Разместить задачу</button>' +
-            '<button data-action="goStudent" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:14px 24px; border-radius:11px; cursor:pointer;">Найти стажировку</button>' +
+            '<button data-action="goStartupForm" style="font-size:var(--text-body); font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 24px; border-radius:11px; cursor:pointer;">Разместить задачу</button>' +
+            '<button data-action="goStudent" style="font-size:var(--text-body); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:14px 24px; border-radius:11px; cursor:pointer;">Найти стажировку</button>' +
           '</div>' +
-          '<div class="hero-up" style="display:flex; gap:22px; margin-top:26px; flex-wrap:wrap; font-size:13.5px; color:var(--muted); animation-delay:.26s;">' + trust + '</div>' +
+          '<div class="hero-up" style="display:flex; gap:22px; margin-top:26px; flex-wrap:wrap; font-size:var(--text-caption); color:var(--muted); animation-delay:.26s;">' + trust + '</div>' +
         '</div>' +
       '</div></section>';
 
     var valItem = function (v, dark) {
       var line = dark ? 'rgba(255,255,255,0.12)' : 'var(--line)';
       var descColor = dark ? 'rgba(255,255,255,0.6)' : 'var(--muted)';
-      return '<div style="display:flex; gap:12px; padding:13px 0; border-top:1px solid ' + line + ';"><span style="color:var(--accent); font-weight:700; margin-top:1px;">✓</span><div><div style="font-weight:600; font-size:15px;">' + v.title + '</div><div style="font-size:13.5px; color:' + descColor + '; margin-top:2px;">' + v.desc + '</div></div></div>';
+      return '<div style="display:flex; gap:12px; padding:13px 0; border-top:1px solid ' + line + ';"><span style="color:var(--accent); font-weight:700; margin-top:1px;">✓</span><div><div style="font-weight:600; font-size:var(--text-body);">' + v.title + '</div><div style="font-size:var(--text-caption); color:' + descColor + '; margin-top:2px;">' + v.desc + '</div></div></div>';
     };
     var value = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:56px 28px;">' +
-      '<div style="text-align:center; max-width:640px; margin:0 auto 44px;"><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Две стороны, одна выгода</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 0;">Каждый получает то, чего ему не хватает</h2></div>' +
+      '<div style="text-align:center; max-width:640px; margin:0 auto 44px;"><h2 style="font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:0;">Каждый получает то, чего ему не хватает</h2></div>' +
       '<div class="g2" style="display:grid; gap:24px;">' +
-        '<div data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:32px;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">◆</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для стартапов</span></div><p style="color:var(--muted); font-size:15px; margin:0 0 20px;">Ранние команды с ограниченным бюджетом — быстрые руки без затрат на найм.</p>' + startupValue.map(function (v) { return valItem(v, false); }).join('') + '<button data-action="goStartupForm" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px; border-radius:11px; cursor:pointer;">Разместить задачу</button></div>' +
-        '<div data-stagger style="background:var(--ink); border:1px solid var(--ink); border-radius:18px; padding:32px; color:#fff;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">●</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для студентов и школьников</span></div><p style="color:rgba(255,255,255,0.62); font-size:15px; margin:0 0 20px;">Реальные проекты в резюме и официальный документ — сильный аргумент при поступлении.</p>' + studentValue.map(function (v) { return valItem(v, true); }).join('') + '<button data-action="goStudent" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:13px; border-radius:11px; cursor:pointer;">Найти стажировку</button></div>' +
+        '<div data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:32px;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-body);">◆</span><span style="font-weight:600; font-size:var(--text-title);">Для стартапов</span></div><p style="color:var(--muted); font-size:var(--text-body); margin:0 0 20px;">Ранние команды с ограниченным бюджетом — быстрые руки без затрат на найм.</p>' + startupValue.map(function (v) { return valItem(v, false); }).join('') + '<button data-action="goStartupForm" style="margin-top:22px; width:100%; font-size:var(--text-body); font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px; border-radius:11px; cursor:pointer;">Разместить задачу</button></div>' +
+        '<div data-stagger style="background:var(--ink); border:1px solid var(--ink); border-radius:18px; padding:32px; color:#fff;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-body);">●</span><span style="font-weight:600; font-size:var(--text-title);">Для студентов и школьников</span></div><p style="color:rgba(255,255,255,0.62); font-size:var(--text-body); margin:0 0 20px;">Реальные проекты в резюме и официальный документ — сильный аргумент при поступлении.</p>' + studentValue.map(function (v) { return valItem(v, true); }).join('') + '<button data-action="goStudent" style="margin-top:22px; width:100%; font-size:var(--text-body); font-weight:600; color:var(--ink); background:#fff; border:none; padding:13px; border-radius:11px; cursor:pointer;">Найти стажировку</button></div>' +
       '</div></section>';
 
     var stepItem = function (s, accent) {
       var circle = accent
         ? 'border:1.5px solid color-mix(in srgb, var(--accent) 40%, #fff); color:var(--accent); background:color-mix(in srgb, var(--accent) 6%, #fff);'
         : 'border:1.5px solid var(--line); background:#fff;';
-      return '<div data-stagger style="display:flex; gap:16px; padding-bottom:26px; position:relative;"><div style="flex-shrink:0; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px; ' + circle + '">' + s.n + '</div><div><div style="font-weight:600; font-size:16px;">' + s.title + '</div><div style="font-size:14px; color:var(--muted); margin-top:3px;">' + s.desc + '</div></div></div>';
+      return '<div data-stagger style="display:flex; gap:16px; padding-bottom:26px; position:relative;"><div style="flex-shrink:0; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:var(--text-body); ' + circle + '">' + s.n + '</div><div><div style="font-weight:600; font-size:var(--text-body);">' + s.title + '</div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:3px;">' + s.desc + '</div></div></div>';
     };
     var how = '<section id="sec-how" data-reveal style="background:#fff; border-top:1.5px solid var(--line); border-bottom:1.5px solid var(--line);">' +
-      '<div style="max-width:1180px; margin:0 auto; padding:64px 28px;"><div style="text-align:center; max-width:640px; margin:0 auto 44px;"><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Как это работает</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 0;">Два простых пути навстречу</h2></div>' +
+      '<div style="max-width:1180px; margin:0 auto; padding:64px 28px;"><div style="text-align:center; max-width:640px; margin:0 auto 44px;"><h2 style="font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:0;">Два простых пути навстречу</h2></div>' +
       '<div class="g2" style="display:grid; gap:48px;">' +
-        '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--ink);"></span>Стартап</div>' + stepsStartup.map(function (s) { return stepItem(s, false); }).join('') + '</div>' +
-        '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent);"></span>Студент</div>' + stepsStudent.map(function (s) { return stepItem(s, true); }).join('') + '</div>' +
+        '<div><div style="font-weight:600; font-size:var(--text-body); margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--ink);"></span>Стартап</div>' + stepsStartup.map(function (s) { return stepItem(s, false); }).join('') + '</div>' +
+        '<div><div style="font-weight:600; font-size:var(--text-body); margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent);"></span>Студент</div>' + stepsStudent.map(function (s) { return stepItem(s, true); }).join('') + '</div>' +
       '</div></div></section>';
 
     var verifyCard = function (q) {
-      return '<div data-lift data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:22px;"><div style="width:36px; height:36px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:17px; margin-bottom:14px;">' + q.icon + '</div><div style="font-weight:600; font-size:15.5px;">' + q.title + '</div><div style="font-size:13.5px; color:var(--muted); margin-top:5px; line-height:1.5;">' + q.desc + '</div><div style="margin-top:12px; font-size:11.5px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.04em;">' + q.tag + '</div></div>';
+      return '<div data-lift data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:22px;"><div style="width:36px; height:36px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:var(--text-body); margin-bottom:14px;">' + q.icon + '</div><div style="font-weight:600; font-size:var(--text-body);">' + q.title + '</div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:5px; line-height:1.5;">' + q.desc + '</div><div style="margin-top:12px; font-size:var(--text-micro); font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.04em;">' + q.tag + '</div></div>';
     };
     var verify = '<section id="sec-verify" data-reveal style="max-width:1180px; margin:0 auto; padding:72px 28px;">' +
       '<div class="g-split" style="display:grid; gap:56px; align-items:center;">' +
-        '<div><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Доверие и качество</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 16px;">Профили проверены. Результат — оформлен официально.</h2><p style="font-size:16px; color:var(--muted); line-height:1.6;">Мы снижаем два главных риска: сомнительное качество исполнителей для компаний и юридическую неопределённость для обеих сторон. Верификация — бесплатная, а практика оформляется как учебная, а не как трудоустройство.</p>' +
-          '<div style="margin-top:24px; padding:18px 20px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 20%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Официальный документ о практике</strong> — студент получает подтверждение пройденной учебной практики, которое можно приложить к резюме или заявке на поступление.</div>' +
-          '<div style="margin-top:14px; padding:18px 20px; background:color-mix(in srgb, #e2a53a 8%, #fff); border:1px solid color-mix(in srgb, #e2a53a 26%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Защита несовершеннолетних</strong> — участникам до 18 лет доступ открывается только после письменного согласия родителя (по законодательству РУз). <a href="' + CONSENT_TEMPLATE_URL + '" download style="font-weight:700; color:var(--accent); border-bottom:1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);">Скачать шаблон согласия</a> — он уже готов, останется подписать.</div>' +
+        '<div><h2 style="font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:0 0 16px;">Профили проверены. Результат — оформлен официально.</h2><p style="font-size:var(--text-body); color:var(--muted); line-height:1.6;">Мы снижаем два главных риска: сомнительное качество исполнителей для компаний и юридическую неопределённость для обеих сторон. Верификация — бесплатная, а практика оформляется как учебная, а не как трудоустройство.</p>' +
+          '<div style="margin-top:24px; padding:18px 20px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 20%, #fff); border-radius:14px; font-size:var(--text-caption); line-height:1.55;"><strong style="font-weight:700;">Официальный документ о практике</strong> — студент получает подтверждение пройденной учебной практики, которое можно приложить к резюме или заявке на поступление.</div>' +
+          '<div style="margin-top:14px; padding:18px 20px; background:color-mix(in srgb, #e2a53a 8%, #fff); border:1px solid color-mix(in srgb, #e2a53a 26%, #fff); border-radius:14px; font-size:var(--text-caption); line-height:1.55;"><strong style="font-weight:700;">Защита несовершеннолетних</strong> — участникам до 18 лет доступ открывается только после письменного согласия родителя (по законодательству РУз). <a href="' + CONSENT_TEMPLATE_URL + '" download style="font-weight:700; color:var(--accent); border-bottom:1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);">Скачать шаблон согласия</a> — он уже готов, останется подписать.</div>' +
         '</div>' +
         '<div class="g2" style="display:grid; gap:16px;">' + verifyItems.map(verifyCard).join('') + '</div>' +
       '</div></section>';
 
-    var waitlist = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:32px 28px 88px;"><div style="background:var(--ink); border-radius:22px; padding:56px 40px; text-align:center; color:#fff; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 60%); opacity:0.5;"></div><div style="position:relative;"><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3.2vw,42px); letter-spacing:-0.02em; margin:0;">Присоединяйтесь к пилоту</h2><p style="font-size:17px; color:rgba(255,255,255,0.66); max-width:480px; margin:14px auto 0;">Набираем первые 5–10 стартапов и 10–20 студентов. Ранние участники получают бесплатный доступ и приоритет в матчинге.</p><div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;"><button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Разместить задачу</button><button data-action="goStudent" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Найти стажировку</button></div></div></div></section>';
+    var waitlist = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:32px 28px 88px;"><div style="background:var(--ink); border-radius:22px; padding:56px 40px; text-align:center; color:#fff; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 60%); opacity:0.5;"></div><div style="position:relative;"><h2 style="font-weight:600; font-size:clamp(28px,3.2vw,42px); letter-spacing:-0.02em; margin:0;">Присоединяйтесь к пилоту</h2><p style="font-size:var(--text-body); color:rgba(255,255,255,0.66); max-width:480px; margin:14px auto 0;">Набираем первые 5–10 стартапов и 10–20 студентов. Ранние участники получают бесплатный доступ и приоритет в матчинге.</p><div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;"><button data-action="goStartupForm" style="font-size:var(--text-body); font-weight:600; color:var(--ink); background:#fff; border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Разместить задачу</button><button data-action="goStudent" style="font-size:var(--text-body); font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Найти стажировку</button></div></div></div></section>';
 
     return '<main class="view-in">' + hero + value + how + verify + waitlist + '</main>';
   }
@@ -549,23 +552,23 @@
     var noClient = !supabase;
     return '<div style="max-width:440px;">' +
       '<a data-action="backToLogin" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Назад</a>' +
-      '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:10px 0 8px;">' + title + '</h1>' +
-      '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">' + subtitle + '</p>' +
-      (noClient ? '<div style="padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:12px; margin-bottom:16px; font-size:13px; color:#b3261e; line-height:1.5;">Supabase не настроен: укажите SUPABASE_URL и SUPABASE_ANON_KEY в int_app.js.</div>' : '') +
+      '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:10px 0 8px;">' + title + '</h1>' +
+      '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 24px;">' + subtitle + '</p>' +
+      (noClient ? '<div style="padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:12px; margin-bottom:16px; font-size:var(--text-caption); color:#b3261e; line-height:1.5;">Supabase не настроен: укажите SUPABASE_URL и SUPABASE_ANON_KEY в int_app.js.</div>' : '') +
       '<div style="display:flex; flex-direction:column; gap:16px;">' +
         inputField('Email', 'semail', 'you@email.com') +
-        (state.otp.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
+        (state.otp.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
         '<button data-action="sendOtp"' + (state.otp.loading || noClient ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading || noClient ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Отправка…' : 'Получить код') + '</button>' +
       '</div></div>';
   }
   function otpStepHtml() {
     return '<div style="max-width:440px;">' +
       '<a data-action="backToEmail" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Изменить email</a>' +
-      '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:10px 0 8px;">Введите код</h1>' +
-      '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Шестизначный код отправлен на <strong style="color:var(--ink);">' + esc(state.otp.email) + '</strong>. Проверьте почту (и папку «Спам»).</p>' +
+      '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:10px 0 8px;">Введите код</h1>' +
+      '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 24px;">Шестизначный код отправлен на <strong style="color:var(--ink);">' + esc(state.otp.email) + '</strong>. Проверьте почту (и папку «Спам»).</p>' +
       '<div style="display:flex; flex-direction:column; gap:16px;">' +
         inputField('Код из письма', 'otpInput', '000000') +
-        (state.otp.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
+        (state.otp.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.otp.error) + '</span>' : '') +
         '<button data-action="verifyOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.primary + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.otp.loading ? 'Проверка…' : 'Подтвердить и войти') + '</button>' +
         '<button data-action="resendOtp"' + (state.otp.loading ? ' disabled' : '') + ' style="' + S.ghost + (state.otp.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">Отправить код повторно</button>' +
       '</div></div>';
@@ -576,17 +579,17 @@
     var inner = '';
     if (state.studentStep === 'login') {
       inner = '<div style="max-width:440px;">' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:20px 0 8px;">Найти стажировку</h1>' +
-        '<p style="color:var(--muted); font-size:16px; margin:0 0 28px;">Быстрый вход без барьеров. При входе через Telegram имя и фамилия подтянутся автоматически — останется только подтвердить их.</p>' +
+        '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:20px 0 8px;">Найти стажировку</h1>' +
+        '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 28px;">Быстрый вход без барьеров. При входе через Telegram имя и фамилия подтянутся автоматически — останется только подтвердить их.</p>' +
         '<button data-action="loginTelegram" class="tg-btn"' + (state.tgAuth.loading ? ' disabled' : '') + '>' +
           '<svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>' +
           '<span>' + (state.tgAuth.loading ? 'Открываем Telegram…' : 'Войти через Telegram') + '</span>' +
         '</button>' +
-        (state.tgAuth.loading ? '<div style="margin-top:12px; text-align:center; font-size:13px; color:var(--muted);">Проверяем вход через Telegram…</div>' : '') +
-        (state.tgAuth.error ? '<div style="margin-top:12px; padding:11px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:13px; color:#b3261e; line-height:1.5;">' + esc(state.tgAuth.error) + '</div>' : '') +
-        '<div style="display:flex; align-items:center; gap:14px; margin:20px 0;"><div style="flex:1; height:1px; background:var(--line);"></div><span style="font-size:13px; color:var(--muted);">или</span><div style="flex:1; height:1px; background:var(--line);"></div></div>' +
+        (state.tgAuth.loading ? '<div style="margin-top:12px; text-align:center; font-size:var(--text-caption); color:var(--muted);">Проверяем вход через Telegram…</div>' : '') +
+        (state.tgAuth.error ? '<div style="margin-top:12px; padding:11px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:var(--text-caption); color:#b3261e; line-height:1.5;">' + esc(state.tgAuth.error) + '</div>' : '') +
+        '<div style="display:flex; align-items:center; gap:14px; margin:20px 0;"><div style="flex:1; height:1px; background:var(--line);"></div><span style="font-size:var(--text-caption); color:var(--muted);">или</span><div style="flex:1; height:1px; background:var(--line);"></div></div>' +
         '<button data-action="continueEmail" style="width:100%; ' + S.ghost + '">Продолжить по email</button>' +
-        '<div style="margin-top:28px; padding-top:22px; border-top:1.5px solid var(--line);"><div style="font-size:12.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px;">Четыре шага регистрации</div>' +
+        '<div style="margin-top:28px; padding-top:22px; border-top:1.5px solid var(--line);"><div style="font-size:var(--text-micro); font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px;">Четыре шага регистрации</div>' +
           '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:6px;">' +
             stepDot('1', 'Вход', true) + arrow() + stepDot('2', 'Контакты', false) + arrow() + stepDot('3', 'Личные данные', false) + arrow() + stepDot('4', 'Тестирование', false) +
           '</div></div></div>';
@@ -596,33 +599,33 @@
       inner = otpStepHtml();
     } else if (state.studentStep === 'profileContacts') {
       inner = '<div>' +
-        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Шаг 1 из 2 · Контакты</div>' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:14px 0 8px;">Как с вами связаться</h1>' +
-        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Email нужен для входа и уведомлений, Telegram — необязательно, только для связи.</p>' +
-        (state.tgDraft ? '<div style="display:flex; gap:11px; align-items:flex-start; padding:13px 15px; background:color-mix(in srgb, #229ED9 8%, #fff); border:1px solid color-mix(in srgb, #229ED9 22%, #fff); border-radius:12px; margin-bottom:20px;"><span style="color:#229ED9; font-weight:700;">✈</span><span style="font-size:13px; color:var(--muted); line-height:1.5;">Данные подтянуты из Telegram. Проверьте email и при необходимости исправьте.</span></div>' : '') +
+        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:var(--text-micro); font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Шаг 1 из 2 · Контакты</div>' +
+        '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:14px 0 8px;">Как с вами связаться</h1>' +
+        '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 24px;">Email нужен для входа и уведомлений, Telegram — необязательно, только для связи.</p>' +
+        (state.tgDraft ? '<div style="display:flex; gap:11px; align-items:flex-start; padding:13px 15px; background:color-mix(in srgb, #229ED9 8%, #fff); border:1px solid color-mix(in srgb, #229ED9 22%, #fff); border-radius:12px; margin-bottom:20px;"><span style="color:#229ED9; font-weight:700;">✈</span><span style="font-size:var(--text-caption); color:var(--muted); line-height:1.5;">Данные подтянуты из Telegram. Проверьте email и при необходимости исправьте.</span></div>' : '') +
         '<div style="display:flex; flex-direction:column; gap:18px;">' +
           inputField('Email', 'semail', 'you@email.com') +
           inputField('Telegram для связи <span style="color:var(--muted); font-weight:500;">(необязательно)</span>', 'tg', '@username', 'Используется только как способ связи, не как отображаемое имя в профиле.') +
-          (state.profileSave.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
+          (state.profileSave.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
           '<button data-action="goProfileDetails" style="margin-top:4px; ' + S.primary + '">Продолжить</button>' +
         '</div></div>';
     } else if (state.studentStep === 'profileDetails') {
       inner = '<div>' +
         '<a data-action="backToProfileContacts" style="' + S.back + ' display:inline-block; margin:20px 0 4px;">← Назад</a>' +
-        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:14px;">Шаг 2 из 2 · Личные данные</div>' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:14px 0 8px;">Заполните профиль</h1>' +
-        '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Укажите имя и фамилию <strong style="color:var(--ink);">как в паспорте или студенческом</strong> — именно это имя попадёт в официальный документ о практике.</p>' +
+        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:var(--text-micro); font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:14px;">Шаг 2 из 2 · Личные данные</div>' +
+        '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:14px 0 8px;">Заполните профиль</h1>' +
+        '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 24px;">Укажите имя и фамилию <strong style="color:var(--ink);">как в паспорте или студенческом</strong> — именно это имя попадёт в официальный документ о практике.</p>' +
         '<div style="display:flex; flex-direction:column; gap:18px;">' +
-          '<label style="' + S.label + '"><span style="' + S.labelSpan + '">Ваш статус</span><select data-field="status" style="' + S.input + '">' + statusOptions() + '</select><span style="font-size:12px; color:var(--muted);">Если вам ещё нет 18 — для доступа к каталогу потребуется согласие родителя.</span></label>' +
+          '<label style="' + S.label + '"><span style="' + S.labelSpan + '">Ваш статус</span><select data-field="status" style="' + S.input + '">' + statusOptions() + '</select><span style="font-size:var(--text-micro); color:var(--muted);">Если вам ещё нет 18 — для доступа к каталогу потребуется согласие родителя.</span></label>' +
           '<div class="g2" style="display:grid; gap:14px;">' + inputField('Имя <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'sfirst', 'Азиз') + inputField('Фамилия <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'slast', 'Каримов') + '</div>' +
-          (state.profileSave.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
+          (state.profileSave.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
           '<button data-action="saveStudentProfile"' + (state.profileSave.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.profileSave.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.profileSave.loading ? 'Сохранение…' : 'Сохранить и завершить') + '</button>' +
         '</div></div>';
     } else { // done
       var body = isMinor()
-        ? '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:460px; margin:0 auto 28px;">Дальше в личном кабинете загрузите <strong style="color:var(--ink);">справку о месте учёбы</strong> и <strong style="color:var(--ink);">согласие родителя</strong>. После ручной проверки откроется каталог задач.</p>'
-        : '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:16px; max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:15px; max-width:440px; margin:0 auto 28px;">Дальше можно подтвердить место учёбы и пройти ИИ-тест — статусы доверия добавятся к профилю.</p>';
-      inner = '<div style="text-align:center; padding-top:56px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div>' + body + '<button data-action="goCabinet" style="' + S.dark + '">Перейти в личный кабинет</button></div>';
+        ? '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:var(--text-body); max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:var(--text-body); max-width:460px; margin:0 auto 28px;">Дальше в личном кабинете загрузите <strong style="color:var(--ink);">справку о месте учёбы</strong> и <strong style="color:var(--ink);">согласие родителя</strong>. После ручной проверки откроется каталог задач.</p>'
+        : '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:0 0 10px;">Профиль сохранён</h1><p style="color:var(--muted); font-size:var(--text-body); max-width:460px; margin:0 auto 8px;">Имя для официальных документов: <strong style="color:var(--ink);">' + esc(studentName()) + '</strong></p><p style="color:var(--muted); font-size:var(--text-body); max-width:440px; margin:0 auto 28px;">Дальше можно подтвердить место учёбы и пройти ИИ-тест — статусы доверия добавятся к профилю.</p>';
+      inner = '<div style="text-align:center; padding-top:56px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:var(--text-h1); margin:0 auto 22px;">✓</div>' + body + '<button data-action="goCabinet" style="' + S.dark + '">Перейти в личный кабинет</button></div>';
     }
     return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
   }
@@ -659,9 +662,9 @@
   var DURATION_OPTIONS = [['2w', '2 недели'], ['1m', '1 месяц'], ['3m', '3 месяца']];
   function stepDot(n, label, active) {
     var c = active ? 'background:var(--accent); color:#fff;' : 'background:#fff; border:1.5px solid var(--line); color:var(--muted);';
-    return '<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; text-align:center;"><span style="width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:14px; flex-shrink:0; ' + c + '">' + n + '</span><span style="font-size:12px; font-weight:600; line-height:1.3;">' + label + '</span></div>';
+    return '<div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; text-align:center;"><span style="width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:var(--text-caption); flex-shrink:0; ' + c + '">' + n + '</span><span style="font-size:var(--text-micro); font-weight:600; line-height:1.3;">' + label + '</span></div>';
   }
-  function arrow() { return '<span style="margin-top:9px; color:var(--muted); font-size:14px;">→</span>'; }
+  function arrow() { return '<span style="margin-top:9px; color:var(--muted); font-size:var(--text-caption);">→</span>'; }
 
   /* ---------- COMPANY FORM ---------- */
   function companyView() {
@@ -680,29 +683,29 @@
     }
     if (!state.companyProfile) {
       inner = '<div>' +
-        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Шаг 1 · Подтверждение профиля</div>' +
-        '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:34px; letter-spacing:-0.02em; margin:14px 0 8px;">Заявка на подтверждение компании</h1>' +
-        '<p style="color:var(--muted); font-size:16px; margin:0 0 28px;">На старте профили компаний подтверждаются вручную — так мы защищаем студентов. Проверяем госреестр, корпоративный домен и созваниваемся с командой.</p>' +
+        '<div style="display:inline-flex; align-items:center; gap:8px; font-size:var(--text-micro); font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:5px 11px; border-radius:7px; text-transform:uppercase; letter-spacing:0.05em; margin-top:20px;">Шаг 1 · Подтверждение профиля</div>' +
+        '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:14px 0 8px;">Заявка на подтверждение компании</h1>' +
+        '<p style="color:var(--muted); font-size:var(--text-body); margin:0 0 28px;">На старте профили компаний подтверждаются вручную — так мы защищаем студентов. Проверяем госреестр, корпоративный домен и созваниваемся с командой.</p>' +
         '<div style="display:flex; flex-direction:column; gap:18px;">' +
           inputField('Название компании', 'company', 'Напр. GreenTech Tashkent LLC') +
           '<div class="g2" style="display:grid; gap:14px;">' + inputField('ИНН <span style="color:var(--muted); font-weight:500;">(госреестр)</span>', 'inn', '9 цифр') + inputField('Руководитель', 'director', 'ФИО по реестру') + '</div>' +
           inputField('Корпоративная почта <span style="color:var(--muted); font-weight:500;">(@домен, необязательно)</span>', 'corpEmail', 'you@company.uz') +
           inputField('LinkedIn или соцсети компании <span style="color:var(--muted); font-weight:500;">(необязательно)</span>', 'linkedin', 'Ссылка на профиль представителя или страницу') +
           '<div class="g2" style="display:grid; gap:14px;">' + inputField('Контактное лицо', 'contact', 'Имя') + inputField('Телефон для созвона', 'phone', '+998 ...') + '</div>' +
-          '<div style="display:flex; gap:11px; align-items:flex-start; padding:14px 16px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px;"><span style="color:var(--accent); font-weight:700;">ⓘ</span><span style="font-size:13px; color:var(--muted); line-height:1.5;">Для первых компаний обязателен короткий созвон с командой платформы — это даёт максимальное доверие для студентов. Занимает 10–15 минут.</span></div>' +
-          (state.companySubmit.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.companySubmit.error) + '</span>' : '') +
+          '<div style="display:flex; gap:11px; align-items:flex-start; padding:14px 16px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px;"><span style="color:var(--accent); font-weight:700;">ⓘ</span><span style="font-size:var(--text-caption); color:var(--muted); line-height:1.5;">Для первых компаний обязателен короткий созвон с командой платформы — это даёт максимальное доверие для студентов. Занимает 10–15 минут.</span></div>' +
+          (state.companySubmit.error ? '<span style="font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.companySubmit.error) + '</span>' : '') +
           '<button data-action="submitCompany"' + (state.companySubmit.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.companySubmit.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.companySubmit.loading ? 'Отправка…' : 'Отправить заявку') + '</button>' +
-          '<p style="font-size:12.5px; color:var(--muted); text-align:center; margin:0;">Участие бесплатно на старте. Задачи можно размещать после подтверждения профиля.</p>' +
+          '<p style="font-size:var(--text-micro); color:var(--muted); text-align:center; margin:0;">Участие бесплатно на старте. Задачи можно размещать после подтверждения профиля.</p>' +
         '</div></div>';
     } else {
-      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;" class="pop-in">✓</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:16px; max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goVacancies" style="' + S.ghost + '">Мои вакансии</button></div></div>';
+      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:var(--text-h1); margin:0 auto 22px;" class="pop-in">✓</div><h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:var(--text-body); max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goVacancies" style="' + S.ghost + '">Мои вакансии</button></div></div>';
     }
     return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
   }
 
   /* ---------- catalog cards ---------- */
   function studentCard(s) {
-    return '<div data-lift style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:20px;"><div style="display:flex; align-items:center; justify-content:space-between;"><div style="width:44px; height:44px; border-radius:11px; background:color-mix(in srgb, var(--accent) 11%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px;">' + s.initials + '</div><span style="font-size:11px; font-weight:700; color:var(--accent);">✓ verified</span></div><div style="font-weight:600; font-size:16px; margin-top:14px;">' + s.name + '</div><div style="font-size:13px; color:var(--muted);">' + s.school + '</div><div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">' + s.skills.map(function (sk) { return '<span style="font-size:11.5px; font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:4px 9px; border-radius:6px;">' + sk + '</span>'; }).join('') + '</div><div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1.5px solid var(--line);"><span style="font-size:12.5px; color:var(--muted);">ИИ-тест: <strong style="color:var(--ink);">' + s.score + '</strong></span><button style="font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button></div></div>';
+    return '<div data-lift style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:20px;"><div style="display:flex; align-items:center; justify-content:space-between;"><div style="width:44px; height:44px; border-radius:11px; background:color-mix(in srgb, var(--accent) 11%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:600; font-size:var(--text-body);">' + s.initials + '</div><span style="font-size:var(--text-micro); font-weight:700; color:var(--accent);">✓ verified</span></div><div style="font-weight:600; font-size:var(--text-body); margin-top:14px;">' + s.name + '</div><div style="font-size:var(--text-caption); color:var(--muted);">' + s.school + '</div><div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">' + s.skills.map(function (sk) { return '<span style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:4px 9px; border-radius:6px;">' + sk + '</span>'; }).join('') + '</div><div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1.5px solid var(--line);"><span style="font-size:var(--text-micro); color:var(--muted);">ИИ-тест: <strong style="color:var(--ink);">' + s.score + '</strong></span><button style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button></div></div>';
   }
   // Строка из БД -> объект для gigCard (все поля экранируем, данные вводят компании).
   function gigView(r) {
@@ -721,7 +724,7 @@
   }
   // Кнопка отклика меняет смысл: гость -> вход, уже откликнулся -> чат, компания -> ничего.
   function gigActionHtml(gigId) {
-    var base = 'font-size:13px; font-weight:600; border:none; padding:10px 16px; border-radius:9px; cursor:pointer; flex-shrink:0;';
+    var base = 'font-size:var(--text-caption); font-weight:600; border:none; padding:10px 16px; border-radius:9px; cursor:pointer; flex-shrink:0;';
     if (state.authRole === 'company') return '';
     var applied = applicationForGig(gigId);
     if (applied) {
@@ -733,17 +736,17 @@
       (st.loading ? 'Отправляем…' : 'Откликнуться') + '</button>';
     if (!st.error) return btn;
     return '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">' + btn +
-      '<span style="font-size:12px; color:#b3261e; font-weight:600; max-width:180px; text-align:right;">' + esc(st.error) + '</span></div>';
+      '<span style="font-size:var(--text-micro); color:#b3261e; font-weight:600; max-width:180px; text-align:right;">' + esc(st.error) + '</span></div>';
   }
   function gigCard(g) {
-    return '<div data-lift style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:16px;">' + g.title + '</span><span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:13.5px; color:var(--muted); margin-top:2px;">' + companyLink(g) + '</div><div style="font-size:14px; color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:12.5px; color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div>' + gigActionHtml(g.id) + '</div>';
+    return '<div data-lift style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:var(--text-body); flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:var(--text-body);">' + g.title + '</span><span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:2px;">' + companyLink(g) + '</div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:var(--text-micro); color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div>' + gigActionHtml(g.id) + '</div>';
   }
   function minorLock(title) {
     var c = docStat('consent');
     var action;
-    if (c === 'pending') action = '<div style="display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#b26b12; background:color-mix(in srgb, #e2a53a 14%, #fff); padding:10px 16px; border-radius:10px;"><span style="width:7px; height:7px; border-radius:50%; background:#e2a53a;"></span>Согласие на проверке · обычно 1–2 дня</div>';
+    if (c === 'pending') action = '<div style="display:inline-flex; align-items:center; gap:8px; font-size:var(--text-caption); font-weight:600; color:#8f5410; background:color-mix(in srgb, #e2a53a 14%, #fff); padding:10px 16px; border-radius:10px;"><span style="width:7px; height:7px; border-radius:50%; background:#e2a53a;"></span>Согласие на проверке · обычно 1–2 дня</div>';
     else action = '<button data-action="openConsentDoc" style="' + S.primary.replace('padding:15px', 'padding:13px 24px') + '">' + (c === 'rejected' ? 'Загрузить согласие заново' : 'Загрузить согласие родителя') + '</button>';
-    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:52px 32px; text-align:center;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, #e2a53a 16%, #fff); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 20px;">🔒</div><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:23px; letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3><p style="color:var(--muted); font-size:15px; max-width:440px; margin:0 auto 22px; line-height:1.55;">Вам ещё нет 18 лет. Доступ откроется после загрузки и ручной проверки согласия родителя.</p>' + action + '</div>';
+    return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:52px 32px; text-align:center;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, #e2a53a 16%, #fff); display:flex; align-items:center; justify-content:center; font-size:var(--text-h1); margin:0 auto 20px;">🔒</div><h3 style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3><p style="color:var(--muted); font-size:var(--text-body); max-width:440px; margin:0 auto 22px; line-height:1.55;">Вам ещё нет 18 лет. Доступ откроется после загрузки и ручной проверки согласия родителя.</p>' + action + '</div>';
   }
 
   /* ---------- CATALOG ---------- */
@@ -762,28 +765,28 @@
     var catTitle = 'Каталог задач';
     var catSub = 'Задачи от стартапов и компаний';
     var head = '<div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:26px;">' +
-      '<div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0;">' + catTitle + '</h1><div style="font-size:14.5px; color:var(--muted); margin-top:6px;">' + catSub + '</div></div>';
+      '<div><h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:0;">' + catTitle + '</h1><div style="font-size:var(--text-caption); color:var(--muted); margin-top:6px;">' + catSub + '</div></div>';
     // Переключателя «Студенты / Задачи» здесь больше нет: показывать вкладку, которая
     // всегда пуста, — значит выдавать отсутствующую функцию за сломанную.
     if (role === 'company') {
       head += companyStatus() === 'approved'
-        ? '<button data-action="openGigForm" style="font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:11px 18px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
-        : '<button disabled style="font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:11px 18px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
+        ? '<button data-action="openGigForm" style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:11px 18px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
+        : '<button disabled style="font-size:var(--text-caption); font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:11px 18px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
     }
     head += '</div>';
 
     // sidebar
     var sidebar;
     if (role === 'student') {
-      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:15px;">' + esc(studentName()) + '</div><div style="font-size:12px; color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
+      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:var(--text-body);">' + esc(studentName()) + '</div><div style="font-size:var(--text-micro); color:var(--accent); font-weight:600;">✓ Профиль подтверждён</div></div></div></aside>';
     } else if (role === 'company') {
       var scs = companyStatus();
-      var scColor = scs === 'approved' ? '#16a34a' : scs === 'rejected' ? '#b3261e' : '#b26b12';
+      var scColor = scs === 'approved' ? '#15803d' : scs === 'rejected' ? '#b3261e' : '#8f5410';
       var scText = scs === 'approved' ? 'Профиль подтверждён' : scs === 'rejected' ? 'Заявка отклонена' : 'На подтверждении';
       var scPost = scs === 'approved'
-        ? '<button data-action="openGigForm" style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
-        : '<button disabled style="margin-top:18px; width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
-      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px;">◆</div><div><div style="font-weight:600; font-size:15px;">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:' + scColor + '; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:' + scColor + ';"></span>' + scText + '</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1.5px solid var(--line);"><div style="font-size:12px; color:var(--muted);">Что дальше</div><div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div>' + scPost + '<button data-action="goCabinet" style="margin-top:10px; width:100%; font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
+        ? '<button data-action="openGigForm" style="margin-top:18px; width:100%; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
+        : '<button disabled style="margin-top:18px; width:100%; font-size:var(--text-caption); font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
+      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-title);">◆</div><div><div style="font-weight:600; font-size:var(--text-body);">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:var(--text-micro); color:' + scColor + '; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:' + scColor + ';"></span>' + scText + '</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1.5px solid var(--line);"><div style="font-size:var(--text-micro); color:var(--muted);">Что дальше</div><div style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div>' + scPost + '<button data-action="goCabinet" style="margin-top:10px; width:100%; font-size:var(--text-caption); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
     } else {
       sidebar = '<div aria-hidden="true"></div>';
     }
@@ -791,9 +794,9 @@
     // listings
     var emptyCard = function (title, text) {
       return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:52px 32px; text-align:center;">' +
-        '<div style="width:56px; height:56px; border-radius:15px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:26px; margin:0 auto 18px;">📭</div>' +
-        '<h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0 0 8px;">' + title + '</h3>' +
-        '<p style="color:var(--muted); font-size:14.5px; max-width:420px; margin:0 auto; line-height:1.55;">' + text + '</p></div>';
+        '<div style="width:56px; height:56px; border-radius:15px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:var(--text-h2); margin:0 auto 18px;">📭</div>' +
+        '<h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0 0 8px;">' + title + '</h3>' +
+        '<p style="color:var(--muted); font-size:var(--text-caption); max-width:420px; margin:0 auto; line-height:1.55;">' + text + '</p></div>';
     };
     var listings;
     if (studentsActive) {
@@ -820,24 +823,24 @@
     var sp = state.studentProfile || {};
     var minor = isMinor();
     var cs = docStat('consent');
-    var statusColor = !minor ? '#16a34a' : (cs === 'approved' ? '#16a34a' : cs === 'pending' ? '#b26b12' : '#b3261e');
+    var statusColor = !minor ? '#15803d' : (cs === 'approved' ? '#15803d' : cs === 'pending' ? '#8f5410' : '#b3261e');
     var card = 'background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:24px;';
-    var cardTitle = 'font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:4px;';
+    var cardTitle = 'font-weight:600; font-size:var(--text-body); margin-bottom:4px;';
     var row = function (label, right) {
-      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1.5px solid var(--line);"><span style="font-size:13.5px; color:var(--muted);">' + label + '</span>' + right + '</div>';
+      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1.5px solid var(--line);"><span style="font-size:var(--text-caption); color:var(--muted);">' + label + '</span>' + right + '</div>';
     };
-    var val = function (v) { return '<span style="font-size:13.5px; font-weight:600; text-align:right; ' + S.wrap + '">' + esc(v || '—') + '</span>'; };
+    var val = function (v) { return '<span style="font-size:var(--text-caption); font-weight:600; text-align:right; ' + S.wrap + '">' + esc(v || '—') + '</span>'; };
     var editBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + S.iconBtn + '">' + icon('pencil', 13) + '</button>'; };
     var removeBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + S.iconBtn + ' color:#b3261e;">' + icon('x', 13) + '</button>'; };
-    var addBtn = function (type, label) { return '<button data-action="openItemModal" data-item-type="' + type + '" style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:9px; cursor:pointer;">' + icon('plus', 13) + label + '</button>'; };
+    var addBtn = function (type, label) { return '<button data-action="openItemModal" data-item-type="' + type + '" style="display:inline-flex; align-items:center; gap:7px; font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:9px; cursor:pointer;">' + icon('plus', 13) + label + '</button>'; };
     var chipIconStyle = 'width:20px; height:20px; border-radius:6px; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;';
     var chipEditBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted);">' + icon('pencil', 12) + '</button>'; };
     var chipRemoveBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + chipIconStyle + ' color:#b3261e;">' + icon('x', 12) + '</button>'; };
     var fileBadge = function (file) { return (file && file.url) ? '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" title="' + esc(file.name || 'файл') + '" style="color:var(--muted); display:inline-flex;">' + icon('paperclip', 13) + '</a>' + modBadge(file.path) : ''; };
     var editFieldBtn = function (field) { return '<button data-action="startFieldEdit" data-field-edit="' + field + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted); margin-left:6px;">' + icon('pencil', 12) + '</button>'; };
 
-    var availTag = '<span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:' + availColor(sp.availability) + '; background:color-mix(in srgb, ' + availColor(sp.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(sp.availability) + ';"></span>' + esc(availLabel(sp.availability)) + '</span>' +
-      '<select data-select-action="setAvailability" style="font-size:12px; font-weight:600; color:var(--muted); background:#fff; border:1.5px solid var(--line); padding:5px 8px; border-radius:8px; cursor:pointer;">' + availOptions(sp.availability) + '</select>';
+    var availTag = '<span style="display:inline-flex; align-items:center; gap:6px; font-size:var(--text-micro); font-weight:700; color:' + availColor(sp.availability) + '; background:color-mix(in srgb, ' + availColor(sp.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(sp.availability) + ';"></span>' + esc(availLabel(sp.availability)) + '</span>' +
+      '<select data-select-action="setAvailability" style="font-size:var(--text-micro); font-weight:600; color:var(--muted); background:#fff; border:1.5px solid var(--line); padding:5px 8px; border-radius:8px; cursor:pointer;">' + availOptions(sp.availability) + '</select>';
 
     var avatarUp = state.avatarUpload;
     var avatarBlock = '<div style="position:relative; flex-shrink:0;">' + avatarHtml(64, 18) +
@@ -846,10 +849,10 @@
 
     var profile = '<div style="' + card + ' display:flex; align-items:center; gap:18px; flex-wrap:wrap;">' +
       avatarBlock +
-      '<div style="min-width:0; flex:1;"><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(studentName()) + '</div>' +
-      '<div style="display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:' + statusColor + '; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:' + statusColor + ';"></span>' + esc(verifyStatus()) + (sp.institution ? ' · ' + esc(sp.institution) : '') + '</div>' +
-      (avatarUp.error ? '<div style="font-size:12px; color:#b3261e; margin-top:4px;">' + esc(avatarUp.error) + '</div>' : '') +
-      (avatarUp.loading ? '<div style="font-size:12px; color:var(--muted); margin-top:4px;">Загрузка фото…</div>' : '') +
+      '<div style="min-width:0; flex:1;"><div style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em;">' + esc(studentName()) + '</div>' +
+      '<div style="display:inline-flex; align-items:center; gap:7px; font-size:var(--text-caption); font-weight:600; color:' + statusColor + '; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:' + statusColor + ';"></span>' + esc(verifyStatus()) + (sp.institution ? ' · ' + esc(sp.institution) : '') + '</div>' +
+      (avatarUp.error ? '<div style="font-size:var(--text-micro); color:#b3261e; margin-top:4px;">' + esc(avatarUp.error) + '</div>' : '') +
+      (avatarUp.loading ? '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:4px;">Загрузка фото…</div>' : '') +
       '<div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">' + availTag + '</div></div></div>';
 
     // Строка с инлайн-редактированием (карандаш): email, статус, место учёбы.
@@ -858,27 +861,27 @@
     var editableRow = function (field, label, kind, extra) {
       if (state.fieldEditConfirm && state.fieldEditConfirm.field === field) {
         return '<div style="padding:12px 0; border-top:1.5px solid var(--line);">' +
-          '<div style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; color:#b26b12; font-weight:600; margin-bottom:10px;">' + icon('warn', 15) + '<span>' + esc(state.fieldEditConfirm.warning) + '</span></div>' +
-          '<div style="display:flex; gap:8px;"><button data-action="confirmFieldEdit" style="font-size:12.5px; font-weight:600; color:#fff; background:#b26b12; border:none; padding:7px 14px; border-radius:8px; cursor:pointer;">Подтвердить</button>' +
-          '<button data-action="cancelFieldEditConfirm" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:7px 14px; border-radius:8px; cursor:pointer;">Отмена</button></div></div>';
+          '<div style="display:flex; align-items:flex-start; gap:8px; font-size:var(--text-micro); color:#8f5410; font-weight:600; margin-bottom:10px;">' + icon('warn', 15) + '<span>' + esc(state.fieldEditConfirm.warning) + '</span></div>' +
+          '<div style="display:flex; gap:8px;"><button data-action="confirmFieldEdit" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#8f5410; border:none; padding:7px 14px; border-radius:8px; cursor:pointer;">Подтвердить</button>' +
+          '<button data-action="cancelFieldEditConfirm" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:7px 14px; border-radius:8px; cursor:pointer;">Отмена</button></div></div>';
       }
       if (state.fieldEdit === field) {
         var inputHtml;
         if (kind === 'status') inputHtml = '<select id="field-edit-input" style="' + S.field + '">' + statusOptions(sp.status) + '</select>';
-        else if (kind === 'institution') inputHtml = (statusCategory(sp.status) ? '<select id="field-edit-input" style="' + S.field + '">' + institutionOptions(sp.status, sp.institution) + '</select>' : '<div style="font-size:12.5px; color:var(--muted);">Сначала укажите статус.</div>');
+        else if (kind === 'institution') inputHtml = (statusCategory(sp.status) ? '<select id="field-edit-input" style="' + S.field + '">' + institutionOptions(sp.status, sp.institution) + '</select>' : '<div style="font-size:var(--text-micro); color:var(--muted);">Сначала укажите статус.</div>');
         else inputHtml = '<input id="field-edit-input" value="' + esc(sp[field] || '') + '" style="' + S.field + '">';
-        return '<div style="padding:12px 0; border-top:1.5px solid var(--line);"><div style="font-size:13px; color:var(--muted); margin-bottom:7px;">' + label + '</div>' +
+        return '<div style="padding:12px 0; border-top:1.5px solid var(--line);"><div style="font-size:var(--text-caption); color:var(--muted); margin-bottom:7px;">' + label + '</div>' +
           '<div style="display:flex; gap:8px; align-items:center;">' + inputHtml +
-          '<button data-action="saveFieldEdit" title="Сохранить" style="' + chipIconStyle + ' color:#16a34a;">' + icon('check', 14) + '</button>' +
+          '<button data-action="saveFieldEdit" title="Сохранить" style="' + chipIconStyle + ' color:#15803d;">' + icon('check', 14) + '</button>' +
           '<button data-action="cancelFieldEdit" title="Отмена" style="' + chipIconStyle + '">' + icon('x', 14) + '</button></div>' +
-          (state.fieldEditError ? '<div style="font-size:12px; color:#b3261e; margin-top:6px;">' + esc(state.fieldEditError) + '</div>' : '') + '</div>';
+          (state.fieldEditError ? '<div style="font-size:var(--text-micro); color:#b3261e; margin-top:6px;">' + esc(state.fieldEditError) + '</div>' : '') + '</div>';
       }
       return row(label, '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:2px;">' + val(sp[field]) + editFieldBtn(field) + (extra || '') + '</span>');
     };
     // Кнопка-ссылка в строке контактов: мелкая, не перетягивает внимание с данных.
-    var linkBtnStyle = 'font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:5px 11px; border-radius:8px; cursor:pointer; margin-left:8px; white-space:nowrap;';
+    var linkBtnStyle = 'font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:5px 11px; border-radius:8px; cursor:pointer; margin-left:8px; white-space:nowrap;';
     var badge = function (text, color, title) {
-      return '<span' + (title ? ' title="' + esc(title) + '"' : '') + ' style="font-size:11px; font-weight:700; color:' + color +
+      return '<span' + (title ? ' title="' + esc(title) + '"' : '') + ' style="font-size:var(--text-micro); font-weight:700; color:' + color +
         '; background:color-mix(in srgb, ' + color + ' 12%, #fff); padding:2px 8px; border-radius:999px; margin-left:6px; white-space:nowrap;">' + esc(text) + '</span>';
     };
     var lk = state.links;
@@ -888,7 +891,7 @@
     if (lk.telegram_id) {
       tgCell = '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
         val(lk.telegram_username ? '@' + lk.telegram_username : (sp.tg || '')) +
-        badge('вход', '#16a34a', 'Подтверждён через Telegram — по нему можно входить') + '</span>';
+        badge('вход', '#15803d', 'Подтверждён через Telegram — по нему можно входить') + '</span>';
     } else {
       tgCell = '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' + val(sp.tg) +
         '<button data-action="linkTelegram"' + (state.tgAuth.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + '">' +
@@ -902,10 +905,10 @@
     if (lk.login_is_synthetic) {
       emailMark = '<button data-action="startLinkEmail" style="' + linkBtnStyle + '">Сделать входом</button>';
     } else if (lk.login_email && sp.email && lk.login_email.toLowerCase() === sp.email.toLowerCase()) {
-      emailMark = badge('вход', '#16a34a');
+      emailMark = badge('вход', '#15803d');
     } else if (lk.login_email) {
       // Контактная почта и логин разошлись — показываем, каким адресом на самом деле входят.
-      emailMark = '<span style="font-size:11.5px; color:var(--muted); margin-left:6px;">вход: ' + esc(lk.login_email) + '</span>';
+      emailMark = '<span style="font-size:var(--text-micro); color:var(--muted); margin-left:6px;">вход: ' + esc(lk.login_email) + '</span>';
     } else emailMark = '';
 
     // Форма привязки — отдельным блоком во всю ширину под строками: в ячейке значения
@@ -913,20 +916,20 @@
     var linkForm = '';
     if (el.step === 'form') {
       linkForm = '<div style="padding:12px 0; border-top:1.5px solid var(--line);">' +
-        '<div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">Почта для входа — по ней можно будет заходить кодом, как через Telegram.</div>' +
+        '<div style="font-size:var(--text-micro); color:var(--muted); margin-bottom:8px;">Почта для входа — по ней можно будет заходить кодом, как через Telegram.</div>' +
         '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
         '<input id="link-email-input" type="email" value="' + esc(el.email || sp.email || '') + '" placeholder="you@email.com" style="flex:1; min-width:200px; ' + S.field + '">' +
         '<button data-action="sendLinkEmailCode"' + (el.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + ' margin-left:0;">' + (el.loading ? 'Отправляем…' : 'Прислать код') + '</button>' +
         '<button data-action="cancelLinkEmail" style="' + linkBtnStyle + ' margin-left:0;">Отмена</button></div>';
     } else if (el.step === 'code') {
       linkForm = '<div style="padding:12px 0; border-top:1.5px solid var(--line);">' +
-        '<div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">Код отправлен на ' + esc(el.email) + '</div>' +
+        '<div style="font-size:var(--text-micro); color:var(--muted); margin-bottom:8px;">Код отправлен на ' + esc(el.email) + '</div>' +
         '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
         '<input id="link-code-input" inputmode="numeric" placeholder="Код из письма" style="flex:1; min-width:160px; ' + S.field + '">' +
         '<button data-action="confirmLinkEmail"' + (el.loading ? ' disabled' : '') + ' style="' + linkBtnStyle + ' margin-left:0;">' + (el.loading ? 'Проверяем…' : 'Подтвердить') + '</button>' +
         '<button data-action="cancelLinkEmail" style="' + linkBtnStyle + ' margin-left:0;">Отмена</button></div>';
     }
-    if (linkForm && el.error) linkForm += '<div style="font-size:12px; color:#b3261e; margin-top:8px;">' + esc(el.error) + '</div>';
+    if (linkForm && el.error) linkForm += '<div style="font-size:var(--text-micro); color:#b3261e; margin-top:8px;">' + esc(el.error) + '</div>';
     if (linkForm) linkForm += '</div>';
 
     // Статус меняется только заявкой с документом: напрямую его не отдать в редактирование,
@@ -935,12 +938,12 @@
     var statusRow;
     if (sr && sr.status === 'pending') {
       statusRow = row('Статус', '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
-        val(sp.status) + badge('на подтверждении', '#b26b12', 'Заявка на «' + (sr.to_status || '') + '» рассматривается') + '</span>');
+        val(sp.status) + badge('на подтверждении', '#8f5410', 'Заявка на «' + (sr.to_status || '') + '» рассматривается') + '</span>');
     } else {
       statusRow = row('Статус', '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">' +
         val(sp.status) + '<button data-action="openStatusModal" style="' + linkBtnStyle + '">Изменить</button></span>');
       if (sr && sr.status === 'rejected' && sr.reason) {
-        statusRow += '<div style="font-size:12px; color:#b3261e; padding:0 0 10px;">Заявка на «' + esc(sr.to_status || '') + '» отклонена: ' + esc(sr.reason) + '</div>';
+        statusRow += '<div style="font-size:var(--text-micro); color:#b3261e; padding:0 0 10px;">Заявка на «' + esc(sr.to_status || '') + '» отклонена: ' + esc(sr.reason) + '</div>';
       }
     }
 
@@ -954,22 +957,22 @@
     var docRow = function (label, type) {
       var s = docStat(type);
       var right;
-      if (s === 'pending') right = '<span style="font-size:12px; font-weight:700; color:' + docColor(s) + ';">на проверке</span>';
-      else if (s === 'approved') right = '<span style="font-size:12px; font-weight:700; color:' + docColor(s) + ';">✓ подтверждено</span>';
+      if (s === 'pending') right = '<span style="font-size:var(--text-micro); font-weight:700; color:' + docColor(s) + ';">на проверке</span>';
+      else if (s === 'approved') right = '<span style="font-size:var(--text-micro); font-weight:700; color:' + docColor(s) + ';">✓ подтверждено</span>';
       else {
         var lbl = s === 'rejected' ? 'Загрузить заново' : (type === 'consent' ? 'Загрузить' : 'Подтвердить');
-        var bg = type === 'consent' ? '#b26b12' : 'var(--accent)';
-        var btn = '<button data-action="' + (type === 'consent' ? 'openConsentDoc' : 'openStudyDoc') + '" style="font-size:12px; font-weight:600; color:#fff; background:' + bg + '; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">' + lbl + '</button>';
+        var bg = type === 'consent' ? '#8f5410' : 'var(--accent)';
+        var btn = '<button data-action="' + (type === 'consent' ? 'openConsentDoc' : 'openStudyDoc') + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:' + bg + '; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">' + lbl + '</button>';
         right = s === 'rejected'
-          ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:11.5px; font-weight:700; color:#b3261e;">отклонено</span>' + btn + '</span>'
+          ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:var(--text-micro); font-weight:700; color:#b3261e;">отклонено</span>' + btn + '</span>'
           : btn;
       }
       return row(label, right);
     };
     var at = sp.aiTest;
     var testRight = at
-      ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:12px; font-weight:700; color:' + levelColor(at.level) + ';">' + esc(at.level) + '</span><button data-action="openTest" style="font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer;">Заново</button></span>'
-      : '<button data-action="openTest" style="font-size:12px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">Пройти тест</button>';
+      ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:var(--text-micro); font-weight:700; color:' + levelColor(at.level) + ';">' + esc(at.level) + '</span><button data-action="openTest" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer;">Заново</button></span>'
+      : '<button data-action="openTest" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--accent); border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">Пройти тест</button>';
     var verification = '<div style="' + card + '"><div style="' + cardTitle + '">Верификация</div>' +
       docRow('Место учёбы (справка)', 'study') +
       row('ИИ-тест навыков', testRight) +
@@ -979,18 +982,18 @@
     var specialties = sp.specialties || (sp.specialty ? [sp.specialty] : []);
     var specPill = function (spec) {
       var active = specialties.indexOf(spec) !== -1;
-      return '<button data-action="toggleSpecialty" data-spec="' + esc(spec) + '" style="font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer; ' +
+      return '<button data-action="toggleSpecialty" data-spec="' + esc(spec) + '" style="font-size:var(--text-micro); font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer; ' +
         (active ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1.5px solid var(--line);') + '">' + esc(spec) + '</button>';
     };
     var specialtiesSection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Специальности</div>' +
-      '<p style="font-size:13px; color:var(--muted); margin:0 0 14px;">Можно выбрать несколько — первая выбранная используется для ИИ-теста навыков.</p>' +
+      '<p style="font-size:var(--text-caption); color:var(--muted); margin:0 0 14px;">Можно выбрать несколько — первая выбранная используется для ИИ-теста навыков.</p>' +
       '<div style="display:flex; flex-wrap:wrap; gap:8px;">' + SPECIALTIES.map(specPill).join('') + '</div></div>';
 
     var es = state.extrasSave;
-    var esNote = es.error ? '<span style="font-size:12.5px; color:#b3261e; font-weight:600;">' + esc(es.error) + '</span>'
-      : (es.ok ? '<span style="font-size:12.5px; color:#16a34a; font-weight:600;">Сохранено ✓</span>' : '');
+    var esNote = es.error ? '<span style="font-size:var(--text-micro); color:#b3261e; font-weight:600;">' + esc(es.error) + '</span>'
+      : (es.ok ? '<span style="font-size:var(--text-micro); color:#15803d; font-weight:600;">Сохранено ✓</span>' : '');
     var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:14px;">О себе</div>' +
-      '<label style="display:block;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:7px;">О себе <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' +
+      '<label style="display:block;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:7px;">О себе <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' +
         '<textarea id="desc-input" rows="4" placeholder="Коротко о себе: опыт, интересы, чем хотите заниматься…" style="' + S.field + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(sp.description || '') + '</textarea></label>' +
       '<div style="display:flex; align-items:center; gap:14px; margin-top:16px;"><button data-action="saveProfileExtras"' + (es.loading ? ' disabled' : '') + ' style="' + S.primary.replace('padding:15px', 'padding:11px 22px') + (es.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (es.loading ? 'Сохранение…' : 'Сохранить') + '</button>' + esNote + '</div></div>';
 
@@ -1003,7 +1006,7 @@
         ? '<img src="' + esc(file.url) + '" style="width:32px; height:32px; border-radius:7px; object-fit:cover; flex-shrink:0;">'
         : '<div style="width:32px; height:32px; border-radius:7px; background:#fff; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); flex-shrink:0;">' + icon('file', 15) + '</div>';
       return '<div data-action="openMediaPreview" data-preview-url="' + esc(file.url) + '" data-preview-name="' + esc(file.name) + '" data-preview-image="' + (isImg ? '1' : '0') + '" style="display:flex; align-items:center; gap:8px; margin-top:9px; padding:6px 9px; background:var(--bg); border-radius:9px; cursor:pointer;">' + thumb +
-        '<div style="min-width:0;"><div style="font-size:12px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(file.name) + '</div><div style="margin-top:3px;">' + modBadge(file.path) + '</div>' + (file.size ? '<div style="font-size:11px; color:var(--muted);">' + fmtBytes(file.size) + '</div>' : '') + '</div></div>';
+        '<div style="min-width:0;"><div style="font-size:var(--text-micro); font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(file.name) + '</div><div style="margin-top:3px;">' + modBadge(file.path) + '</div>' + (file.size ? '<div style="font-size:var(--text-micro); color:var(--muted);">' + fmtBytes(file.size) + '</div>' : '') + '</div></div>';
     };
     var skillCard = function (sk, i) {
       var name = typeof sk === 'string' ? sk : sk.name;
@@ -1011,26 +1014,26 @@
       var conf = typeof sk === 'object' ? sk.confidence : null;
       return '<div style="border:1.5px solid var(--line); border-radius:12px; padding:13px 14px; cursor:pointer; position:relative;" data-action="openSkillDetail" data-item-index="' + i + '">' +
         '<div style="position:absolute; top:9px; right:9px; display:flex; gap:4px;">' + chipEditBtn('skill', i) + chipRemoveBtn('skill', i) + '</div>' +
-        '<div style="display:flex; align-items:center; gap:8px; padding-right:50px; min-width:0;"><span style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(name) + '</span>' +
-        (typeof conf === 'number' ? '<span style="font-size:11px; font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div>' +
+        '<div style="display:flex; align-items:center; gap:8px; padding-right:50px; min-width:0;"><span style="font-weight:600; font-size:var(--text-caption); ' + S.wrap + '">' + esc(name) + '</span>' +
+        (typeof conf === 'number' ? '<span style="font-size:var(--text-micro); font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div>' +
         fileTile(file) + '</div>';
     };
     var suggestions = suggestedSkills(specialties, hardSkills);
     var suggestRow = suggestions.length ? '<div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px;">' +
-      suggestions.map(function (sk) { return '<button data-action="quickAddSkill" data-skill="' + esc(sk) + '" style="font-size:12px; font-weight:600; color:var(--accent); background:#fff; border:1px dashed color-mix(in srgb, var(--accent) 40%, #fff); padding:5px 10px; border-radius:8px; cursor:pointer;">+ ' + esc(sk) + '</button>'; }).join('') +
+      suggestions.map(function (sk) { return '<button data-action="quickAddSkill" data-skill="' + esc(sk) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:#fff; border:1px dashed color-mix(in srgb, var(--accent) 40%, #fff); padding:5px 10px; border-radius:8px; cursor:pointer;">+ ' + esc(sk) + '</button>'; }).join('') +
       '</div>' : '';
     var languages = (sp.languages || []);
     var langRow = function (l, i) {
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1.5px solid var(--line);">' +
-        '<span style="font-size:13.5px; display:flex; align-items:center; gap:8px; min-width:0; ' + S.wrap + '"><strong style="font-weight:600;">' + esc(l.name) + '</strong>' + (l.level ? '<span style="color:var(--muted);">— ' + esc(l.level) + '</span>' : '') + fileBadge(l.file) + '</span>' +
+        '<span style="font-size:var(--text-caption); display:flex; align-items:center; gap:8px; min-width:0; ' + S.wrap + '"><strong style="font-weight:600;">' + esc(l.name) + '</strong>' + (l.level ? '<span style="color:var(--muted);">— ' + esc(l.level) + '</span>' : '') + fileBadge(l.file) + '</span>' +
         '<span style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' + editBtn('language', i) + removeBtn('language', i) + '</span></div>';
     };
     var skillMatrix = '<div style="' + card + '"><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;"><div style="' + cardTitle + '">Матрица навыков</div></div>' +
-      '<div style="display:flex; align-items:center; justify-content:space-between; margin:12px 0 9px;"><span style="font-size:13px; font-weight:600;">Hard skills</span>' + addBtn('skill', 'Навык') + '</div>' +
-      (suggestions.length ? '<div style="font-size:11.5px; color:var(--muted); margin-bottom:7px;">Рекомендации по вашим специальностям:</div>' + suggestRow : '') +
-      (hardSkills.length ? '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:20px;">' + hardSkills.map(skillCard).join('') + '</div>' : '<div style="font-size:13px; color:var(--muted); margin-bottom:20px;">Пока не добавлено ни одного навыка</div>') +
-      '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding-top:4px; border-top:1.5px solid var(--line);"><span style="font-size:13px; font-weight:600; margin-top:14px;">Знание языков</span><span style="margin-top:10px;">' + addBtn('language', 'Язык') + '</span></div>' +
-      (languages.length ? languages.map(langRow).join('') : '<div style="font-size:13px; color:var(--muted); padding:10px 0 0;">Языки ещё не указаны</div>') +
+      '<div style="display:flex; align-items:center; justify-content:space-between; margin:12px 0 9px;"><span style="font-size:var(--text-caption); font-weight:600;">Hard skills</span>' + addBtn('skill', 'Навык') + '</div>' +
+      (suggestions.length ? '<div style="font-size:var(--text-micro); color:var(--muted); margin-bottom:7px;">Рекомендации по вашим специальностям:</div>' + suggestRow : '') +
+      (hardSkills.length ? '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:20px;">' + hardSkills.map(skillCard).join('') + '</div>' : '<div style="font-size:var(--text-caption); color:var(--muted); margin-bottom:20px;">Пока не добавлено ни одного навыка</div>') +
+      '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; padding-top:4px; border-top:1.5px solid var(--line);"><span style="font-size:var(--text-caption); font-weight:600; margin-top:14px;">Знание языков</span><span style="margin-top:10px;">' + addBtn('language', 'Язык') + '</span></div>' +
+      (languages.length ? languages.map(langRow).join('') : '<div style="font-size:var(--text-caption); color:var(--muted); padding:10px 0 0;">Языки ещё не указаны</div>') +
       '</div>';
 
     // ---- Проекты — свободная форма: любые специальности, «продуктовая» карточка с обложкой ----
@@ -1043,23 +1046,23 @@
             ? '<img src="' + esc(cover.url) + '" style="width:100%; height:140px; object-fit:cover; border-radius:13px 13px 0 0; display:block;">'
             : '<div style="width:100%; height:140px; background:var(--bg); border-radius:13px 13px 0 0; display:flex; align-items:center; justify-content:center; color:var(--muted);">' + icon('file', 30) + '</div>')
         : '';
-      var specTag = p.specialty ? '<span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + esc(p.specialty) + '</span>' : '';
-      var tagChips = (p.tags || []).slice(0, 3).map(function (t) { return '<span style="font-size:10.5px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:2px 7px; border-radius:999px;">#' + esc(t) + '</span>'; }).join('');
-      var photoCount = files.length > 1 ? '<div style="margin-top:8px; font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px;">' + icon('image', 12) + files.length + ' фото</div>' : '';
+      var specTag = p.specialty ? '<span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + esc(p.specialty) + '</span>' : '';
+      var tagChips = (p.tags || []).slice(0, 3).map(function (t) { return '<span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:2px 7px; border-radius:999px;">#' + esc(t) + '</span>'; }).join('');
+      var photoCount = files.length > 1 ? '<div style="margin-top:8px; font-size:var(--text-micro); color:var(--muted); display:flex; align-items:center; gap:4px;">' + icon('image', 12) + files.length + ' фото</div>' : '';
       return '<div style="border:1.5px solid var(--line); border-radius:14px; overflow:hidden; cursor:pointer;" data-action="openProjectDetail" data-item-index="' + i + '">' +
         coverHtml +
         '<div style="padding:14px 16px; position:relative;">' +
           '<div style="position:absolute; top:12px; right:12px; display:flex; gap:6px;">' + editBtn('project', i) + removeBtn('project', i) + '</div>' +
-          '<div style="font-weight:600; font-size:15px; padding-right:56px; ' + S.wrap + '">' + esc(p.name) + '</div>' +
+          '<div style="font-weight:600; font-size:var(--text-body); padding-right:56px; ' + S.wrap + '">' + esc(p.name) + '</div>' +
           (specTag ? '<div style="margin-top:6px;">' + specTag + '</div>' : '') +
-          (p.desc ? '<p style="font-size:13px; color:var(--muted); line-height:1.5; margin:8px 0 0; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
+          (p.desc ? '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.5; margin:8px 0 0; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
           (tagChips ? '<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;">' + tagChips + '</div>' : '') +
           photoCount +
         '</div></div>';
     };
-    var addProjectCard = '<button data-action="openItemModal" data-item-type="project" style="border:1.5px dashed var(--line); border-radius:14px; padding:18px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted); min-height:180px;"><span style="font-size:20px;">+</span><span style="font-size:13px; font-weight:600;">Добавить проект</span></button>';
-    var projectsHint = projects.length ? '' : '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 16px;">Пет-проект, учебное задание, работа на хакатоне или курсовая — подойдёт всё, что вы реально сделали. Не обязательно быть «фрилансером»: даже один разобранный по шагам пример уже показывает, как вы работаете.</p>';
-    var projectsSection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Проекты <span style="color:var(--muted); font-weight:500; font-size:13px;">(учебные, пет-проекты, хакатоны — всё считается)</span></div>' +
+    var addProjectCard = '<button data-action="openItemModal" data-item-type="project" style="border:1.5px dashed var(--line); border-radius:14px; padding:18px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted); min-height:180px;"><span style="font-size:var(--text-title);">+</span><span style="font-size:var(--text-caption); font-weight:600;">Добавить проект</span></button>';
+    var projectsHint = projects.length ? '' : '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:0 0 16px;">Пет-проект, учебное задание, работа на хакатоне или курсовая — подойдёт всё, что вы реально сделали. Не обязательно быть «фрилансером»: даже один разобранный по шагам пример уже показывает, как вы работаете.</p>';
+    var projectsSection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Проекты <span style="color:var(--muted); font-weight:500; font-size:var(--text-caption);">(учебные, пет-проекты, хакатоны — всё считается)</span></div>' +
       projectsHint +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-top:' + (projects.length ? '14px' : '0') + ';">' + projects.map(projectCard).join('') + addProjectCard + '</div></div>';
 
@@ -1071,23 +1074,23 @@
       var period = (h.started_at ? fmtDate(h.started_at) : '') + (h.finished_at ? ' — ' + fmtDate(h.finished_at) : '');
       return '<div style="display:flex; gap:14px; padding:16px 0; border-top:1.5px solid var(--line);">' +
         '<div style="width:9px; height:9px; border-radius:50%; background:var(--accent); margin-top:6px; flex-shrink:0;"></div>' +
-        '<div style="flex:1; min-width:0;"><div style="font-weight:600; font-size:14.5px; ' + S.wrap + '">' + esc(h.gig_title || 'Стажировка') + '</div>' +
-        '<div style="font-size:12.5px; color:var(--muted); margin-top:2px;">' + esc(h.company_name || '') + (period ? ' · ' + esc(period) : '') + '</div>' +
-        (h.body ? '<div style="margin-top:8px; padding:11px 13px; background:var(--bg); border-radius:10px; font-size:13px; color:var(--muted); line-height:1.55; white-space:pre-wrap; ' + S.wrap + '">' + esc(h.body) + '</div>' : '') +
+        '<div style="flex:1; min-width:0;"><div style="font-weight:600; font-size:var(--text-caption); ' + S.wrap + '">' + esc(h.gig_title || 'Стажировка') + '</div>' +
+        '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:2px;">' + esc(h.company_name || '') + (period ? ' · ' + esc(period) : '') + '</div>' +
+        (h.body ? '<div style="margin-top:8px; padding:11px 13px; background:var(--bg); border-radius:10px; font-size:var(--text-caption); color:var(--muted); line-height:1.55; white-space:pre-wrap; ' + S.wrap + '">' + esc(h.body) + '</div>' : '') +
         '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px;">' +
-        '<a href="/cert/' + esc(h.public_id) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent);">Ссылка на справку ↗</a>' +
+        '<a href="/cert/' + esc(h.public_id) + '" target="_blank" rel="noopener" style="font-size:var(--text-micro); font-weight:600; color:var(--accent);">Ссылка на справку ↗</a>' +
         // Официальное свидетельство лежит в приватном бакете, прямой ссылки нет —
         // подписываем по клику.
         (h.doc_status === 'approved' && h.doc_path
-          ? '<a data-action="downloadCertDoc" data-path="' + esc(h.doc_path) + '" style="font-size:12.5px; font-weight:600; color:var(--accent); cursor:pointer;">📄 Официальное свидетельство ↓</a>'
+          ? '<a data-action="downloadCertDoc" data-path="' + esc(h.doc_path) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--accent); cursor:pointer;">📄 Официальное свидетельство ↓</a>'
           : h.doc_status === 'pending'
-            ? '<span style="font-size:12.5px; color:var(--muted);">Свидетельство от компании на проверке</span>'
+            ? '<span style="font-size:var(--text-micro); color:var(--muted);">Свидетельство от компании на проверке</span>'
             : '') +
         '</div></div></div>';
     };
     var historySection = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">История на платформе</div>' +
-      '<p style="font-size:13px; color:var(--muted); margin:0 0 4px;">Завершённые стажировки, подтверждённые компаниями через internship.uz.</p>' +
-      (history.length ? history.map(historyItem).join('') : '<p style="font-size:13.5px; color:var(--muted); padding:14px 0 0;">Пока нет завершённых стажировок — они появятся здесь автоматически после подтверждения проекта стартапом.</p>') + '</div>';
+      '<p style="font-size:var(--text-caption); color:var(--muted); margin:0 0 4px;">Завершённые стажировки, подтверждённые компаниями через internship.uz.</p>' +
+      (history.length ? history.map(historyItem).join('') : '<p style="font-size:var(--text-caption); color:var(--muted); padding:14px 0 0;">Пока нет завершённых стажировок — они появятся здесь автоматически после подтверждения проекта стартапом.</p>') + '</div>';
 
     // ---- Верифицированные документы и достижения (слайдер сертификатов) ----
     var achievements = (sp.achievements || []);
@@ -1096,17 +1099,17 @@
       var fileLabel = a.file ? a.file.name : (a.link ? 'внешняя ссылка' : '');
       return '<div style="scroll-snap-align:start; flex-shrink:0; width:230px; border:1.5px solid var(--line); border-radius:14px; padding:16px; position:relative;">' +
         '<div style="position:absolute; top:10px; right:10px; display:flex; gap:6px;">' + editBtn('achievement', i) + removeBtn('achievement', i) + '</div>' +
-        '<div style="width:34px; height:34px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:12px;">★</div>' +
-        '<div style="font-weight:600; font-size:14px; padding-right:40px; ' + S.wrap + '">' + esc(a.title) + '</div>' +
-        '<div style="font-size:12px; color:var(--muted); margin-top:4px; ' + S.wrap + '">' + esc(a.issuer || '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
-        (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; font-size:12.5px; font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' + esc(fileLabel || 'Открыть') + ' ↗</a>' : '') + '</div>';
+        '<div style="width:34px; height:34px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:var(--text-body); margin-bottom:12px;">★</div>' +
+        '<div style="font-weight:600; font-size:var(--text-caption); padding-right:40px; ' + S.wrap + '">' + esc(a.title) + '</div>' +
+        '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:4px; ' + S.wrap + '">' + esc(a.issuer || '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
+        (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; font-size:var(--text-micro); font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' + esc(fileLabel || 'Открыть') + ' ↗</a>' : '') + '</div>';
     };
-    var addAchCard = '<button data-action="openItemModal" data-item-type="achievement" style="scroll-snap-align:start; flex-shrink:0; width:230px; border:1.5px dashed var(--line); border-radius:14px; padding:16px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted);"><span style="font-size:20px;">+</span><span style="font-size:13px; font-weight:600;">Добавить сертификат</span></button>';
+    var addAchCard = '<button data-action="openItemModal" data-item-type="achievement" style="scroll-snap-align:start; flex-shrink:0; width:230px; border:1.5px dashed var(--line); border-radius:14px; padding:16px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted);"><span style="font-size:var(--text-title);">+</span><span style="font-size:var(--text-caption); font-weight:600;">Добавить сертификат</span></button>';
     // Заглушка «Скачать документ о практике» убрана: кнопка была всегда неактивной, а
     // настоящие документы теперь живут в блоке «Завершённые стажировки» — там и справка
     // с проверяемой ссылкой, и официальное свидетельство от компании.
     var documents = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:8px;">Сертификаты и достижения</div>' +
-      '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 16px;">Дипломы, курсы, олимпиады. Файл проходит проверку — компании видят только подтверждённые.</p>' +
+      '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:0 0 16px;">Дипломы, курсы, олимпиады. Файл проходит проверку — компании видят только подтверждённые.</p>' +
       '<div style="display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:6px;">' + achievements.map(achCard).join('') + addAchCard + '</div></div>';
 
     // ---- Завершённые стажировки ----
@@ -1116,14 +1119,14 @@
     var ratingSection = '<div style="' + card + ' text-align:center;">' +
       '<div style="' + cardTitle + ' margin-bottom:10px;">Завершённые стажировки</div>' +
       (history.length
-        ? '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:26px;">' + history.length + '</div>' +
-          '<div style="font-size:13px; color:var(--muted); margin-top:6px;">' + pluralRu(history.length, 'справка выдана', 'справки выдано', 'справок выдано') + '</div>' +
-          '<a data-action="openReviews" style="display:inline-block; margin-top:12px; font-size:13.5px; font-weight:600; color:var(--accent); cursor:pointer;">Смотреть характеристики →</a>'
-        : '<div style="font-size:13px; color:var(--muted); line-height:1.55;">Появятся после первой завершённой стажировки. Компания напишет характеристику, а вы получите справку с проверяемой ссылкой.</div>') +
+        ? '<div style="font-weight:700; font-size:var(--text-h2);">' + history.length + '</div>' +
+          '<div style="font-size:var(--text-caption); color:var(--muted); margin-top:6px;">' + pluralRu(history.length, 'справка выдана', 'справки выдано', 'справок выдано') + '</div>' +
+          '<a data-action="openReviews" style="display:inline-block; margin-top:12px; font-size:var(--text-caption); font-weight:600; color:var(--accent); cursor:pointer;">Смотреть характеристики →</a>'
+        : '<div style="font-size:var(--text-caption); color:var(--muted); line-height:1.55;">Появятся после первой завершённой стажировки. Компания напишет характеристику, а вы получите справку с проверяемой ссылкой.</div>') +
       '</div>';
 
     return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
-      '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет</h1>' +
+      '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет</h1>' +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + contacts + verification + '</div>' +
       '<div style="margin-top:20px;">' + specialtiesSection + '</div>' +
@@ -1133,7 +1136,7 @@
       '<div style="margin-top:20px;">' + historySection + '</div>' +
       '<div style="margin-top:20px;">' + documents + '</div>' +
       '<div style="margin-top:20px;">' + ratingSection + '</div>' +
-      '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:13.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
+      '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:var(--text-caption); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
   }
 
@@ -1141,18 +1144,18 @@
   function companyCabinetView() {
     var cp = state.companyProfile || {};
     var card = 'background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:24px;';
-    var cardTitle = 'font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:4px;';
+    var cardTitle = 'font-weight:600; font-size:var(--text-body); margin-bottom:4px;';
     var row = function (label, v) {
-      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1.5px solid var(--line);"><span style="font-size:13.5px; color:var(--muted);">' + label + '</span><span style="font-size:13.5px; font-weight:600; text-align:right; word-break:break-word;">' + esc(v || '—') + '</span></div>';
+      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1.5px solid var(--line);"><span style="font-size:var(--text-caption); color:var(--muted);">' + label + '</span><span style="font-size:var(--text-caption); font-weight:600; text-align:right; word-break:break-word;">' + esc(v || '—') + '</span></div>';
     };
 
     var cs = companyStatus();
-    var stColor = cs === 'approved' ? '#16a34a' : cs === 'rejected' ? '#b3261e' : '#b26b12';
+    var stColor = cs === 'approved' ? '#15803d' : cs === 'rejected' ? '#b3261e' : '#8f5410';
     var stText = cs === 'approved' ? 'Профиль подтверждён' : cs === 'rejected' ? 'Заявка отклонена' : 'На подтверждении';
     var profile = '<div style="' + card + ' display:flex; align-items:center; gap:18px;">' +
-      '<span style="width:64px; height:64px; border-radius:16px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0;">◆</span>' +
-      '<div style="min-width:0;"><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(companyName()) + '</div>' +
-      '<div style="display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:' + stColor + '; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:' + stColor + ';"></span>' + stText + '</div></div></div>';
+      '<span style="width:64px; height:64px; border-radius:16px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-h2); flex-shrink:0;">◆</span>' +
+      '<div style="min-width:0;"><div style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em;">' + esc(companyName()) + '</div>' +
+      '<div style="display:inline-flex; align-items:center; gap:7px; font-size:var(--text-caption); font-weight:600; color:' + stColor + '; margin-top:5px;"><span style="width:7px; height:7px; border-radius:50%; background:' + stColor + ';"></span>' + stText + '</div></div></div>';
 
     var details = '<div style="' + card + '"><div style="' + cardTitle + '">Реквизиты компании</div>' +
       row('ИНН', cp.inn) + row('Руководитель', cp.director) + row('Корпоративная почта', cp.corpEmail) +
@@ -1160,54 +1163,54 @@
       row('LinkedIn / соцсети', cp.linkedin) + '</div>';
 
     var checksNote = cs === 'approved'
-      ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #16a34a 8%, #fff); border:1px solid color-mix(in srgb, #16a34a 24%, #fff); border-radius:12px; font-size:13px; color:#16a34a; line-height:1.5;">Профиль подтверждён — можно размещать задачи.</div>'
+      ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #15803d 8%, #fff); border:1px solid color-mix(in srgb, #15803d 24%, #fff); border-radius:12px; font-size:var(--text-caption); color:#15803d; line-height:1.5;">Профиль подтверждён — можно размещать задачи.</div>'
       : cs === 'rejected'
-        ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 24%, #fff); border-radius:12px; font-size:13px; color:#b3261e; line-height:1.5;">Заявка отклонена. Свяжитесь с командой платформы для уточнения.</div>'
-        : '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:13px; color:var(--muted); line-height:1.5;">Заявка на проверке. Размещение задач откроется после подтверждения профиля админом.</div>';
+        ? '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 24%, #fff); border-radius:12px; font-size:var(--text-caption); color:#b3261e; line-height:1.5;">Заявка отклонена. Свяжитесь с командой платформы для уточнения.</div>'
+        : '<div style="margin-top:16px; padding:13px 15px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px; font-size:var(--text-caption); color:var(--muted); line-height:1.5;">Заявка на проверке. Размещение задач откроется после подтверждения профиля админом.</div>';
     var postBtn = cs === 'approved'
-      ? '<button data-action="openGigForm" style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
-      : '<button disabled style="margin-top:16px; width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
+      ? '<button data-action="openGigForm" style="margin-top:16px; width:100%; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
+      : '<button disabled style="margin-top:16px; width:100%; font-size:var(--text-caption); font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
     var checks = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:12px;">Статус проверки</div>' +
-      '<div style="font-size:13.5px; color:var(--muted); line-height:1.6;">Госреестр · корпоративный домен · созвон с командой</div>' +
+      '<div style="font-size:var(--text-caption); color:var(--muted); line-height:1.6;">Госреестр · корпоративный домен · созвон с командой</div>' +
       checksNote + postBtn + '</div>';
 
     // Прямая привязка к state.companyProfile[field] на каждое нажатие (data-company-field) —
     // без неё любой мгновенный экшен рядом (переключение направления, выбор в select) вызывает
     // setState() и полный re-render, который стирает ещё не сохранённый текст в этих полях.
     var textInput = function (field, label, val, ph, hint, maxlen) {
-      return '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + label + '</span>' +
+      return '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">' + label + '</span>' +
         '<input data-company-field="' + field + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '"' + (maxlen ? ' maxlength="' + maxlen + '"' : '') + ' style="' + S.field + '">' +
-        (hint ? '<span style="display:block; font-size:12px; color:var(--muted); margin-top:5px;">' + hint + '</span>' : '') + '</label>';
+        (hint ? '<span style="display:block; font-size:var(--text-micro); color:var(--muted); margin-top:5px;">' + hint + '</span>' : '') + '</label>';
     };
 
-    var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:10px;">Описание компании <span style="color:var(--muted); font-weight:500; font-size:13px;">(необязательно)</span></div>' +
-      '<textarea data-company-field="description" rows="4" maxlength="1000" placeholder="Чем занимается компания, какие задачи и стажировки предлагаете…" style="width:100%; font-size:14px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); resize:vertical; font-family:inherit; line-height:1.5;">' + esc(cp.description || '') + '</textarea></div>';
+    var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:10px;">Описание компании <span style="color:var(--muted); font-weight:500; font-size:var(--text-caption);">(необязательно)</span></div>' +
+      '<textarea data-company-field="description" rows="4" maxlength="1000" placeholder="Чем занимается компания, какие задачи и стажировки предлагаете…" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); resize:vertical; font-family:inherit; line-height:1.5;">' + esc(cp.description || '') + '</textarea></div>';
 
     // ---- Мэтчинг и поиск (технический профиль) ----
     var focusAreas = cp.focusAreas || [];
     var focusPill = function (area) {
       var active = focusAreas.indexOf(area) !== -1;
-      return '<button type="button" data-action="toggleFocusArea" data-focus="' + esc(area) + '" style="font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer; ' +
+      return '<button type="button" data-action="toggleFocusArea" data-focus="' + esc(area) + '" style="font-size:var(--text-micro); font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer; ' +
         (active ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1.5px solid var(--line);') + '">' + esc(area) + '</button>';
     };
     var techStack = cp.techStack || [];
     var techChips = techStack.map(function (t) {
-      return '<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:4px 6px 4px 10px; border-radius:999px;">' + esc(t) +
+      return '<span style="display:inline-flex; align-items:center; gap:5px; font-size:var(--text-micro); font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:4px 6px 4px 10px; border-radius:999px;">' + esc(t) +
         '<button type="button" data-action="removeTechTag" data-tag="' + esc(t) + '" style="border:none; background:none; color:var(--muted); cursor:pointer; padding:0; display:flex;">' + icon('x', 11) + '</button></span>';
     }).join('');
     var techProfile = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Технический профиль</div>' +
-      '<p style="font-size:13px; color:var(--muted); margin:0 0 14px;">Используется для подбора студентов в каталоге — чем точнее, тем лучше совпадения.</p>' +
-      '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Основные направления</div>' +
+      '<p style="font-size:var(--text-caption); color:var(--muted); margin:0 0 14px;">Используется для подбора студентов в каталоге — чем точнее, тем лучше совпадения.</p>' +
+      '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:8px;">Основные направления</div>' +
       '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;">' + FOCUS_AREAS.map(focusPill).join('') + '</div>' +
-      '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Технологический стек</div>' +
+      '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:8px;">Технологический стек</div>' +
       (techChips ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">' + techChips + '</div>' : '') +
-      '<div style="display:flex; gap:8px;"><input id="tech-tag-input" placeholder="Например, React, Supabase, Figma" style="' + S.field + '"><button type="button" data-action="addTechTag" style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:0 16px; border-radius:9px; cursor:pointer;">+</button></div></div>';
+      '<div style="display:flex; gap:8px;"><input id="tech-tag-input" placeholder="Например, React, Supabase, Figma" style="' + S.field + '"><button type="button" data-action="addTechTag" style="flex-shrink:0; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); border:none; padding:0 16px; border-radius:9px; cursor:pointer;">+</button></div></div>';
 
     // ---- Формат работы (онлайн-правила, авто-применяются ко всем будущим задачам) ----
     var commStyle = cp.commStyle || 'async';
     var commBtn = function (val, label) {
       var active = commStyle === val;
-      return '<button type="button" data-action="setCommStyle" data-comm="' + val + '" style="flex:1; font-size:13px; font-weight:600; padding:11px; border-radius:10px; cursor:pointer; ' +
+      return '<button type="button" data-action="setCommStyle" data-comm="' + val + '" style="flex:1; font-size:var(--text-caption); font-weight:600; padding:11px; border-radius:10px; cursor:pointer; ' +
         (active ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1.5px solid var(--line);') + '">' + label + '</button>';
     };
     var cadenceSelect = '<select data-select-action="setMeetingCadence" style="' + S.field + '">' + MEETING_CADENCE_OPTIONS.map(function (o) {
@@ -1215,11 +1218,11 @@
       return '<option value="' + o[0] + '"' + sel + '>' + o[1] + '</option>';
     }).join('') + '</select>';
     var workspaceRules = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Формат работы</div>' +
-      '<p style="font-size:13px; color:var(--muted); margin:0 0 14px;">Работа идёт полностью онлайн — эти настройки применяются автоматически ко всем будущим задачам.</p>' +
-      '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Стиль коммуникации</div>' +
+      '<p style="font-size:var(--text-caption); color:var(--muted); margin:0 0 14px;">Работа идёт полностью онлайн — эти настройки применяются автоматически ко всем будущим задачам.</p>' +
+      '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:8px;">Стиль коммуникации</div>' +
       '<div style="display:flex; gap:8px; margin-bottom:16px;">' + commBtn('async', 'Асинхронно (гибкие часы)') + commBtn('sync', 'Синхронно (фикс. часы)') + '</div>' +
       (commStyle === 'sync' ? textInput('syncHours', 'Рабочие часы', cp.syncHours, 'Например, 10:00–15:00') : '') +
-      '<label style="display:block; margin:2px 0 12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Периодичность созвонов</span>' + cadenceSelect + '</label>' +
+      '<label style="display:block; margin:2px 0 12px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Периодичность созвонов</span>' + cadenceSelect + '</label>' +
       textInput('meetingLink', 'Постоянная ссылка на созвон', cp.meetingLink, 'https://meet.google.com/xxx-xxxx-xxx', 'Откроется автоматически, когда вы наймёте студента') +
       '</div>';
 
@@ -1229,10 +1232,10 @@
       return '<option value="' + o[0] + '"' + sel + '>' + o[1] + '</option>';
     }).join('') + '</select>';
     var jobTemplate = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:4px;">Шаблон вакансии</div>' +
-      '<p style="font-size:13px; color:var(--muted); margin:0 0 14px;">Заполните один раз — эти данные будут подставляться в каждую новую задачу, которую вы размещаете.</p>' +
+      '<p style="font-size:var(--text-caption); color:var(--muted); margin:0 0 14px;">Заполните один раз — эти данные будут подставляться в каждую новую задачу, которую вы размещаете.</p>' +
       textInput('pitch', 'Питч компании (до 200 симв.)', cp.pitch, 'Коротко — чем занимается компания', '', 200) +
-      '<label style="display:block; margin:2px 0 12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Длительность проекта по умолчанию</span>' + durationSelect + '</label>' +
-      '<div style="font-size:13px; font-weight:600; margin:14px 0 8px;">Куратор для стажёров</div>' +
+      '<label style="display:block; margin:2px 0 12px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Длительность проекта по умолчанию</span>' + durationSelect + '</label>' +
+      '<div style="font-size:var(--text-caption); font-weight:600; margin:14px 0 8px;">Куратор для стажёров</div>' +
       '<div class="g2" style="display:grid; gap:12px;">' +
       textInput('mentorName', 'Имя куратора', cp.mentorName, 'Например, Данил Темиргалиев') +
       textInput('mentorRole', 'Роль', cp.mentorRole, 'Например, Lead Engineer') +
@@ -1242,11 +1245,11 @@
 
     var es = state.extrasSave;
     var saveText = es.loading ? 'Сохранение…' : es.error ? esc(es.error) : es.ok ? 'Все изменения сохранены ✓' : 'Изменения сохраняются автоматически';
-    var saveColor = es.error ? '#b3261e' : es.ok ? '#16a34a' : 'var(--muted)';
-    var saveBar = '<div style="display:flex; align-items:center; gap:8px; margin-top:18px; font-size:12.5px; font-weight:600; color:' + saveColor + ';">' + icon(es.error ? 'warn' : 'check', 14) + '<span>' + saveText + '</span></div>';
+    var saveColor = es.error ? '#b3261e' : es.ok ? '#15803d' : 'var(--muted)';
+    var saveBar = '<div style="display:flex; align-items:center; gap:8px; margin-top:18px; font-size:var(--text-micro); font-weight:600; color:' + saveColor + ';">' + icon(es.error ? 'warn' : 'check', 14) + '<span>' + saveText + '</span></div>';
 
     return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
-      '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет компании</h1>' +
+      '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет компании</h1>' +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + details + checks + '</div>' +
       '<div style="margin-top:20px;">' + about + '</div>' +
@@ -1254,25 +1257,25 @@
       '<div style="margin-top:20px;">' + workspaceRules + '</div>' +
       '<div style="margin-top:20px;">' + jobTemplate + '</div>' +
       saveBar +
-      '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:13.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
+      '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:var(--text-caption); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
   }
 
   /* ---------- MY RESPONSES / MY VACANCIES ---------- */
   function emptyState(icon, title, text, btnAction, btnLabel) {
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:56px 32px; text-align:center;">' +
-      '<div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:26px; margin:0 auto 20px;">' + icon + '</div>' +
-      '<h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3>' +
-      '<p style="color:var(--muted); font-size:15px; max-width:420px; margin:0 auto 22px; line-height:1.55;">' + text + '</p>' +
+      '<div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:var(--text-h2); margin:0 auto 20px;">' + icon + '</div>' +
+      '<h3 style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em; margin:0 0 10px;">' + title + '</h3>' +
+      '<p style="color:var(--muted); font-size:var(--text-body); max-width:420px; margin:0 auto 22px; line-height:1.55;">' + text + '</p>' +
       '<button data-action="' + btnAction + '" style="' + S.primary.replace('padding:15px', 'padding:13px 24px') + '">' + btnLabel + '</button></div>';
   }
   function pageWrap(title, inner, width) {
     return '<main class="view-in" style="width:100%; max-width:' + (width || 820) + 'px; margin:0 auto; padding:40px 28px 88px;">' +
-      '<h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:8px 0 24px;">' + title + '</h1>' + inner + '</main>';
+      '<h1 style="font-weight:600; font-size:var(--text-h1); letter-spacing:-0.02em; margin:8px 0 24px;">' + title + '</h1>' + inner + '</main>';
   }
   function statusChip(status) {
     var m = appStatusMeta(status);
-    return '<span style="font-size:11.5px; font-weight:700; color:' + m.color + '; background:color-mix(in srgb, ' + m.color + ' 12%, #fff); padding:4px 9px; border-radius:6px; white-space:nowrap;">' + m.label + '</span>';
+    return '<span style="font-size:var(--text-micro); font-weight:700; color:' + m.color + '; background:color-mix(in srgb, ' + m.color + ' 12%, #fff); padding:4px 9px; border-radius:6px; white-space:nowrap;">' + m.label + '</span>';
   }
   function fmtDate(iso) {
     var d = new Date(iso);
@@ -1280,7 +1283,7 @@
     return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
   }
   function chatButton(appId, label) {
-    return '<button data-action="openChat" data-app-id="' + esc(appId) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:9px 15px; border-radius:8px; cursor:pointer; white-space:nowrap;">' + label + '</button>';
+    return '<button data-action="openChat" data-app-id="' + esc(appId) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:9px 15px; border-radius:8px; cursor:pointer; white-space:nowrap;">' + label + '</button>';
   }
   // Карточка отклика. Студент видит задачу и компанию, компания — студента и своё решение.
   // У компании карточки сгруппированы под задачей, поэтому её название здесь не повторяем.
@@ -1304,18 +1307,18 @@
       var cert = (state.certs || []).filter(function (c) { return c.application_id === a.id; })[0];
       if (cert) {
         var ds = cert.doc_status;
-        var dsLine = ds === 'pending'  ? '<span style="color:#b26b12; font-weight:600;">на проверке</span>'
-                   : ds === 'approved' ? '<span style="color:#16a34a; font-weight:600;">принято, студент может скачать</span>'
+        var dsLine = ds === 'pending'  ? '<span style="color:#8f5410; font-weight:600;">на проверке</span>'
+                   : ds === 'approved' ? '<span style="color:#15803d; font-weight:600;">принято, студент может скачать</span>'
                    : ds === 'rejected' ? '<span style="color:#b3261e; font-weight:600;">отклонено' + (cert.doc_reason ? ': ' + esc(cert.doc_reason) : '') + '</span>'
                    : '<span style="color:var(--muted);">не приложено</span>';
         var busyDoc = state.certDocBusy === cert.id;
         decision = '<div style="margin-top:14px; padding-top:14px; border-top:1.5px solid var(--line);">' +
-          '<div style="font-size:13px; font-weight:600; margin-bottom:4px;">Официальное свидетельство</div>' +
-          '<div style="font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:8px;">Документ на вашем бланке с подписью и печатью. Студент приложит его в Common App или портфолио. Проверяется платформой перед выдачей.</div>' +
-          '<div style="font-size:12.5px; margin-bottom:8px;">Статус: ' + dsLine + (cert.doc_name ? ' <span style="color:var(--muted);">· ' + esc(cert.doc_name) + '</span>' : '') + '</div>' +
+          '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:4px;">Официальное свидетельство</div>' +
+          '<div style="font-size:var(--text-micro); color:var(--muted); line-height:1.5; margin-bottom:8px;">Документ на вашем бланке с подписью и печатью. Студент приложит его в Common App или портфолио. Проверяется платформой перед выдачей.</div>' +
+          '<div style="font-size:var(--text-micro); margin-bottom:8px;">Статус: ' + dsLine + (cert.doc_name ? ' <span style="color:var(--muted);">· ' + esc(cert.doc_name) + '</span>' : '') + '</div>' +
           (busyDoc
-            ? '<div style="font-size:12.5px; color:var(--muted);">Загружаем…</div>'
-            : '<label style="display:inline-flex; align-items:center; gap:9px; cursor:pointer; font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:8px 14px; border-radius:8px;">' +
+            ? '<div style="font-size:var(--text-micro); color:var(--muted);">Загружаем…</div>'
+            : '<label style="display:inline-flex; align-items:center; gap:9px; cursor:pointer; font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:8px 14px; border-radius:8px;">' +
               (ds ? 'Заменить файл' : 'Загрузить свидетельство') +
               '<input data-cert-doc-input data-cert-id="' + esc(cert.id) + '" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="display:none;"></label>') +
           '</div>';
@@ -1324,20 +1327,20 @@
     // Завершить можно только то, что начиналось: студента должны были пригласить.
     if (asCompany && a.status === 'invited') {
       decision = '<div style="display:flex; gap:8px; margin-top:12px;">' +
-        '<button data-action="openCompleteModal" data-app-id="' + esc(a.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Завершить стажировку</button></div>';
+        '<button data-action="openCompleteModal" data-app-id="' + esc(a.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Завершить стажировку</button></div>';
     }
     if (asCompany && a.status === 'pending') {
       decision = '<div style="display:flex; gap:8px; margin-top:12px;">' +
-        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="invited" style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button>' +
-        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="rejected" style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1px solid color-mix(in srgb, #b3261e 30%, #fff); padding:8px 14px; border-radius:8px; cursor:pointer;">Отказать</button>' +
+        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="invited" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button>' +
+        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="rejected" style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1px solid color-mix(in srgb, #b3261e 30%, #fff); padding:8px 14px; border-radius:8px; cursor:pointer;">Отказать</button>' +
       '</div>';
     }
 
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px 26px;">' +
       '<div class="row-split" style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">' +
         '<div style="min-width:0;">' +
-          '<div style="font-weight:600; font-size:17.5px; letter-spacing:-0.01em; ' + S.wrap + '">' + title + '</div>' +
-          '<div style="font-size:13.5px; color:var(--muted); margin-top:4px;">' + subtitle + '</div>' +
+          '<div style="font-weight:600; font-size:var(--text-body); letter-spacing:-0.01em; ' + S.wrap + '">' + title + '</div>' +
+          '<div style="font-size:var(--text-caption); color:var(--muted); margin-top:4px;">' + subtitle + '</div>' +
         '</div>' +
         '<div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">' + statusChip(a.status) + chatButton(a.id, 'Открыть чат') + '</div>' +
       '</div>' + decision + '</div>';
@@ -1351,7 +1354,7 @@
 
     if (!mine.length) {
       return pageWrap('Отклики', state.appsLoading
-        ? '<div style="text-align:center; padding:48px; color:var(--muted); font-size:14px;">Загружаем отклики…</div>'
+        ? '<div style="text-align:center; padding:48px; color:var(--muted); font-size:var(--text-caption);">Загружаем отклики…</div>'
         : emptyState('◎', 'Пока нет откликов', 'Как только студенты откликнутся на ваши задачи, они появятся здесь — все вакансии в одном списке.', 'goVacancies', 'Мои вакансии'), 1200);
     }
 
@@ -1362,7 +1365,7 @@
 
     var tb = function (id, label, n) {
       var active = tab === id;
-      return '<button data-action="respTab" data-tab="' + id + '" style="font-size:13.5px; font-weight:600; padding:9px 16px; border-radius:10px; cursor:pointer; border:1.5px solid ' + (active ? 'var(--ink)' : 'var(--line)') + '; background:' + (active ? 'var(--ink)' : '#fff') + '; color:' + (active ? '#fff' : 'var(--muted)') + ';">' +
+      return '<button data-action="respTab" data-tab="' + id + '" style="font-size:var(--text-caption); font-weight:600; padding:9px 16px; border-radius:10px; cursor:pointer; border:1.5px solid ' + (active ? 'var(--ink)' : 'var(--line)') + '; background:' + (active ? 'var(--ink)' : '#fff') + '; color:' + (active ? '#fff' : 'var(--muted)') + ';">' +
         label + (n ? ' · ' + n : '') + '</button>';
     };
     var tabs = '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">' +
@@ -1378,9 +1381,9 @@
     var list = shown.length
       ? '<div style="display:flex; flex-direction:column; gap:14px;">' + shown.map(function (a) {
           var gigTitle = (a.gigs && a.gigs.title) || 'Задача удалена';
-          return '<div><div style="font-size:12.5px; color:var(--muted); margin-bottom:6px; ' + S.wrap + '">' + esc(gigTitle) + '</div>' + applicationCard(a) + '</div>';
+          return '<div><div style="font-size:var(--text-micro); color:var(--muted); margin-bottom:6px; ' + S.wrap + '">' + esc(gigTitle) + '</div>' + applicationCard(a) + '</div>';
         }).join('') + '</div>'
-      : '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">' +
+      : '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">' +
         (tab === 'pending' ? 'Все отклики разобраны — никто не ждёт ответа.' : 'Пусто.') + '</div>';
 
     return pageWrap('Отклики', tabs + list, 1200);
@@ -1390,13 +1393,13 @@
   // работодателю, которого на платформе нет. Оценки здесь нет — только характеристика.
   function certView() {
     var c = state.cert;
-    if (c.loading) return pageWrap('Справка о стажировке', '<div style="text-align:center; padding:48px; color:var(--muted); font-size:14px;">Проверяем справку…</div>', 780);
+    if (c.loading) return pageWrap('Справка о стажировке', '<div style="text-align:center; padding:48px; color:var(--muted); font-size:var(--text-caption);">Проверяем справку…</div>', 780);
     if (!c.data) {
       return pageWrap('Справка о стажировке',
         '<div style="' + RO_CARD + ' text-align:center;">' +
-        '<div style="font-size:34px; margin-bottom:12px;">🔍</div>' +
-        '<div style="font-weight:600; font-size:18px; margin-bottom:8px;">Справка не найдена</div>' +
-        '<p style="color:var(--muted); font-size:14px; line-height:1.55; margin:0;">Такой справки нет или она ещё не опубликована. Проверьте ссылку целиком — она длинная и легко обрезается при копировании.</p></div>', 780);
+        '<div style="font-size:var(--text-h1); margin-bottom:12px;">🔍</div>' +
+        '<div style="font-weight:600; font-size:var(--text-title); margin-bottom:8px;">Справка не найдена</div>' +
+        '<p style="color:var(--muted); font-size:var(--text-caption); line-height:1.55; margin:0;">Такой справки нет или она ещё не опубликована. Проверьте ссылку целиком — она длинная и легко обрезается при копировании.</p></div>', 780);
     }
     var d = c.data;
     var period = (d.started_at ? fmtDate(d.started_at) : '') + (d.finished_at ? ' — ' + fmtDate(d.finished_at) : '');
@@ -1404,16 +1407,19 @@
       // Страницу открывают редко и показывают работодателю — перерисовок здесь нет,
       // так что появление проиграется ровно один раз.
       '<div class="rise-in" style="' + RO_CARD + '">' +
-        '<div style="display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:#16a34a; margin-bottom:18px;">' +
-          '<span style="width:8px; height:8px; border-radius:50%; background:#16a34a;"></span>Подтверждено платформой internship.uz</div>' +
-        '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:26px; letter-spacing:-0.02em;">' + esc(d.student_name || 'Студент') + '</div>' +
-        '<div style="font-size:15px; color:var(--muted); margin-top:6px;">' + esc(d.gig_title || '') + '</div>' +
-        '<div style="font-size:15px; margin-top:2px;"><strong style="font-weight:600;">' + esc(d.company_name || '') + '</strong>' +
+        '<div style="display:flex; align-items:center; gap:9px; font-size:var(--text-micro); font-weight:700; color:#15803d; margin-bottom:18px;">' +
+          '<span style="width:8px; height:8px; border-radius:50%; background:#15803d;"></span>Подтверждено платформой internship.uz</div>' +
+        '<div style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.02em;">' + esc(d.student_name || 'Студент') + '</div>' +
+        '<div style="font-size:var(--text-body); color:var(--muted); margin-top:6px;">' + esc(d.gig_title || '') + '</div>' +
+        '<div style="font-size:var(--text-body); margin-top:2px;"><strong style="font-weight:600;">' + esc(d.company_name || '') + '</strong>' +
           (period ? '<span style="color:var(--muted);"> · ' + esc(period) + '</span>' : '') + '</div>' +
         '<div style="margin-top:22px; padding-top:22px; border-top:1.5px solid var(--line);">' +
-          '<div style="font-size:13px; color:var(--muted); margin-bottom:8px;">Характеристика от компании</div>' +
-          '<div style="font-size:15px; line-height:1.65; white-space:pre-wrap; ' + S.wrap + '">' + esc(d.body || '') + '</div></div>' +
-        '<div style="margin-top:22px; padding-top:18px; border-top:1.5px solid var(--line); font-size:12.5px; color:var(--muted); line-height:1.6;">' +
+          '<div style="font-size:var(--text-caption); color:var(--muted); margin-bottom:8px;">Характеристика от компании</div>' +
+          /* Единственный по-настоящему длинный текст на сайте — и до этого он был
+             единственным местом, где мера строки не ограничена: ~90 знаков против
+             комфортных 65–75. Именно эту страницу студент показывает работодателю. */
+          '<div style="font-size:var(--text-body); line-height:1.65; max-width:68ch; white-space:pre-wrap; ' + S.wrap + '">' + esc(d.body || '') + '</div></div>' +
+        '<div style="margin-top:22px; padding-top:18px; border-top:1.5px solid var(--line); font-size:var(--text-micro); color:var(--muted); line-height:1.6;">' +
           'Справка №' + esc(d.public_id) + (d.issued_at ? ' · выдана ' + esc(fmtDate(d.issued_at)) : '') + '<br>' +
           'Текст написан компанией и проверен платформой. После выдачи не редактируется.</div>' +
       '</div>', 780);
@@ -1424,7 +1430,7 @@
     if (state.authRole !== 'student') return homeView();
     if (!state.applications.length) {
       return pageWrap('Мои отклики', state.appsLoading
-        ? '<div style="text-align:center; padding:48px; color:var(--muted); font-size:14px;">Загружаем отклики…</div>'
+        ? '<div style="text-align:center; padding:48px; color:var(--muted); font-size:var(--text-caption);">Загружаем отклики…</div>'
         : emptyState('◎', 'Пока нет откликов', 'Откликнитесь на задачи в каталоге — здесь появится статус каждого отклика и переписка с компанией.', 'goCatalog', 'Открыть каталог задач'));
     }
     return pageWrap('Мои отклики',
@@ -1449,18 +1455,18 @@
 
       var mark = closed ? ['снята с публикации', '#b3261e']
                : full   ? ['мест нет — не показывается в каталоге', 'var(--muted)']
-                        : ['в каталоге · занято ' + taken + ' из ' + seats, '#16a34a'];
-      var toggle = '<button data-action="toggleGigClosed" data-gig-id="' + esc(g.id) + '" data-closed="' + (closed ? '1' : '') + '" style="font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer;">' +
+                        : ['в каталоге · занято ' + taken + ' из ' + seats, '#15803d'];
+      var toggle = '<button data-action="toggleGigClosed" data-gig-id="' + esc(g.id) + '" data-closed="' + (closed ? '1' : '') + '" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer;">' +
         (closed ? 'Вернуть в каталог' : 'Снять с публикации') + '</button>';
 
       var head = '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">' +
-        '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px;">' + esc(g.title || '') + '</div>' +
-        '<div style="font-size:12.5px; color:' + mark[1] + '; margin-top:3px;">' + esc(mark[0]) + '</div></div>' +
+        '<div><div style="font-weight:600; font-size:var(--text-title);">' + esc(g.title || '') + '</div>' +
+        '<div style="font-size:var(--text-micro); color:' + mark[1] + '; margin-top:3px;">' + esc(mark[0]) + '</div></div>' +
         '<div style="display:flex; align-items:center; gap:10px;">' + toggle +
-        '<span style="font-size:12.5px; color:var(--muted);">' + apps.length + ' ' + pluralRu(apps.length, 'отклик', 'отклика', 'откликов') + '</span></div></div>';
+        '<span style="font-size:var(--text-micro); color:var(--muted);">' + apps.length + ' ' + pluralRu(apps.length, 'отклик', 'отклика', 'откликов') + '</span></div></div>';
       var body = apps.length
         ? '<div style="display:flex; flex-direction:column; gap:10px;">' + apps.map(applicationCard).join('') + '</div>'
-        : '<div style="font-size:13.5px; color:var(--muted); padding:14px 0 4px;">' +
+        : '<div style="font-size:var(--text-caption); color:var(--muted); padding:14px 0 4px;">' +
           (closed || full ? 'Откликов нет, и задача больше не показывается в каталоге.' : 'Откликов пока нет — задача видна студентам в каталоге.') + '</div>';
       return '<section style="margin-bottom:30px;">' + head + body + '</section>';
     }).join('');
@@ -1479,7 +1485,7 @@
 
   function adminTab(id, label, count) {
     var active = state.admin.tab === id;
-    return '<button data-action="adminTab" data-tab="' + id + '" style="font-size:13.5px; font-weight:600; padding:9px 16px; border-radius:10px; cursor:pointer; ' +
+    return '<button data-action="adminTab" data-tab="' + id + '" style="font-size:var(--text-caption); font-weight:600; padding:9px 16px; border-radius:10px; cursor:pointer; ' +
       (active ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1.5px solid var(--line);') + '">' +
       label + (count ? ' <span style="opacity:0.7;">' + count + '</span>' : '') + '</button>';
   }
@@ -1487,16 +1493,16 @@
   function aiVerdictBlock(v) {
     if (!v) return '';
     var verdict = v.verdict || '—';
-    var color = verdict === 'ok' ? '#16a34a' : verdict === 'reject' ? '#b3261e' : '#b26b12';
+    var color = verdict === 'ok' ? '#15803d' : verdict === 'reject' ? '#b3261e' : '#8f5410';
     var fields = '';
     if (v.extracted && typeof v.extracted === 'object') {
       var parts = [];
       for (var k in v.extracted) if (v.extracted[k]) parts.push(esc(k) + ': ' + esc(String(v.extracted[k])));
-      if (parts.length) fields = '<div style="font-size:12px; color:var(--muted); margin-top:6px;">' + parts.join(' · ') + '</div>';
+      if (parts.length) fields = '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:6px;">' + parts.join(' · ') + '</div>';
     }
     return '<div style="margin-top:10px; padding:11px 13px; background:var(--bg); border:1.5px solid var(--line); border-radius:10px;">' +
-      '<div style="font-size:11.5px; font-weight:700; color:' + color + '; text-transform:uppercase; letter-spacing:0.04em;">ИИ: ' + esc(verdict) + '</div>' +
-      (v.reason ? '<div style="font-size:13px; color:var(--ink); margin-top:5px; line-height:1.45;">' + esc(v.reason) + '</div>' : '') +
+      '<div style="font-size:var(--text-micro); font-weight:700; color:' + color + '; text-transform:uppercase; letter-spacing:0.04em;">ИИ: ' + esc(verdict) + '</div>' +
+      (v.reason ? '<div style="font-size:var(--text-caption); color:var(--ink); margin-top:5px; line-height:1.45;">' + esc(v.reason) + '</div>' : '') +
       fields + '</div>';
   }
 
@@ -1508,145 +1514,145 @@
     var decide = '';
     if (state.admin.rejectFor === f.id) {
       decide = '<div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
-        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:13.5px; padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
-        '<button data-action="adminConfirmReject" data-id="' + esc(f.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
-        '<button data-action="adminCancelReject" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<button data-action="adminConfirmReject" data-id="' + esc(f.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else {
       var approveLabel = f.status === 'approved' ? 'Одобрено' : 'Одобрить';
       decide = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
-        '<button data-action="adminOpenFile" data-path="' + esc(f.path) + '" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть файл</button>' +
-        '<button data-action="adminApprove" data-id="' + esc(f.id) + '"' + (busy || f.status === 'approved' ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || f.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">' + approveLabel + '</button>' +
-        '<button data-action="adminStartReject" data-id="' + esc(f.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+        '<button data-action="adminOpenFile" data-path="' + esc(f.path) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть файл</button>' +
+        '<button data-action="adminApprove" data-id="' + esc(f.id) + '"' + (busy || f.status === 'approved' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || f.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">' + approveLabel + '</button>' +
+        '<button data-action="adminStartReject" data-id="' + esc(f.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
     }
 
     var context = [f.student_status, f.student_institution].filter(Boolean).join(' · ');
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;">' +
         '<div style="min-width:0;">' +
-          '<div style="font-weight:600; font-size:16px;">' + esc(KIND_LABEL[f.kind] || f.kind) + (HUMAN_ONLY[f.kind] ? ' <span style="font-size:11px; font-weight:700; color:#b26b12; background:color-mix(in srgb, #b26b12 12%, #fff); padding:2px 7px; border-radius:999px;">только вручную</span>' : '') + '</div>' +
-          '<div style="font-size:13.5px; color:var(--muted); margin-top:3px;">' + esc(f.student_name || 'Студент') + (context ? ' · ' + esc(context) : '') + '</div>' +
-          '<div style="font-size:12.5px; color:var(--muted); margin-top:3px;">' + esc(f.name || '—') + ' · ' + esc(fmtDate(f.created_at)) + '</div>' +
+          '<div style="font-weight:600; font-size:var(--text-body);">' + esc(KIND_LABEL[f.kind] || f.kind) + (HUMAN_ONLY[f.kind] ? ' <span style="font-size:var(--text-micro); font-weight:700; color:#8f5410; background:color-mix(in srgb, #8f5410 12%, #fff); padding:2px 7px; border-radius:999px;">только вручную</span>' : '') + '</div>' +
+          '<div style="font-size:var(--text-caption); color:var(--muted); margin-top:3px;">' + esc(f.student_name || 'Студент') + (context ? ' · ' + esc(context) : '') + '</div>' +
+          '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:3px;">' + esc(f.name || '—') + ' · ' + esc(fmtDate(f.created_at)) + '</div>' +
         '</div>' +
         '<div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">' +
-          '<span style="font-size:11.5px; font-weight:700; color:' + m[1] + '; background:color-mix(in srgb, ' + m[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px;">' + m[0] + '</span>' +
-          (who ? '<span style="font-size:11.5px; color:var(--muted);">' + who + '</span>' : '') +
+          '<span style="font-size:var(--text-micro); font-weight:700; color:' + m[1] + '; background:color-mix(in srgb, ' + m[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px;">' + m[0] + '</span>' +
+          (who ? '<span style="font-size:var(--text-micro); color:var(--muted);">' + who + '</span>' : '') +
         '</div>' +
       '</div>' +
-      (f.reason ? '<div style="margin-top:8px; font-size:13px; color:#b3261e;">Причина: ' + esc(f.reason) + '</div>' : '') +
+      (f.reason ? '<div style="margin-top:8px; font-size:var(--text-caption); color:#b3261e;">Причина: ' + esc(f.reason) + '</div>' : '') +
       aiVerdictBlock(f.ai_verdict) + decide + '</div>';
   }
 
   function adminCompanyCard(c) {
     var d = c.data || {};
-    var st = { pending: ['на проверке', '#b26b12'], approved: ['подтверждена', '#16a34a'], rejected: ['отклонена', '#b3261e'] }[c.status] || ['—', 'var(--muted)'];
+    var st = { pending: ['на проверке', '#8f5410'], approved: ['подтверждена', '#15803d'], rejected: ['отклонена', '#b3261e'] }[c.status] || ['—', 'var(--muted)'];
     var rows = [['ИНН', d.inn], ['Руководитель', d.director], ['Контакт', d.contact], ['Телефон', d.phone], ['Почта', d.corpEmail], ['LinkedIn', d.linkedin]]
       .filter(function (r) { return r[1]; })
-      .map(function (r) { return '<div style="font-size:13px; color:var(--muted);">' + esc(r[0]) + ': <span style="color:var(--ink); font-weight:600;">' + esc(r[1]) + '</span></div>'; }).join('');
+      .map(function (r) { return '<div style="font-size:var(--text-caption); color:var(--muted);">' + esc(r[0]) + ': <span style="color:var(--ink); font-weight:600;">' + esc(r[1]) + '</span></div>'; }).join('');
     var busy = state.admin.busy === c.id;
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
-        '<div style="min-width:0;"><div style="font-weight:600; font-size:16px;">' + esc(d.name || 'Компания') + '</div>' +
+        '<div style="min-width:0;"><div style="font-weight:600; font-size:var(--text-body);">' + esc(d.name || 'Компания') + '</div>' +
         '<div style="margin-top:6px; display:flex; flex-direction:column; gap:3px;">' + rows + '</div></div>' +
-        '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
+        '<span style="font-size:var(--text-micro); font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
       '</div>' +
       '<div style="margin-top:12px; display:flex; gap:8px;">' +
-        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="approved"' + (busy || c.status === 'approved' ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || c.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">Подтвердить</button>' +
-        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="rejected"' + (busy || c.status === 'rejected' ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="approved"' + (busy || c.status === 'approved' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy || c.status === 'approved' ? ' opacity:0.5; cursor:not-allowed;' : '') + '">Подтвердить</button>' +
+        '<button data-action="adminCompanyDecide" data-id="' + esc(c.id) + '" data-status="rejected"' + (busy || c.status === 'rejected' ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
       '</div></div>';
   }
 
   // Заявка на смену статуса. Отличается от файла тем, что решение меняет данные профиля,
   // поэтому рядом со ссылкой на документ показываем, что именно изменится.
   function adminStatusCard(r) {
-    var st = { pending: ['ждёт решения', '#b26b12'], approved: ['одобрена', '#16a34a'], rejected: ['отклонена', '#b3261e'] }[r.status] || ['—', 'var(--muted)'];
+    var st = { pending: ['ждёт решения', '#8f5410'], approved: ['одобрена', '#15803d'], rejected: ['отклонена', '#b3261e'] }[r.status] || ['—', 'var(--muted)'];
     var busy = state.admin.busy === r.id;
     var actionsHtml = '';
     if (state.admin.rejectFor === r.id) {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
-        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:13.5px; padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
-        '<button data-action="adminStatusConfirmReject" data-id="' + esc(r.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
-        '<button data-action="adminCancelReject" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<button data-action="adminStatusConfirmReject" data-id="' + esc(r.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else if (r.status === 'pending') {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
-        (r.path ? '<button data-action="adminOpenFile" data-path="' + esc(r.path) + '" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть документ</button>' : '') +
-        '<button data-action="adminStatusApprove" data-id="' + esc(r.id) + '" data-path="' + esc(r.path || '') + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Подтвердить статус</button>' +
-        '<button data-action="adminStatusStartReject" data-id="' + esc(r.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+        (r.path ? '<button data-action="adminOpenFile" data-path="' + esc(r.path) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть документ</button>' : '') +
+        '<button data-action="adminStatusApprove" data-id="' + esc(r.id) + '" data-path="' + esc(r.path || '') + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Подтвердить статус</button>' +
+        '<button data-action="adminStatusStartReject" data-id="' + esc(r.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
     }
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
-        '<div style="min-width:0;"><div style="font-weight:600; font-size:16px;">' + esc(r.student_name || 'Студент') + '</div>' +
-        '<div style="margin-top:6px; font-size:13px; color:var(--muted);">' + esc(r.from_status || '—') + ' → <span style="color:var(--ink); font-weight:600;">' + esc(r.to_status || '') + '</span></div>' +
-        (r.reason ? '<div style="margin-top:4px; font-size:12.5px; color:#b3261e;">Причина отказа: ' + esc(r.reason) + '</div>' : '') +
-        (!r.path && r.status === 'pending' ? '<div style="margin-top:4px; font-size:12.5px; color:#b3261e;">Документ не приложен</div>' : '') +
+        '<div style="min-width:0;"><div style="font-weight:600; font-size:var(--text-body);">' + esc(r.student_name || 'Студент') + '</div>' +
+        '<div style="margin-top:6px; font-size:var(--text-caption); color:var(--muted);">' + esc(r.from_status || '—') + ' → <span style="color:var(--ink); font-weight:600;">' + esc(r.to_status || '') + '</span></div>' +
+        (r.reason ? '<div style="margin-top:4px; font-size:var(--text-micro); color:#b3261e;">Причина отказа: ' + esc(r.reason) + '</div>' : '') +
+        (!r.path && r.status === 'pending' ? '<div style="margin-top:4px; font-size:var(--text-micro); color:#b3261e;">Документ не приложен</div>' : '') +
         '</div>' +
-        '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
+        '<span style="font-size:var(--text-micro); font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
       '</div>' + actionsHtml + '</div>';
   }
 
   // Справка о стажировке. Текст пойдёт на публичную страницу с именем человека, поэтому
   // читаем его целиком — это главное, что здесь проверяется.
   function adminCertCard(c) {
-    var st = { pending: ['на проверке', '#b26b12'], published: ['опубликована', '#16a34a'], rejected: ['отклонена', '#b3261e'] }[c.status] || ['—', 'var(--muted)'];
+    var st = { pending: ['на проверке', '#8f5410'], published: ['опубликована', '#15803d'], rejected: ['отклонена', '#b3261e'] }[c.status] || ['—', 'var(--muted)'];
     var busy = state.admin.busy === c.id;
     var period = (c.started_at ? fmtDate(c.started_at) : '') + (c.finished_at ? ' — ' + fmtDate(c.finished_at) : '');
     var actionsHtml = '';
     if (state.admin.rejectFor === c.id) {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
-        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит компания" style="flex:1; min-width:240px; font-size:13.5px; padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
-        '<button data-action="adminCertConfirmReject" data-id="' + esc(c.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
-        '<button data-action="adminCancelReject" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит компания" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<button data-action="adminCertConfirmReject" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#b3261e; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
+        '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else if (c.status === 'pending') {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
-        '<button data-action="adminCertPublish" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Опубликовать</button>' +
-        '<button data-action="adminCertStartReject" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
+        '<button data-action="adminCertPublish" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;' + (busy ? ' opacity:0.5;' : '') + '">Опубликовать</button>' +
+        '<button data-action="adminCertStartReject" data-id="' + esc(c.id) + '"' + (busy ? ' disabled' : '') + ' style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>';
     } else if (c.status === 'published') {
-      actionsHtml = '<div style="margin-top:12px;"><a href="/cert/' + esc(c.public_id) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent);">Открыть публичную страницу ↗</a></div>';
+      actionsHtml = '<div style="margin-top:12px;"><a href="/cert/' + esc(c.public_id) + '" target="_blank" rel="noopener" style="font-size:var(--text-micro); font-weight:600; color:var(--accent);">Открыть публичную страницу ↗</a></div>';
     }
 
     // Официальное свидетельство от компании — отдельное решение: справка может быть уже
     // опубликована, а бумагу компания приложит позже.
     var docBlock = '';
     if (c.doc_status) {
-      var dst = { pending: ['ждёт проверки', '#b26b12'], approved: ['принято', '#16a34a'], rejected: ['отклонено', '#b3261e'] }[c.doc_status] || ['—', 'var(--muted)'];
+      var dst = { pending: ['ждёт проверки', '#8f5410'], approved: ['принято', '#15803d'], rejected: ['отклонено', '#b3261e'] }[c.doc_status] || ['—', 'var(--muted)'];
       docBlock = '<div style="margin-top:14px; padding-top:14px; border-top:1.5px solid var(--line);">' +
-        '<div style="font-size:13px; font-weight:600; margin-bottom:6px;">Официальное свидетельство ' +
-        '<span style="font-size:11.5px; font-weight:700; color:' + dst[1] + '; background:color-mix(in srgb, ' + dst[1] + ' 12%, #fff); padding:3px 8px; border-radius:6px; margin-left:4px;">' + dst[0] + '</span></div>' +
-        '<div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">От: ' + esc(c.company_name || '') + ' · Для: ' + esc(c.student_name || '') + (c.doc_name ? ' · ' + esc(c.doc_name) : '') + '</div>' +
+        '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Официальное свидетельство ' +
+        '<span style="font-size:var(--text-micro); font-weight:700; color:' + dst[1] + '; background:color-mix(in srgb, ' + dst[1] + ' 12%, #fff); padding:3px 8px; border-radius:6px; margin-left:4px;">' + dst[0] + '</span></div>' +
+        '<div style="font-size:var(--text-micro); color:var(--muted); margin-bottom:8px;">От: ' + esc(c.company_name || '') + ' · Для: ' + esc(c.student_name || '') + (c.doc_name ? ' · ' + esc(c.doc_name) : '') + '</div>' +
         (c.doc_status === 'pending'
           ? '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
-            (c.doc_path ? '<button data-action="adminOpenFile" data-path="' + esc(c.doc_path) + '" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть документ</button>' : '') +
-            '<button data-action="adminCertDocApprove" data-id="' + esc(c.id) + '" style="font-size:12.5px; font-weight:600; color:#fff; background:#16a34a; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Принять</button>' +
-            '<button data-action="adminCertDocReject" data-id="' + esc(c.id) + '" style="font-size:12.5px; font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>'
-          : (c.doc_reason ? '<div style="font-size:12.5px; color:#b3261e;">Причина: ' + esc(c.doc_reason) + '</div>' : '')) +
+            (c.doc_path ? '<button data-action="adminOpenFile" data-path="' + esc(c.doc_path) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Открыть документ</button>' : '') +
+            '<button data-action="adminCertDocApprove" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:#15803d; border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Принять</button>' +
+            '<button data-action="adminCertDocReject" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#b3261e; background:#fff; border:1.5px solid color-mix(in srgb, #b3261e 30%, #fff); padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button></div>'
+          : (c.doc_reason ? '<div style="font-size:var(--text-micro); color:#b3261e;">Причина: ' + esc(c.doc_reason) + '</div>' : '')) +
         '</div>';
     }
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">' +
-        '<div style="min-width:0;"><div style="font-weight:600; font-size:16px;">' + esc(c.student_name || 'Студент') + '</div>' +
-        '<div style="margin-top:5px; font-size:13px; color:var(--muted);">' + esc(c.company_name || '') + ' · ' + esc(c.gig_title || '') + (period ? ' · ' + esc(period) : '') + '</div>' +
-        '<div style="margin-top:4px; font-size:12.5px; color:var(--muted);">Оценка компании: <strong style="color:var(--ink);">' + esc(String(c.score)) + '/5</strong> <span style="opacity:0.7;">(в справку не попадёт)</span></div>' +
-        '<div style="margin-top:10px; padding:12px 14px; background:var(--bg); border-radius:10px; font-size:13.5px; line-height:1.6; white-space:pre-wrap; ' + S.wrap + '">' + esc(c.body || '') + '</div>' +
-        (c.reason ? '<div style="margin-top:6px; font-size:12.5px; color:#b3261e;">Причина отказа: ' + esc(c.reason) + '</div>' : '') +
+        '<div style="min-width:0;"><div style="font-weight:600; font-size:var(--text-body);">' + esc(c.student_name || 'Студент') + '</div>' +
+        '<div style="margin-top:5px; font-size:var(--text-caption); color:var(--muted);">' + esc(c.company_name || '') + ' · ' + esc(c.gig_title || '') + (period ? ' · ' + esc(period) : '') + '</div>' +
+        '<div style="margin-top:4px; font-size:var(--text-micro); color:var(--muted);">Оценка компании: <strong style="color:var(--ink);">' + esc(String(c.score)) + '/5</strong> <span style="opacity:0.7;">(в справку не попадёт)</span></div>' +
+        '<div style="margin-top:10px; padding:12px 14px; background:var(--bg); border-radius:10px; font-size:var(--text-caption); line-height:1.6; white-space:pre-wrap; ' + S.wrap + '">' + esc(c.body || '') + '</div>' +
+        (c.reason ? '<div style="margin-top:6px; font-size:var(--text-micro); color:#b3261e;">Причина отказа: ' + esc(c.reason) + '</div>' : '') +
         '</div>' +
-        '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
+        '<span style="font-size:var(--text-micro); font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px; flex-shrink:0;">' + st[0] + '</span>' +
       '</div>' + actionsHtml + docBlock + '</div>';
   }
 
   // Все задачи платформы. Не модерация — обзор: что размещено, набралось ли, чем кончилось.
   function adminGigsTable(gigs) {
-    if (!gigs.length) return '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">Задач пока нет.</div>';
+    if (!gigs.length) return '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">Задач пока нет.</div>';
     var rows = gigs.map(function (g) {
       var seats = Math.max(parseInt(String(g.slots || '1').match(/\d+/), 10) || 1, 1);
-      var st = g.closed_at ? ['снята', '#b3261e'] : g.is_open ? ['в каталоге', '#16a34a'] : ['мест нет', 'var(--muted)'];
+      var st = g.closed_at ? ['снята', '#b3261e'] : g.is_open ? ['в каталоге', '#15803d'] : ['мест нет', 'var(--muted)'];
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-top:1.5px solid var(--line); flex-wrap:wrap;">' +
         '<div style="min-width:0; flex:1;">' +
-          '<div style="font-weight:600; font-size:14.5px; ' + S.wrap + '">' + esc(g.title || 'Без названия') + '</div>' +
-          '<div style="font-size:12.5px; color:var(--muted); margin-top:2px;">' + esc(g.company_name || '') + ' · ' + esc(fmtDate(g.created_at)) + '</div></div>' +
-        '<div style="display:flex; align-items:center; gap:16px; font-size:12.5px; color:var(--muted); flex-wrap:wrap;">' +
+          '<div style="font-weight:600; font-size:var(--text-caption); ' + S.wrap + '">' + esc(g.title || 'Без названия') + '</div>' +
+          '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:2px;">' + esc(g.company_name || '') + ' · ' + esc(fmtDate(g.created_at)) + '</div></div>' +
+        '<div style="display:flex; align-items:center; gap:16px; font-size:var(--text-micro); color:var(--muted); flex-wrap:wrap;">' +
           '<span title="Откликов всего">' + g.applications + ' ' + pluralRu(g.applications, 'отклик', 'отклика', 'откликов') + '</span>' +
           '<span title="Занято мест">занято ' + g.taken + ' из ' + seats + '</span>' +
           '<span title="Завершено стажировок">завершено ' + g.completed + '</span>' +
-          '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px;">' + st[0] + '</span>' +
+          '<span style="font-size:var(--text-micro); font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px;">' + st[0] + '</span>' +
         '</div></div>';
     }).join('');
     return '<div style="' + RO_CARD + ' padding-top:6px;">' + rows + '</div>';
@@ -1671,20 +1677,20 @@
       adminTab('ai', 'Одобрено ИИ', byAi.length) +
       adminTab('all', 'Все решения', items.length) +
       adminTab('gigs', 'Задачи', (a.gigs || []).length) +
-      '<button data-action="adminRefresh" style="font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 16px; border-radius:10px; cursor:pointer; margin-left:auto;">Обновить</button></div>';
+      '<button data-action="adminRefresh" style="font-size:var(--text-caption); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 16px; border-radius:10px; cursor:pointer; margin-left:auto;">Обновить</button></div>';
 
     var companies = (a.tab === 'pending' && pendingCompanies.length)
-      ? '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Заявки компаний</div>' +
+      ? '<div style="font-weight:600; font-size:var(--text-title); margin:6px 0 12px;">Заявки компаний</div>' +
         '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + pendingCompanies.map(adminCompanyCard).join('') + '</div>'
       : (a.tab === 'all'
-        ? '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Заявки компаний</div>' +
+        ? '<div style="font-weight:600; font-size:var(--text-title); margin:6px 0 12px;">Заявки компаний</div>' +
           '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + (a.companies || []).map(adminCompanyCard).join('') + '</div>'
         : '');
 
     var body;
-    if (a.loading) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">Загружаем очередь…</div>';
-    else if (a.error) body = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:14px; font-weight:600;">' + esc(a.error) + '</div>';
-    else if (!shown.length) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">' + (a.tab === 'pending' ? 'Ничего не ждёт решения — очередь пуста.' : 'Пока пусто.') + '</div>';
+    if (a.loading) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">Загружаем очередь…</div>';
+    else if (a.error) body = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:var(--text-caption); font-weight:600;">' + esc(a.error) + '</div>';
+    else if (!shown.length) body = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">' + (a.tab === 'pending' ? 'Ничего не ждёт решения — очередь пуста.' : 'Пока пусто.') + '</div>';
     else body = '<div style="display:flex; flex-direction:column; gap:12px;">' + shown.map(adminFileCard).join('') + '</div>';
 
     // Заявки на смену статуса: решение меняет данные профиля, поэтому держим их
@@ -1692,7 +1698,7 @@
     var sReqs = a.statusReqs || [];
     var sShown = a.tab === 'all' ? sReqs : sReqs.filter(function (r) { return r.status === 'pending'; });
     var statuses = (a.tab === 'ai' || !sShown.length) ? ''
-      : '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Смена статуса</div>' +
+      : '<div style="font-weight:600; font-size:var(--text-title); margin:6px 0 12px;">Смена статуса</div>' +
         '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + sShown.map(adminStatusCard).join('') + '</div>';
 
     // Справки: текст уходит на публичную страницу с именем человека, поэтому раздел
@@ -1703,13 +1709,13 @@
       return c.status === 'pending' || c.doc_status === 'pending';
     });
     var certsBlock = (a.tab === 'ai' || !cShown.length) ? ''
-      : '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Справки о стажировке</div>' +
+      : '<div style="font-weight:600; font-size:var(--text-title); margin:6px 0 12px;">Справки о стажировке</div>' +
         '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + cShown.map(adminCertCard).join('') + '</div>';
 
     // Отдельная вкладка: это обзор, а не очередь — смешивать с модерацией незачем.
     if (a.tab === 'gigs') return pageWrap('Модерация', tabs + adminGigsTable(a.gigs || []), 1200);
 
-    var title = '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Файлы студентов</div>';
+    var title = '<div style="font-weight:600; font-size:var(--text-title); margin:6px 0 12px;">Файлы студентов</div>';
     return pageWrap('Модерация', tabs + companies + statuses + certsBlock + title + body, 1200);
   }
 
@@ -1717,26 +1723,26 @@
   function chipList(items) {
     if (!items || !items.length) return '';
     return '<div style="display:flex; flex-wrap:wrap; gap:7px;">' + items.map(function (t) {
-      return '<span style="font-size:12px; font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:5px 10px; border-radius:7px;">' + esc(String(t)) + '</span>';
+      return '<span style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:5px 10px; border-radius:7px;">' + esc(String(t)) + '</span>';
     }).join('') + '</div>';
   }
   function profileText(s) {
     if (!s) return '';
-    return '<p style="font-size:15px; line-height:1.6; color:var(--ink); margin:0; white-space:pre-wrap;">' + esc(s) + '</p>';
+    return '<p style="font-size:var(--text-body); line-height:1.6; color:var(--ink); margin:0; white-space:pre-wrap;">' + esc(s) + '</p>';
   }
   var COMM_STYLE = { async: 'Асинхронно', sync: 'Синхронно, в рабочие часы' };
   var CADENCE = { weekly: 'Раз в неделю', biweekly: 'Раз в две недели', daily: 'Ежедневно' };
 
   // Read-only карточки под вид личного кабинета: тот же стиль, но без кнопок редактирования.
   var RO_CARD = 'background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:24px;';
-  var RO_TITLE = 'font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px;';
+  var RO_TITLE = 'font-weight:600; font-size:var(--text-body);';
   // Ссылка на подтверждающий файл в чужом профиле. Сюда доходят только одобренные файлы:
   // неодобренные вырезает student_public ещё в базе. url — подписанная ссылка, выданная
   // при загрузке, поэтому компании отдельный доступ к приватному бакету не нужен.
   function roFileLink(file, inline) {
     if (!file || !file.url) return '';
     return '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" style="display:inline-block; ' +
-      (inline ? '' : 'margin-top:10px; ') + 'font-size:12.5px; font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' +
+      (inline ? '' : 'margin-top:10px; ') + 'font-size:var(--text-micro); font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' +
       esc(file.name || 'Документ') + ' ↗</a>';
   }
 
@@ -1744,12 +1750,12 @@
     return '<div style="' + RO_CARD + '">' + (title ? '<div style="' + RO_TITLE + ' margin-bottom:14px;">' + title + '</div>' : '') + inner + '</div>';
   }
   function roRow(label, value) {
-    return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1.5px solid var(--line);"><span style="font-size:13.5px; color:var(--muted);">' + label + '</span><span style="font-size:13.5px; font-weight:600; text-align:right; word-break:break-word;">' + esc(value || '—') + '</span></div>';
+    return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1.5px solid var(--line);"><span style="font-size:var(--text-caption); color:var(--muted);">' + label + '</span><span style="font-size:var(--text-caption); font-weight:600; text-align:right; word-break:break-word;">' + esc(value || '—') + '</span></div>';
   }
   function roAvatar(photo, name) {
     if (photo) return '<img src="' + esc(photo) + '" alt="" style="width:64px; height:64px; border-radius:18px; object-fit:cover; flex-shrink:0;">';
     var init = (name || 'С').trim().split(/\s+/).map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase() || 'С';
-    return '<span style="width:64px; height:64px; border-radius:18px; background:color-mix(in srgb, var(--accent) 11%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; flex-shrink:0;">' + esc(init) + '</span>';
+    return '<span style="width:64px; height:64px; border-radius:18px; background:color-mix(in srgb, var(--accent) 11%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:600; font-size:var(--text-h2); flex-shrink:0;">' + esc(init) + '</span>';
   }
   function roStack(cards) {
     return cards.filter(Boolean).map(function (c) { return '<div style="margin-top:20px;">' + c + '</div>'; }).join('');
@@ -1758,17 +1764,17 @@
   // Профиль компании глазами студента — вид как в кабинете компании, только без полей ввода.
   function companyProfileHtml(c) {
     var header = '<div style="' + RO_CARD + ' display:flex; align-items:center; gap:18px;">' +
-      '<span style="width:64px; height:64px; border-radius:16px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0;">◆</span>' +
-      '<div style="min-width:0;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(c.name || 'Компания') + '</span>' +
-      '<span style="font-size:11px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, #fff); padding:4px 9px; border-radius:6px;">✓ подтверждена</span></div>' +
-      (c.pitch ? '<div style="font-size:14px; color:var(--muted); margin-top:6px;">' + esc(c.pitch) + '</div>' : '') + '</div></div>';
+      '<span style="width:64px; height:64px; border-radius:16px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-h2); flex-shrink:0;">◆</span>' +
+      '<div style="min-width:0;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em;">' + esc(c.name || 'Компания') + '</span>' +
+      '<span style="font-size:var(--text-micro); font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, #fff); padding:4px 9px; border-radius:6px;">✓ подтверждена</span></div>' +
+      (c.pitch ? '<div style="font-size:var(--text-caption); color:var(--muted); margin-top:6px;">' + esc(c.pitch) + '</div>' : '') + '</div></div>';
 
     var cards = [];
     if (c.description) cards.push(roCard('О компании', profileText(c.description)));
 
     var techInner = '';
-    if (c.focus_areas && c.focus_areas.length) techInner += '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Основные направления</div>' + chipList(c.focus_areas);
-    if (c.tech_stack && c.tech_stack.length) techInner += '<div style="font-size:13px; font-weight:600; margin:' + (techInner ? '16px' : '0') + ' 0 8px;">Технологический стек</div>' + chipList(c.tech_stack);
+    if (c.focus_areas && c.focus_areas.length) techInner += '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:8px;">Основные направления</div>' + chipList(c.focus_areas);
+    if (c.tech_stack && c.tech_stack.length) techInner += '<div style="font-size:var(--text-caption); font-weight:600; margin:' + (techInner ? '16px' : '0') + ' 0 8px;">Технологический стек</div>' + chipList(c.tech_stack);
     if (techInner) cards.push(roCard('Технический профиль', techInner));
 
     var fmt = '';
@@ -1777,11 +1783,11 @@
     if (c.meeting_cadence) fmt += roRow('Периодичность созвонов', CADENCE[c.meeting_cadence] || c.meeting_cadence);
     if (fmt) cards.push(roCard('Формат работы', fmt));
 
-    if (c.mentor_name) cards.push(roCard('Куратор для стажёров', '<div style="font-size:15px;"><strong>' + esc(c.mentor_name) + '</strong>' + (c.mentor_role ? '<span style="color:var(--muted);"> · ' + esc(c.mentor_role) + '</span>' : '') + '</div>'));
+    if (c.mentor_name) cards.push(roCard('Куратор для стажёров', '<div style="font-size:var(--text-body);"><strong>' + esc(c.mentor_name) + '</strong>' + (c.mentor_role ? '<span style="color:var(--muted);"> · ' + esc(c.mentor_role) + '</span>' : '') + '</div>'));
 
-    if (c.linkedin) cards.push(roCard('Ссылки', '<a href="' + esc(c.linkedin) + '" target="_blank" rel="noopener noreferrer" style="font-size:14.5px; color:var(--accent); font-weight:600; word-break:break-all;">' + esc(c.linkedin) + '</a>'));
+    if (c.linkedin) cards.push(roCard('Ссылки', '<a href="' + esc(c.linkedin) + '" target="_blank" rel="noopener noreferrer" style="font-size:var(--text-caption); color:var(--accent); font-weight:600; word-break:break-all;">' + esc(c.linkedin) + '</a>'));
 
-    if (!cards.length) cards.push('<div style="' + RO_CARD + ' font-size:14.5px; color:var(--muted); line-height:1.55;">Компания ещё не заполнила профиль. Детали о задаче можно обсудить в чате отклика.</div>');
+    if (!cards.length) cards.push('<div style="' + RO_CARD + ' font-size:var(--text-caption); color:var(--muted); line-height:1.55;">Компания ещё не заполнила профиль. Детали о задаче можно обсудить в чате отклика.</div>');
 
     return header + roStack(cards);
   }
@@ -1791,13 +1797,13 @@
     var name = ((s.first_name || '') + ' ' + (s.last_name || '')).trim() || 'Студент';
     var sub = [s.study_status, s.institution].filter(Boolean).join(' · ');
     var availTag = s.availability
-      ? '<span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:' + availColor(s.availability) + '; background:color-mix(in srgb, ' + availColor(s.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(s.availability) + ';"></span>' + esc(availLabel(s.availability)) + '</span>'
+      ? '<span style="display:inline-flex; align-items:center; gap:6px; font-size:var(--text-micro); font-weight:700; color:' + availColor(s.availability) + '; background:color-mix(in srgb, ' + availColor(s.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(s.availability) + ';"></span>' + esc(availLabel(s.availability)) + '</span>'
       : '';
 
     var header = '<div style="' + RO_CARD + ' display:flex; align-items:center; gap:18px; flex-wrap:wrap;">' +
       roAvatar(s.photo_url, name) +
-      '<div style="min-width:0; flex:1;"><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em;">' + esc(name) + '</div>' +
-      (sub ? '<div style="font-size:13px; color:var(--muted); margin-top:5px;">' + esc(sub) + '</div>' : '') +
+      '<div style="min-width:0; flex:1;"><div style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em;">' + esc(name) + '</div>' +
+      (sub ? '<div style="font-size:var(--text-caption); color:var(--muted); margin-top:5px;">' + esc(sub) + '</div>' : '') +
       (availTag ? '<div style="margin-top:10px;">' + availTag + '</div>' : '') + '</div></div>';
 
     var cards = [];
@@ -1806,7 +1812,7 @@
     if (s.email || s.tg) {
       cards.push(roCard('Контакты', (s.email ? roRow('Email', s.email) : '') + (s.tg ? roRow('Telegram', s.tg) : '')));
     } else {
-      cards.push(roCard('Контакты', '<div style="font-size:13.5px; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; line-height:1.5;">Контакты откроются после того, как вы пригласите студента. До этого пишите в чате отклика.</div>'));
+      cards.push(roCard('Контакты', '<div style="font-size:var(--text-caption); color:var(--muted); background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; line-height:1.5;">Контакты откроются после того, как вы пригласите студента. До этого пишите в чате отклика.</div>'));
     }
 
     if (s.specialties && s.specialties.length) cards.push(roCard('Специальности', chipList(s.specialties)));
@@ -1817,30 +1823,30 @@
     if (skills.length || langs.length) {
       var inner = '';
       if (skills.length) {
-        inner += '<div style="font-size:13px; font-weight:600; margin-bottom:10px;">Hard skills</div>' +
+        inner += '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:10px;">Hard skills</div>' +
           '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">' +
           skills.map(function (sk) {
             var nm = typeof sk === 'string' ? sk : sk.name;
             var conf = typeof sk === 'object' ? sk.confidence : null;
-            return '<div style="border:1.5px solid var(--line); border-radius:12px; padding:13px 14px;"><div style="display:flex; align-items:center; gap:8px;"><span style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(nm) + '</span>' +
-              (typeof conf === 'number' ? '<span style="font-size:11px; font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div>' +
-              (sk && sk.description ? '<p style="font-size:12.5px; color:var(--muted); line-height:1.5; margin:8px 0 0; ' + S.wrap + '">' + esc(sk.description) + '</p>' : '') +
+            return '<div style="border:1.5px solid var(--line); border-radius:12px; padding:13px 14px;"><div style="display:flex; align-items:center; gap:8px;"><span style="font-weight:600; font-size:var(--text-caption); ' + S.wrap + '">' + esc(nm) + '</span>' +
+              (typeof conf === 'number' ? '<span style="font-size:var(--text-micro); font-weight:700; color:' + confidenceColor(conf) + '; background:color-mix(in srgb, ' + confidenceColor(conf) + ' 12%, #fff); padding:2px 8px; border-radius:999px; flex-shrink:0;">' + conf + '/10</span>' : '') + '</div>' +
+              (sk && sk.description ? '<p style="font-size:var(--text-micro); color:var(--muted); line-height:1.5; margin:8px 0 0; ' + S.wrap + '">' + esc(sk.description) + '</p>' : '') +
               roFileLink(sk && sk.file) + '</div>';
           }).join('') + '</div>';
       }
       if (langs.length) {
-        inner += '<div style="font-size:13px; font-weight:600; margin:' + (skills.length ? '18px' : '0') + ' 0 4px;">Знание языков</div>' +
+        inner += '<div style="font-size:var(--text-caption); font-weight:600; margin:' + (skills.length ? '18px' : '0') + ' 0 4px;">Знание языков</div>' +
           langs.map(function (l) {
             var nm = typeof l === 'string' ? l : l.name;
             var lvl = typeof l === 'object' ? l.level : '';
-            return '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 0; border-top:1.5px solid var(--line); font-size:13.5px;"><strong style="font-weight:600;">' + esc(nm) + '</strong>' + (lvl ? '<span style="color:var(--muted);">— ' + esc(lvl) + '</span>' : '') + roFileLink(l && l.file, true) + '</div>';
+            return '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 0; border-top:1.5px solid var(--line); font-size:var(--text-caption);"><strong style="font-weight:600;">' + esc(nm) + '</strong>' + (lvl ? '<span style="color:var(--muted);">— ' + esc(lvl) + '</span>' : '') + roFileLink(l && l.file, true) + '</div>';
           }).join('');
       }
       cards.push(roCard('Матрица навыков', inner));
     }
 
     if (s.ai_test && s.ai_test.level) {
-      cards.push(roCard('ИИ-тест навыков', '<div style="font-size:15px;">Уровень: <strong style="color:' + levelColor(s.ai_test.level) + ';">' + esc(s.ai_test.level) + '</strong>' +
+      cards.push(roCard('ИИ-тест навыков', '<div style="font-size:var(--text-body);">Уровень: <strong style="color:' + levelColor(s.ai_test.level) + ';">' + esc(s.ai_test.level) + '</strong>' +
         (s.ai_test.correct != null && s.ai_test.total != null ? '<span style="color:var(--muted);"> · ' + esc(String(s.ai_test.correct)) + ' из ' + esc(String(s.ai_test.total)) + '</span>' : '') + '</div>'));
     }
 
@@ -1853,12 +1859,12 @@
               ? '<img src="' + esc(cover.url) + '" style="width:100%; height:140px; object-fit:cover; border-radius:13px 13px 0 0; display:block;">'
               : '<div style="width:100%; height:140px; background:var(--bg); border-radius:13px 13px 0 0; display:flex; align-items:center; justify-content:center; color:var(--muted);">' + icon('file', 30) + '</div>')
           : '';
-        var specTag = p.specialty ? '<span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + esc(p.specialty) + '</span>' : '';
-        var tagChips = (p.tags || []).slice(0, 4).map(function (t) { return '<span style="font-size:10.5px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:2px 7px; border-radius:999px;">#' + esc(t) + '</span>'; }).join('');
+        var specTag = p.specialty ? '<span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + esc(p.specialty) + '</span>' : '';
+        var tagChips = (p.tags || []).slice(0, 4).map(function (t) { return '<span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:2px 7px; border-radius:999px;">#' + esc(t) + '</span>'; }).join('');
         return '<div style="border:1.5px solid var(--line); border-radius:14px; overflow:hidden;">' + coverHtml +
-          '<div style="padding:14px 16px;"><div style="font-weight:600; font-size:15px; ' + S.wrap + '">' + esc(p.name || 'Проект') + '</div>' +
+          '<div style="padding:14px 16px;"><div style="font-weight:600; font-size:var(--text-body); ' + S.wrap + '">' + esc(p.name || 'Проект') + '</div>' +
           (specTag ? '<div style="margin-top:6px;">' + specTag + '</div>' : '') +
-          (p.desc ? '<p style="font-size:13px; color:var(--muted); line-height:1.5; margin:8px 0 0; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
+          (p.desc ? '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.5; margin:8px 0 0; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
           (tagChips ? '<div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;">' + tagChips + '</div>' : '') + '</div></div>';
       }).join('');
       cards.push(roCard('Проекты', '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">' + pcards + '</div>'));
@@ -1869,10 +1875,10 @@
         var link = a.file ? a.file.url : a.link;
         var fileLabel = a.file ? a.file.name : (a.link ? 'ссылка' : '');
         return '<div style="scroll-snap-align:start; flex-shrink:0; width:230px; border:1.5px solid var(--line); border-radius:14px; padding:16px;">' +
-          '<div style="width:34px; height:34px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:12px;">★</div>' +
-          '<div style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(a.title) + '</div>' +
-          '<div style="font-size:12px; color:var(--muted); margin-top:4px; ' + S.wrap + '">' + esc(a.issuer || '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
-          (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; font-size:12.5px; font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' + esc(fileLabel || 'Открыть') + ' ↗</a>' : '') + '</div>';
+          '<div style="width:34px; height:34px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:var(--text-body); margin-bottom:12px;">★</div>' +
+          '<div style="font-weight:600; font-size:var(--text-caption); ' + S.wrap + '">' + esc(a.title) + '</div>' +
+          '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:4px; ' + S.wrap + '">' + esc(a.issuer || '') + (a.date ? ' · ' + esc(a.date) : '') + '</div>' +
+          (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; font-size:var(--text-micro); font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' + esc(fileLabel || 'Открыть') + ' ↗</a>' : '') + '</div>';
       }).join('');
       cards.push(roCard('Сертификаты и достижения', '<div style="display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:6px;">' + acards + '</div>'));
     }
@@ -1884,8 +1890,8 @@
     var pv = state.profileView;
     if (!pv) return homeView();
     var inner;
-    if (pv.loading) inner = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">Загружаем профиль…</div>';
-    else if (pv.error) inner = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:14px; font-weight:600;">' + esc(pv.error) + '</div>';
+    if (pv.loading) inner = '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">Загружаем профиль…</div>';
+    else if (pv.error) inner = '<div style="' + RO_CARD + ' text-align:center; color:#b3261e; font-size:var(--text-caption); font-weight:600;">' + esc(pv.error) + '</div>';
     else inner = pv.kind === 'company' ? companyProfileHtml(pv.data) : studentProfileHtml(pv.data);
 
     return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
@@ -1898,7 +1904,7 @@
   // только то, что прошло строгую проверку: https, без пробелов и кавычек.
   var MEET_URL = /https:\/\/[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:\/[A-Za-z0-9\-._~:/?#@!$&*+,;=%]*)?$/;
   function systemBubble(body) {
-    var wrap = 'align-self:center; max-width:80%; font-size:12.5px; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:9px 14px; border-radius:10px;';
+    var wrap = 'align-self:center; max-width:80%; font-size:var(--text-micro); color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:9px 14px; border-radius:10px;';
     var hit = String(body).match(MEET_URL);
     if (!hit) return '<div style="' + wrap + ' text-align:center;">' + esc(body) + '</div>';
 
@@ -1906,8 +1912,8 @@
     var text = String(body).slice(0, hit.index).replace(/[\s:·—-]+$/, '');
     return '<div style="' + wrap + ' text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">' +
       '<span>' + esc(text) + '</span>' +
-      '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); padding:9px 16px; border-radius:9px; text-decoration:none;">Присоединиться к созвону</a>' +
-      '<span style="font-size:11.5px; color:var(--muted); word-break:break-all;">' + esc(url) + '</span>' +
+      '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:8px; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); padding:9px 16px; border-radius:9px; text-decoration:none;">Присоединиться к созвону</a>' +
+      '<span style="font-size:var(--text-micro); color:var(--muted); word-break:break-all;">' + esc(url) + '</span>' +
     '</div>';
   }
   function messageBubble(m) {
@@ -1918,18 +1924,18 @@
       : 'align-self:flex-start; background:#fff; color:var(--ink); border:1.5px solid var(--line); border-bottom-left-radius:4px;';
     var time = new Date(m.created_at);
     var stamp = isNaN(time) ? '' : time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    return '<div style="max-width:76%; padding:10px 14px; border-radius:14px; font-size:14.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word; ' + bubble + '">' +
+    return '<div style="max-width:76%; padding:10px 14px; border-radius:14px; font-size:var(--text-caption); line-height:1.45; white-space:pre-wrap; word-break:break-word; ' + bubble + '">' +
       esc(m.body) +
-      '<span style="display:block; margin-top:4px; font-size:11px; opacity:0.65;">' + esc(stamp) + '</span></div>';
+      '<span style="display:block; margin-top:4px; font-size:var(--text-micro); opacity:0.65;">' + esc(stamp) + '</span></div>';
   }
   function chatView() {
     var c = state.chat;
     if (!c || !state.authRole) return homeView();
 
     var thread;
-    if (c.loading) thread = '<div style="text-align:center; padding:40px; color:var(--muted); font-size:14px;">Загружаем переписку…</div>';
+    if (c.loading) thread = '<div style="text-align:center; padding:40px; color:var(--muted); font-size:var(--text-caption);">Загружаем переписку…</div>';
     else if (c.messages.length) thread = c.messages.map(messageBubble).join('');
-    else thread = '<div style="text-align:center; padding:40px; color:var(--muted); font-size:14px;">Сообщений пока нет.</div>';
+    else thread = '<div style="text-align:center; padding:40px; color:var(--muted); font-size:var(--text-caption);">Сообщений пока нет.</div>';
 
     // Имя собеседника ведёт в его профиль; вернёмся оттуда обратно в эту же ветку.
     var peerAttrs = state.authRole === 'company'
@@ -1938,18 +1944,18 @@
     var head = '<div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">' +
       '<button data-action="closeChat" style="' + S.back + ' background:none; border:none; cursor:pointer; padding:0;">← Назад</button>' +
       '<div style="min-width:0;">' +
-        '<a ' + peerAttrs + ' data-back="chat" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em; cursor:pointer; text-decoration:none; color:var(--ink); border-bottom:1.5px solid var(--line);">' + esc(c.peer) + '</a>' +
-        (c.gigTitle ? '<div style="font-size:13px; color:var(--muted);">' + esc(c.gigTitle) + '</div>' : '') +
+        '<a ' + peerAttrs + ' data-back="chat" style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em; cursor:pointer; text-decoration:none; color:var(--ink); border-bottom:1.5px solid var(--line);">' + esc(c.peer) + '</a>' +
+        (c.gigTitle ? '<div style="font-size:var(--text-caption); color:var(--muted);">' + esc(c.gigTitle) + '</div>' : '') +
       '</div></div>';
 
     var composer = '<div style="display:flex; gap:10px; align-items:flex-end; margin-top:14px;">' +
-      '<textarea data-field="chatDraft" data-chat-input rows="1" placeholder="Написать сообщение…" style="flex:1; font-size:14.5px; padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; font-family:inherit; line-height:1.45; resize:none; max-height:140px; background:#fff; color:var(--ink);">' + esc(state.form.chatDraft || '') + '</textarea>' +
-      '<button data-action="sendMessage"' + (c.sending ? ' disabled' : '') + ' style="font-size:14px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:12px 20px; border-radius:12px; cursor:pointer;' + (c.sending ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (c.sending ? '…' : 'Отправить') + '</button>' +
+      '<textarea data-field="chatDraft" data-chat-input rows="1" placeholder="Написать сообщение…" style="flex:1; font-size:var(--text-caption); padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; font-family:inherit; line-height:1.45; resize:none; max-height:140px; background:#fff; color:var(--ink);">' + esc(state.form.chatDraft || '') + '</textarea>' +
+      '<button data-action="sendMessage"' + (c.sending ? ' disabled' : '') + ' style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); border:none; padding:12px 20px; border-radius:12px; cursor:pointer;' + (c.sending ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (c.sending ? '…' : 'Отправить') + '</button>' +
     '</div>';
 
     var inner = head +
       '<div data-chat-thread style="background:var(--bg); border:1.5px solid var(--line); border-radius:16px; padding:18px; height:52vh; min-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">' + thread + '</div>' +
-      (c.error ? '<div style="margin-top:10px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(c.error) + '</div>' : '') +
+      (c.error ? '<div style="margin-top:10px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(c.error) + '</div>' : '') +
       composer;
 
     return '<main class="view-in" style="max-width:820px; margin:0 auto; padding:40px 28px 88px;">' + inner + '</main>';
@@ -3407,7 +3413,7 @@
 
   var APP_STATUS = {
     pending:   { label: 'На рассмотрении', color: '#e2a53a' },
-    invited:   { label: 'Приглашение',     color: '#16a34a' },
+    invited:   { label: 'Приглашение',     color: '#15803d' },
     rejected:  { label: 'Отказ',           color: '#b3261e' },
     // Без этой строки завершённая стажировка попадала в запасной вариант ниже
     // и показывалась как «На рассмотрении».
@@ -3545,15 +3551,15 @@
       ? history.map(function (h) {
           var period = (h.started_at ? fmtDate(h.started_at) : '') + (h.finished_at ? ' — ' + fmtDate(h.finished_at) : '');
           return '<div style="padding:14px 0; border-top:1.5px solid var(--line);">' +
-            '<div style="font-weight:600; font-size:14px; ' + S.wrap + '">' + esc(h.gig_title || 'Стажировка') + (h.company_name ? ' <span style="color:var(--muted); font-weight:500;">· ' + esc(h.company_name) + '</span>' : '') + '</div>' +
-            (period ? '<div style="font-size:12px; color:var(--muted); margin-top:2px;">' + esc(period) + '</div>' : '') +
-            '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:8px 0 0; white-space:pre-wrap; ' + S.wrap + '">' + esc(h.body || '') + '</p>' +
-            '<a href="/cert/' + esc(h.public_id) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:8px; font-size:12.5px; font-weight:600; color:var(--accent);">Ссылка на справку ↗</a></div>';
+            '<div style="font-weight:600; font-size:var(--text-caption); ' + S.wrap + '">' + esc(h.gig_title || 'Стажировка') + (h.company_name ? ' <span style="color:var(--muted); font-weight:500;">· ' + esc(h.company_name) + '</span>' : '') + '</div>' +
+            (period ? '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:2px;">' + esc(period) + '</div>' : '') +
+            '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:8px 0 0; white-space:pre-wrap; ' + S.wrap + '">' + esc(h.body || '') + '</p>' +
+            '<a href="/cert/' + esc(h.public_id) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:8px; font-size:var(--text-micro); font-weight:600; color:var(--accent);">Ссылка на справку ↗</a></div>';
         }).join('')
-      : '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 0;">Пока пусто — характеристики появятся здесь после завершения стажировок.</p>';
+      : '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:10px 0 0;">Пока пусто — характеристики появятся здесь после завершения стажировок.</p>';
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:460px; width:100%; max-height:80vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Характеристики от компаний</h3>' +
-        '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0;">Характеристики от компаний</h3>' +
+        '<button data-action="closeModal" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
       items +
       '<button data-action="closeModal" style="margin-top:18px; width:100%; ' + S.ghost + '">Закрыть</button></div>';
     return '<div data-action="closeModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
@@ -3566,22 +3572,22 @@
     var sp = state.studentProfile || {};
     var loading = state.docUpload.loading;
     var fileName = state.docUpload.fileName || '';
-    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
+    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
 
-    var warn = '<div style="padding:12px 14px; background:color-mix(in srgb, #b26b12 10%, #fff); border:1px solid color-mix(in srgb, #b26b12 26%, #fff); border-radius:10px; font-size:13px; color:#b26b12; line-height:1.55; margin-bottom:16px;">' +
+    var warn = '<div style="padding:12px 14px; background:color-mix(in srgb, #8f5410 10%, #fff); border:1px solid color-mix(in srgb, #8f5410 26%, #fff); border-radius:10px; font-size:var(--text-caption); color:#8f5410; line-height:1.55; margin-bottom:16px;">' +
       'Пока новый статус не подтверждён, вы <b>не сможете откликаться на новые задачи</b>. Уже начатые проекты и переписка останутся доступны.</div>';
 
     var picker = '<label class="file-drop" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border:1.5px dashed var(--line); border-radius:12px; background:var(--bg); cursor:pointer;">' +
-      '<span style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">Выбрать файл</span>' +
-      '<span style="min-width:0; flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран · PDF или фото') + '</span>' +
+      '<span style="flex-shrink:0; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">Выбрать файл</span>' +
+      '<span style="min-width:0; flex:1; font-size:var(--text-caption); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран · PDF или фото') + '</span>' +
       '<input id="doc-file" data-file-input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="display:none;"></label>';
 
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:460px; width:100%; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Смена статуса</h3>' +
-        '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
-      '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 16px;">Статус влияет на то, какие задачи вам доступны и нужно ли согласие родителя, поэтому его подтверждает модератор. Приложите документ, подтверждающий личность.</p>' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0;">Смена статуса</h3>' +
+        '<button data-action="closeModal" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:10px 0 16px;">Статус влияет на то, какие задачи вам доступны и нужно ли согласие родителя, поэтому его подтверждает модератор. Приложите документ, подтверждающий личность.</p>' +
       warn +
-      '<div style="font-size:13px; color:var(--muted); margin-bottom:7px;">Новый статус</div>' +
+      '<div style="font-size:var(--text-caption); color:var(--muted); margin-bottom:7px;">Новый статус</div>' +
       '<select id="status-new" style="' + S.field + ' width:100%; margin-bottom:14px;">' + statusOptions(sp.status) + '</select>' +
       picker + err +
       '<button data-action="submitStatusRequest"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Отправка…' : 'Отправить на проверку') + '</button>' +
@@ -3602,29 +3608,29 @@
 
     var scoreBtns = [1, 2, 3, 4, 5].map(function (n) {
       var on = cm.score === n;
-      return '<button data-action="setCertScore" data-score="' + n + '" style="font-size:14px; font-weight:700; width:42px; height:42px; border-radius:10px; cursor:pointer; border:1.5px solid ' + (on ? 'var(--ink)' : 'var(--line)') + '; background:' + (on ? 'var(--ink)' : '#fff') + '; color:' + (on ? '#fff' : 'var(--muted)') + ';">' + n + '</button>';
+      return '<button data-action="setCertScore" data-score="' + n + '" style="font-size:var(--text-caption); font-weight:700; width:42px; height:42px; border-radius:10px; cursor:pointer; border:1.5px solid ' + (on ? 'var(--ink)' : 'var(--line)') + '; background:' + (on ? 'var(--ink)' : '#fff') + '; color:' + (on ? '#fff' : 'var(--muted)') + ';">' + n + '</button>';
     }).join('');
 
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:560px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Завершить стажировку</h3>' +
-        '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
-      '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 18px;">' + esc(a.student_name || 'Студент') + ' получит справку о стажировке с вашей характеристикой. Справку проверяют по ссылке, поэтому написанное здесь увидят будущие работодатели.</p>' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0;">Завершить стажировку</h3>' +
+        '<button data-action="closeModal" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:10px 0 18px;">' + esc(a.student_name || 'Студент') + ' получит справку о стажировке с вашей характеристикой. Справку проверяют по ссылке, поэтому написанное здесь увидят будущие работодатели.</p>' +
 
-      '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Оценка работы <span style="color:var(--muted); font-weight:500;">— видна только внутри платформы</span></div>' +
+      '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:8px;">Оценка работы <span style="color:var(--muted); font-weight:500;">— видна только внутри платформы</span></div>' +
       '<div style="display:flex; gap:8px; margin-bottom:18px;">' + scoreBtns + '</div>' +
 
-      '<div style="font-size:13px; font-weight:600; margin-bottom:6px;">Характеристика <span style="color:var(--muted); font-weight:500;">— попадёт в справку</span></div>' +
-      '<div style="font-size:12.5px; color:var(--muted); line-height:1.55; margin-bottom:8px;">Напишите по делу: что студент делал, что из этого получилось, с чем справился, как показал себя в работе с людьми. Общие слова вроде «молодец» справку обесценивают.</div>' +
+      '<div style="font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Характеристика <span style="color:var(--muted); font-weight:500;">— попадёт в справку</span></div>' +
+      '<div style="font-size:var(--text-micro); color:var(--muted); line-height:1.55; margin-bottom:8px;">Напишите по делу: что студент делал, что из этого получилось, с чем справился, как показал себя в работе с людьми. Общие слова вроде «молодец» справку обесценивают.</div>' +
       '<textarea data-field="certBody" rows="7" placeholder="Например: за 8 недель собрал посадочную страницу на React и настроил аналитику. Самостоятельно разобрался с вёрсткой под мобильные, хотя раньше не делал. Задавал точные вопросы, о задержках предупреждал заранее." style="' + S.field + ' width:100%; resize:vertical; font-family:inherit; line-height:1.55;">' + esc(body) + '</textarea>' +
-      '<div id="cert-left" style="font-size:12px; color:' + (left > 0 ? 'var(--muted)' : '#16a34a') + '; margin-top:6px;">' + (left > 0 ? 'Ещё минимум ' + left + ' символов' : 'Достаточно') + '</div>' +
+      '<div id="cert-left" style="font-size:var(--text-micro); color:' + (left > 0 ? 'var(--muted)' : '#15803d') + '; margin-top:6px;">' + (left > 0 ? 'Ещё минимум ' + left + ' символов' : 'Достаточно') + '</div>' +
 
       '<div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">' +
-        '<label style="flex:1; min-width:140px;"><span style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Начало</span><input type="date" data-field="certStart" value="' + esc(state.form.certStart || '') + '" style="' + S.field + ' width:100%;"></label>' +
-        '<label style="flex:1; min-width:140px;"><span style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Окончание</span><input type="date" data-field="certEnd" value="' + esc(state.form.certEnd || '') + '" style="' + S.field + ' width:100%;"></label>' +
+        '<label style="flex:1; min-width:140px;"><span style="display:block; font-size:var(--text-caption); color:var(--muted); margin-bottom:6px;">Начало</span><input type="date" data-field="certStart" value="' + esc(state.form.certStart || '') + '" style="' + S.field + ' width:100%;"></label>' +
+        '<label style="flex:1; min-width:140px;"><span style="display:block; font-size:var(--text-caption); color:var(--muted); margin-bottom:6px;">Окончание</span><input type="date" data-field="certEnd" value="' + esc(state.form.certEnd || '') + '" style="' + S.field + ' width:100%;"></label>' +
       '</div>' +
 
-      '<div style="margin-top:16px; padding:11px 14px; background:var(--bg); border-radius:10px; font-size:12.5px; color:var(--muted); line-height:1.5;">Справка уходит на проверку платформе и публикуется после неё. После выдачи текст не редактируется — исправления только через поддержку.</div>' +
-      (cm.error ? '<div style="margin-top:10px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(cm.error) + '</div>' : '') +
+      '<div style="margin-top:16px; padding:11px 14px; background:var(--bg); border-radius:10px; font-size:var(--text-micro); color:var(--muted); line-height:1.5;">Справка уходит на проверку платформе и публикуется после неё. После выдачи текст не редактируется — исправления только через поддержку.</div>' +
+      (cm.error ? '<div style="margin-top:10px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(cm.error) + '</div>' : '') +
       '<button data-action="submitComplete"' + (cm.loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (cm.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (cm.loading ? 'Отправляем…' : 'Завершить и выдать справку') + '</button>' +
       '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button></div>';
 
@@ -3646,23 +3652,23 @@
     var status = docStat(type);
     var loading = state.docUpload.loading;
     var tmpl = isConsent
-      ? '<a href="' + CONSENT_TEMPLATE_URL + '" download style="display:flex; align-items:center; justify-content:center; gap:9px; font-size:14px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:12px; border-radius:11px; text-decoration:none; margin-bottom:16px;"><span>⬇</span>Скачать шаблон согласия</a>'
+      ? '<a href="' + CONSENT_TEMPLATE_URL + '" download style="display:flex; align-items:center; justify-content:center; gap:9px; font-size:var(--text-caption); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:12px; border-radius:11px; text-decoration:none; margin-bottom:16px;"><span>⬇</span>Скачать шаблон согласия</a>'
       : '';
     var statusNote = (status === 'pending' || status === 'approved')
-      ? '<div style="padding:11px 14px; background:color-mix(in srgb, ' + docColor(status) + ' 10%, #fff); border:1px solid color-mix(in srgb, ' + docColor(status) + ' 26%, #fff); border-radius:10px; font-size:13px; color:' + docColor(status) + '; margin-bottom:16px;">Текущий статус: ' + docLabel(status) + '. При необходимости загрузите файл заново.</div>'
+      ? '<div style="padding:11px 14px; background:color-mix(in srgb, ' + docColor(status) + ' 10%, #fff); border:1px solid color-mix(in srgb, ' + docColor(status) + ' 26%, #fff); border-radius:10px; font-size:var(--text-caption); color:' + docColor(status) + '; margin-bottom:16px;">Текущий статус: ' + docLabel(status) + '. При необходимости загрузите файл заново.</div>'
       : '';
     var fileName = state.docUpload.fileName || '';
     var picker = '<label class="file-drop" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border:1.5px dashed var(--line); border-radius:12px; background:var(--bg); cursor:pointer;">' +
-      '<span style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">Выбрать файл</span>' +
-      '<span style="min-width:0; flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран · PDF или фото') + '</span>' +
+      '<span style="flex-shrink:0; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">Выбрать файл</span>' +
+      '<span style="min-width:0; flex:1; font-size:var(--text-caption); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:' + (fileName ? 'var(--ink)' : 'var(--muted)') + '; font-weight:' + (fileName ? '600' : '400') + ';">' + (fileName ? esc(fileName) : 'Файл не выбран · PDF или фото') + '</span>' +
       '<input id="doc-file" data-file-input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="display:none;">' +
     '</label>';
-    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
+    var err = state.docUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.docUpload.error) + '</div>' : '';
 
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:440px; width:100%; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + title + '</h3>' +
-        '<button data-action="closeModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
-      '<p style="font-size:14px; color:var(--muted); line-height:1.55; margin:10px 0 18px;">' + desc + '</p>' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0;">' + title + '</h3>' +
+        '<button data-action="closeModal" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:10px 0 18px;">' + desc + '</p>' +
       statusNote + tmpl + picker + err +
       '<button data-action="submitDoc"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Отправка…' : 'Отправить на проверку') + '</button>' +
       '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
@@ -3687,28 +3693,28 @@
       var projChips = projs.length
         ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">' + projs.map(function (p) {
             var on = relSel.indexOf(p.name) !== -1;
-            return '<button data-action="toggleItemFormArrayValue" data-arr-field="relatedProjects" data-arr-value="' + esc(p.name) + '" style="font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:999px; cursor:pointer; ' + (on ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1.5px solid var(--line);') + '">' + esc(p.name) + '</button>';
+            return '<button data-action="toggleItemFormArrayValue" data-arr-field="relatedProjects" data-arr-value="' + esc(p.name) + '" style="font-size:var(--text-micro); font-weight:600; padding:5px 10px; border-radius:999px; cursor:pointer; ' + (on ? 'color:#fff; background:var(--ink); border:1px solid var(--ink);' : 'color:var(--ink); background:#fff; border:1.5px solid var(--line);') + '">' + esc(p.name) + '</button>';
           }).join('') + '</div>'
-        : '<div style="font-size:12.5px; color:var(--muted); margin-top:6px;">Сначала добавьте проекты, чтобы связать их с навыком.</div>';
+        : '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:6px;">Сначала добавьте проекты, чтобы связать их с навыком.</div>';
       fields = itemField('Навык', 'name', f.name, 'Например, Frontend, Figma, Python') +
-        '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Уверенность: <span id="conf-badge" style="color:' + confidenceColor(Number(confVal)) + '; font-weight:700;">' + confVal + '/10</span></span>' +
+        '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Уверенность: <span id="conf-badge" style="color:' + confidenceColor(Number(confVal)) + '; font-weight:700;">' + confVal + '/10</span></span>' +
           '<input type="range" min="1" max="10" step="1" data-item-field="confidence" value="' + esc(confVal) + '" style="width:100%;"></label>' +
         itemTextarea('Описание навыка', 'description', f.description, 'Например: полтора года пишу на React, делал лендинги и SPA…') +
-        '<div style="margin-bottom:4px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Работы, где применялся навык</span>' + projChips + '</div>';
+        '<div style="margin-bottom:4px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:4px;">Работы, где применялся навык</span>' + projChips + '</div>';
     } else if (type === 'language') {
       fields = itemField('Язык', 'name', f.name, 'Например, Английский') + itemField('Уровень', 'level', f.level, 'Например, IELTS 8.0 / Родной', true);
     } else if (type === 'project') {
       var mySpecs = (state.studentProfile && state.studentProfile.specialties) || [];
       var specSelect = mySpecs.length
-        ? '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Специальность проекта <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span><select data-item-field="specialty" style="' + S.field + '"><option value="">Без привязки</option>' + mySpecs.map(function (s) { return '<option value="' + esc(s) + '"' + (f.specialty === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>'
+        ? '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Специальность проекта <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span><select data-item-field="specialty" style="' + S.field + '"><option value="">Без привязки</option>' + mySpecs.map(function (s) { return '<option value="' + esc(s) + '"' + (f.specialty === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>'
         : '';
       fields = '<div class="g2" style="display:grid; gap:14px;">' +
           '<div>' + itemField('Название проекта', 'name', f.name, 'Название') + specSelect + '</div>' +
           '<div>' + itemTextarea('Коротко, что вы сделали', 'desc', f.desc, 'Короткая подпись под карточкой — 1–2 предложения') + '</div>' +
         '</div>' +
-        '<div style="border-top:1.5px solid var(--line); margin:16px 0 14px; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Разделы (по желанию)</span><span style="display:block; font-size:12px; color:var(--muted); margin:-6px 0 10px;">Например: «Задача», «Что сделал(а)», «Что получилось», «Что узнал(а)».</span>' + sectionsEditorHtml(f.sections || []) + '</div>' +
-        '<div style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Детали проекта (по желанию)</span>' + detailsEditorHtml(f.details || []) + '</div>' +
-        '<div style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Хэштеги / маркеры</span>' + tagsEditorHtml(f.tags || []) + '</div>' +
+        '<div style="border-top:1.5px solid var(--line); margin:16px 0 14px; padding-top:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:10px;">Разделы (по желанию)</span><span style="display:block; font-size:var(--text-micro); color:var(--muted); margin:-6px 0 10px;">Например: «Задача», «Что сделал(а)», «Что получилось», «Что узнал(а)».</span>' + sectionsEditorHtml(f.sections || []) + '</div>' +
+        '<div style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:10px;">Детали проекта (по желанию)</span>' + detailsEditorHtml(f.details || []) + '</div>' +
+        '<div style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:10px;">Хэштеги / маркеры</span>' + tagsEditorHtml(f.tags || []) + '</div>' +
         '<div class="g2" style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px; display:grid; gap:14px;">' +
           itemField('Ссылка 1 — название', 'link1Label', f.link1Label, 'Например, GitHub, Behance, Портфолио', true) +
           itemField('Ссылка 1 — URL', 'link1Url', f.link1Url, 'https://...', true) +
@@ -3723,16 +3729,16 @@
 
     var multi = isMultiFileType(type);
     var picker = filesDropzoneHtml(type, f.fileSlots || []);
-    var err = state.itemUpload.error ? '<div style="margin-top:8px; font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.itemUpload.error) + '</div>' : '';
+    var err = state.itemUpload.error ? '<div style="margin-top:8px; font-size:var(--text-caption); color:#b3261e; font-weight:600;">' + esc(state.itemUpload.error) + '</div>' : '';
     var loading = state.itemUpload.loading;
-    var aiNote = type === 'achievement' ? '<div style="margin-top:8px; font-size:11.5px; color:var(--muted); line-height:1.4;">Файл проверяется ИИ на релевантность — спам и нечитаемые файлы отклоняются с уведомлением.</div>' : '';
+    var aiNote = type === 'achievement' ? '<div style="margin-top:8px; font-size:var(--text-micro); color:var(--muted); line-height:1.4;">Файл проверяется ИИ на релевантность — спам и нечитаемые файлы отклоняются с уведомлением.</div>' : '';
 
     var dialogWidth = type === 'project' ? '720px' : '440px';
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:28px; max-width:' + dialogWidth + '; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">' + (isEdit ? 'Изменить' : 'Добавить') + ': ' + titles[type] + '</h3>' +
-        '<button data-action="closeItemModal" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0;">' + (isEdit ? 'Изменить' : 'Добавить') + ': ' + titles[type] + '</h3>' +
+        '<button data-action="closeItemModal" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer; padding:0;">×</button></div>' +
       fields +
-      '<label style="display:block; margin-top:8px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + (multi ? 'Фото и файлы проекта' : 'Прикрепить файл') + ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' + picker + aiNote + '</label>' +
+      '<label style="display:block; margin-top:8px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">' + (multi ? 'Фото и файлы проекта' : 'Прикрепить файл') + ' <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span>' + picker + aiNote + '</label>' +
       err +
       '<button data-action="saveItemModal"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Загрузка…' : (isEdit ? 'Сохранить' : 'Добавить')) + '</button>' +
       '<button data-action="closeItemModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
@@ -3750,7 +3756,7 @@
         '<textarea data-item-array-field="sections" data-item-array-id="' + esc(s.id) + '" data-item-array-key="text" rows="2" placeholder="Подробности…" style="' + S.field + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(s.text) + '</textarea>' +
       '</div>';
     }).join('');
-    return rows + '<button type="button" data-action="addProjectSection" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px dashed var(--line); padding:8px 14px; border-radius:9px; cursor:pointer;">+ Добавить раздел</button>';
+    return rows + '<button type="button" data-action="addProjectSection" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px dashed var(--line); padding:8px 14px; border-radius:9px; cursor:pointer;">+ Добавить раздел</button>';
   }
   // Динамический список «деталей» проекта (метка + значение) — роль, срок, команда и т.п.
   function detailsEditorHtml(details) {
@@ -3761,16 +3767,16 @@
         '<button type="button" data-action="removeProjectDetail" data-det-id="' + esc(d.id) + '" title="Удалить" style="' + S.chipIcon + ' color:#b3261e; flex-shrink:0;">' + icon('x', 12) + '</button>' +
       '</div>';
     }).join('');
-    return rows + '<button type="button" data-action="addProjectDetail" style="font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px dashed var(--line); padding:8px 14px; border-radius:9px; cursor:pointer;">+ Добавить деталь</button>';
+    return rows + '<button type="button" data-action="addProjectDetail" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px dashed var(--line); padding:8px 14px; border-radius:9px; cursor:pointer;">+ Добавить деталь</button>';
   }
   // Хэштеги/маркеры проекта — свободные теги для поиска и категоризации.
   function tagsEditorHtml(tags) {
     var chips = tags.map(function (t) {
-      return '<span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:4px 6px 4px 10px; border-radius:999px;">#' + esc(t) +
+      return '<span style="display:inline-flex; align-items:center; gap:5px; font-size:var(--text-micro); font-weight:600; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); padding:4px 6px 4px 10px; border-radius:999px;">#' + esc(t) +
         '<button type="button" data-action="removeProjectTag" data-tag="' + esc(t) + '" style="border:none; background:none; color:var(--muted); cursor:pointer; padding:0; display:flex;">' + icon('x', 11) + '</button></span>';
     }).join('');
     return (chips ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">' + chips + '</div>' : '') +
-      '<div style="display:flex; gap:8px;"><input id="proj-tag-input" placeholder="Например, react, хакатон, командный" style="' + S.field + '"><button type="button" data-action="addProjectTag" style="flex-shrink:0; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:0 16px; border-radius:9px; cursor:pointer;">+</button></div>';
+      '<div style="display:flex; gap:8px;"><input id="proj-tag-input" placeholder="Например, react, хакатон, командный" style="' + S.field + '"><button type="button" data-action="addProjectTag" style="flex-shrink:0; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); border:none; padding:0 16px; border-radius:9px; cursor:pointer;">+</button></div>';
   }
   // Зона загрузки файлов/фото: клик или drag-and-drop; каждый файл — отдельный удаляемый тайл.
   function filesDropzoneHtml(type, slots) {
@@ -3785,14 +3791,14 @@
         : '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); background:#fff; border-radius:9px;">' + icon('file', big ? 26 : 16) + '</div>';
       return '<div style="position:relative; aspect-ratio:1; ' + sizeStyle + '">' + body +
         '<button type="button" data-action="removeFileSlot" data-slot-id="' + esc(s.id) + '" title="Удалить" style="position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%; background:rgba(18,20,26,0.65); border:none; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;">' + icon('x', 12) + '</button>' +
-        (big ? '<span style="position:absolute; bottom:6px; left:6px; font-size:10.5px; font-weight:700; color:#fff; background:rgba(18,20,26,0.55); padding:2px 7px; border-radius:999px;">Обложка</span>' : '') +
+        (big ? '<span style="position:absolute; bottom:6px; left:6px; font-size:var(--text-micro); font-weight:700; color:#fff; background:rgba(18,20,26,0.55); padding:2px 7px; border-radius:999px;">Обложка</span>' : '') +
       '</div>';
     }).join('');
     var grid = tiles ? '<div class="g4" style="display:grid; gap:8px; margin-bottom:10px;">' + tiles + '</div>' : '';
     return '<label data-dropzone style="display:block; cursor:pointer;">' + grid +
       '<div style="border:1.5px dashed var(--line); border-radius:12px; padding:16px; text-align:center; background:var(--bg);">' +
-        '<div style="font-size:13px; font-weight:600; color:var(--ink);">' + (multi ? 'Перетащите фото или файлы сюда, или нажмите, чтобы выбрать' : 'Перетащите файл сюда, или нажмите, чтобы выбрать') + '</div>' +
-        (multi ? '<div style="font-size:11.5px; color:var(--muted); margin-top:4px;">Можно добавлять по одному. Первое фото станет обложкой карточки проекта.</div>' : '') +
+        '<div style="font-size:var(--text-caption); font-weight:600; color:var(--ink);">' + (multi ? 'Перетащите фото или файлы сюда, или нажмите, чтобы выбрать' : 'Перетащите файл сюда, или нажмите, чтобы выбрать') + '</div>' +
+        (multi ? '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:4px;">Можно добавлять по одному. Первое фото станет обложкой карточки проекта.</div>' : '') +
       '</div>' +
       '<input data-item-file-input type="file"' + (multi ? ' multiple accept="image/*,.pdf,.zip,.doc,.docx"' : ' accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf"') + ' style="display:none;">' +
     '</label>';
@@ -3878,7 +3884,7 @@
     if (r >= 0.5) return 'Уверенный';
     return 'Базовый';
   }
-  function levelColor(level) { return { 'Продвинутый': '#16a34a', 'Уверенный': '#b26b12', 'Базовый': '#5b616e' }[level] || 'var(--muted)'; }
+  function levelColor(level) { return { 'Продвинутый': '#15803d', 'Уверенный': '#8f5410', 'Базовый': '#5b616e' }[level] || 'var(--muted)'; }
 
   // Детальная карточка навыка: описание, уверенность, сертификат, связанные работы.
   function skillDetailModalHtml() {
@@ -3900,12 +3906,12 @@
         : '<iframe src="' + esc(file.url) + '" style="width:100%; height:320px; border:1.5px solid var(--line); border-radius:10px; margin-top:14px;"></iframe>';
     }
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:480px; width:100%; max-height:86vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0; ' + S.wrap + '">' + esc(name) + '</h3>' +
-        '<button data-action="closeSkillDetail" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0; flex-shrink:0;">×</button></div>' +
-      (typeof conf === 'number' ? '<div style="margin-top:16px;"><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;"><span style="font-size:13px; color:var(--muted);">Уверенность</span><span style="font-weight:700; color:' + confidenceColor(conf) + ';">' + conf + '/10</span></div><div style="height:8px; border-radius:999px; background:var(--bg); overflow:hidden;"><div style="width:' + (conf * 10) + '%; height:100%; background:' + confidenceColor(conf) + ';"></div></div></div>' : '') +
-      (desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:14px 0 0; ' + S.wrap + '">' + esc(desc) + '</p>' : '') +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0; ' + S.wrap + '">' + esc(name) + '</h3>' +
+        '<button data-action="closeSkillDetail" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer; padding:0; flex-shrink:0;">×</button></div>' +
+      (typeof conf === 'number' ? '<div style="margin-top:16px;"><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;"><span style="font-size:var(--text-caption); color:var(--muted);">Уверенность</span><span style="font-weight:700; color:' + confidenceColor(conf) + ';">' + conf + '/10</span></div><div style="height:8px; border-radius:999px; background:var(--bg); overflow:hidden;"><div style="width:' + (conf * 10) + '%; height:100%; background:' + confidenceColor(conf) + ';"></div></div></div>' : '') +
+      (desc ? '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:14px 0 0; ' + S.wrap + '">' + esc(desc) + '</p>' : '') +
       filePreview +
-      (relProjects.length ? '<div style="margin-top:18px;"><div style="font-size:13px; font-weight:600; margin-bottom:8px;">Работы с этим навыком</div>' + relProjects.map(function (p) { return '<div style="padding:9px 0; border-top:1.5px solid var(--line); font-size:13.5px; ' + S.wrap + '">' + esc(p.name) + '</div>'; }).join('') + '</div>' : '') +
+      (relProjects.length ? '<div style="margin-top:18px;"><div style="font-size:var(--text-caption); font-weight:600; margin-bottom:8px;">Работы с этим навыком</div>' + relProjects.map(function (p) { return '<div style="padding:9px 0; border-top:1.5px solid var(--line); font-size:var(--text-caption); ' + S.wrap + '">' + esc(p.name) + '</div>'; }).join('') + '</div>' : '') +
       '<button data-action="openItemModal" data-item-type="skill" data-item-index="' + idx + '" style="margin-top:20px; width:100%; ' + S.primary.replace('padding:15px', 'padding:12px') + '">Изменить</button>' +
     '</div>';
     return '<div data-action="closeSkillDetail" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
@@ -3928,32 +3934,32 @@
         ? '<img src="' + esc(cur.url) + '" style="width:100%; height:280px; object-fit:cover; border-radius:12px; display:block;">'
         : '<div style="width:100%; height:280px; border-radius:12px; background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--muted);">' + icon('file', 40) + '</div>';
       var arrows = files.length > 1
-        ? (gi > 0 ? '<button data-action="projectGalleryPrev" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.92); border:none; cursor:pointer; font-size:16px;">‹</button>' : '') +
-          (gi < files.length - 1 ? '<button data-action="projectGalleryNext" data-max="' + (files.length - 1) + '" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.92); border:none; cursor:pointer; font-size:16px;">›</button>' : '')
+        ? (gi > 0 ? '<button data-action="projectGalleryPrev" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.92); border:none; cursor:pointer; font-size:var(--text-body);">‹</button>' : '') +
+          (gi < files.length - 1 ? '<button data-action="projectGalleryNext" data-max="' + (files.length - 1) + '" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.92); border:none; cursor:pointer; font-size:var(--text-body);">›</button>' : '')
         : '';
       var dots = files.length > 1 ? '<div style="display:flex; justify-content:center; gap:6px; margin-top:8px;">' + files.map(function (_, i) {
         return '<button data-action="projectGalleryGoto" data-idx="' + i + '" style="width:7px; height:7px; border-radius:50%; border:none; padding:0; cursor:pointer; background:' + (i === gi ? 'var(--ink)' : 'var(--line)') + ';"></button>';
       }).join('') + '</div>' : '';
       gallery = '<div data-swipe data-max="' + (files.length - 1) + '" style="position:relative;">' + body + arrows + '</div>' + dots +
-        (cur.name ? '<div style="text-align:center; font-size:11.5px; color:var(--muted); margin-top:6px;">' + esc(cur.name) + '</div>' : '');
+        (cur.name ? '<div style="text-align:center; font-size:var(--text-micro); color:var(--muted); margin-top:6px;">' + esc(cur.name) + '</div>' : '');
     }
-    var tags = (p.tags || []).map(function (t) { return '<span style="font-size:11.5px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 9px; border-radius:999px;">#' + esc(t) + '</span>'; }).join(' ');
+    var tags = (p.tags || []).map(function (t) { return '<span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 9px; border-radius:999px;">#' + esc(t) + '</span>'; }).join(' ');
     var details = (p.details || []).filter(function (d) { return d.label || d.value; }).map(function (d) {
-      return '<div style="display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-top:1.5px solid var(--line); font-size:13px;"><span style="color:var(--muted); ' + S.wrap + '">' + esc(d.label) + '</span><span style="font-weight:600; text-align:right; ' + S.wrap + '">' + esc(d.value) + '</span></div>';
+      return '<div style="display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-top:1.5px solid var(--line); font-size:var(--text-caption);"><span style="color:var(--muted); ' + S.wrap + '">' + esc(d.label) + '</span><span style="font-weight:600; text-align:right; ' + S.wrap + '">' + esc(d.value) + '</span></div>';
     }).join('');
     var sections = (p.sections || []).filter(function (s) { return s.title || s.text; }).map(function (s) {
-      return '<div style="margin-top:14px;"><div style="font-weight:600; font-size:14px; margin-bottom:4px; ' + S.wrap + '">' + esc(s.title) + '</div><p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0; white-space:pre-wrap; ' + S.wrap + '">' + esc(s.text) + '</p></div>';
+      return '<div style="margin-top:14px;"><div style="font-weight:600; font-size:var(--text-caption); margin-bottom:4px; ' + S.wrap + '">' + esc(s.title) + '</div><p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:0; white-space:pre-wrap; ' + S.wrap + '">' + esc(s.text) + '</p></div>';
     }).join('');
     var links = (p.links || []).filter(function (l) { return l.url; }).map(function (l) {
-      return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="font-size:12.5px; font-weight:600; color:var(--accent); margin-right:14px;">' + esc(l.label || 'Ссылка') + ' ↗</a>';
+      return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="font-size:var(--text-micro); font-weight:600; color:var(--accent); margin-right:14px;">' + esc(l.label || 'Ссылка') + ' ↗</a>';
     }).join('');
 
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:520px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; margin:0; ' + S.wrap + '">' + esc(p.name) + '</h3>' +
-        '<button data-action="closeProjectDetail" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer; padding:0; flex-shrink:0;">×</button></div>' +
-      (p.specialty ? '<span style="font-size:11px; font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px; display:inline-block; margin-top:8px;">' + esc(p.specialty) + '</span>' : '') +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h3 style="font-weight:600; font-size:var(--text-title); margin:0; ' + S.wrap + '">' + esc(p.name) + '</h3>' +
+        '<button data-action="closeProjectDetail" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer; padding:0; flex-shrink:0;">×</button></div>' +
+      (p.specialty ? '<span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px; display:inline-block; margin-top:8px;">' + esc(p.specialty) + '</span>' : '') +
       (gallery ? '<div style="margin-top:14px;">' + gallery + '</div>' : '') +
-      (p.desc ? '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:14px 0 0; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
+      (p.desc ? '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin:14px 0 0; ' + S.wrap + '">' + esc(p.desc) + '</p>' : '') +
       (tags ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">' + tags + '</div>' : '') +
       (links ? '<div style="margin-top:14px;">' + links + '</div>' : '') +
       (details ? '<div style="margin-top:16px;">' + details + '</div>' : '') +
@@ -3974,7 +3980,7 @@
     return '<div data-action="closeMediaPreview" style="position:fixed; inset:0; z-index:90; background:rgba(18,20,26,0.75);"></div>' +
       '<div style="position:fixed; inset:0; z-index:91; display:flex; align-items:center; justify-content:center; padding:24px; pointer-events:none;">' +
         '<div style="position:relative; pointer-events:auto;">' + body +
-          '<button data-action="closeMediaPreview" style="position:absolute; top:-14px; right:-14px; width:32px; height:32px; border-radius:50%; background:#fff; border:none; color:var(--ink); font-size:18px; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,0.3);">×</button>' +
+          '<button data-action="closeMediaPreview" style="position:absolute; top:-14px; right:-14px; width:32px; height:32px; border-radius:50%; background:#fff; border:none; color:var(--ink); font-size:var(--text-title); cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,0.3);">×</button>' +
         '</div>' +
       '</div>';
   }
@@ -3990,35 +3996,35 @@
     if (state.testView === 'intro') {
       var li = function (t) { return '<li style="margin-bottom:9px; line-height:1.5;">' + t + '</li>'; };
       inner = '<div style="padding:30px 32px; overflow-y:auto;">' +
-        '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:24px; letter-spacing:-0.01em; margin:0;">ИИ-тест навыков</h2><button data-action="closeTest" style="background:none; border:none; font-size:26px; line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
-        '<p style="color:var(--muted); font-size:15px; margin:8px 0 18px;">Специальность: <strong style="color:var(--ink);">' + esc(spec) + '</strong></p>' +
-        (state.testGenLoading ? '<div style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); margin-bottom:14px;">Готовим свежие вопросы…</div>'
-          : aiGenerated ? '<div style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:4px 10px; border-radius:999px; margin-bottom:14px;">Вопросы сгенерированы ИИ специально для вас</div>' : '') +
-        '<div style="background:var(--bg); border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;"><div style="font-weight:700; font-size:14px; margin-bottom:12px;">Как проходит тест</div><ul style="margin:0; padding-left:20px; font-size:14px; color:var(--ink);">' +
+        '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"><h2 style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em; margin:0;">ИИ-тест навыков</h2><button data-action="closeTest" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
+        '<p style="color:var(--muted); font-size:var(--text-body); margin:8px 0 18px;">Специальность: <strong style="color:var(--ink);">' + esc(spec) + '</strong></p>' +
+        (state.testGenLoading ? '<div style="display:flex; align-items:center; gap:8px; font-size:var(--text-micro); color:var(--muted); margin-bottom:14px;">Готовим свежие вопросы…</div>'
+          : aiGenerated ? '<div style="display:inline-flex; align-items:center; gap:6px; font-size:var(--text-micro); font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:4px 10px; border-radius:999px; margin-bottom:14px;">Вопросы сгенерированы ИИ специально для вас</div>' : '') +
+        '<div style="background:var(--bg); border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;"><div style="font-weight:700; font-size:var(--text-caption); margin-bottom:12px;">Как проходит тест</div><ul style="margin:0; padding-left:20px; font-size:var(--text-caption); color:var(--ink);">' +
           li('<strong>8 вопросов с вариантами</strong> ответа + <strong>1 открытый</strong> практический вопрос.') +
           li('На весь тест — <strong>' + TEST_MIN + ' минут</strong>, идёт обратный отсчёт. По истечении тест завершится автоматически.') +
           li('<strong>Одна попытка.</strong> Если закрыть окно — тест сбросится и его нужно будет начать заново.') +
           li('Тест проходит в полноэкранном режиме. Переключение окна или выход из полноэкранного режима фиксируется как подозрительная активность.') +
           li('По результату вы получите <strong>уровень</strong> (Базовый / Уверенный / Продвинутый).') +
         '</ul></div>' +
-        (bank ? '' : '<div style="margin-top:16px; padding:12px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:13px; color:#b3261e;">Для этой специальности пока нет вопросов.</div>') +
+        (bank ? '' : '<div style="margin-top:16px; padding:12px 14px; background:color-mix(in srgb, #b3261e 8%, #fff); border:1px solid color-mix(in srgb, #b3261e 22%, #fff); border-radius:10px; font-size:var(--text-caption); color:#b3261e;">Для этой специальности пока нет вопросов.</div>') +
         '<div style="display:flex; gap:12px; margin-top:22px;"><button data-action="startTest"' + (bank ? '' : ' disabled') + ' style="' + S.primary.replace('padding:15px', 'padding:13px 26px') + (bank ? '' : ' opacity:0.5; cursor:not-allowed;') + '">Начать тест</button><button data-action="closeTest" style="' + S.ghost + '">Отмена</button></div>' +
       '</div>';
     } else if (state.testView === 'running' && bank) {
       var q = bank.mcq.map(function (item, i) {
         var opts = item.a.map(function (opt, j) {
-          return '<label style="display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; margin-bottom:8px; cursor:pointer; font-size:14px; line-height:1.4;"><input type="radio" name="q' + i + '" value="' + j + '" style="margin-top:2px;">' + esc(opt) + '</label>';
+          return '<label style="display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; margin-bottom:8px; cursor:pointer; font-size:var(--text-caption); line-height:1.4;"><input type="radio" name="q' + i + '" value="' + j + '" style="margin-top:2px;">' + esc(opt) + '</label>';
         }).join('');
-        return '<div style="margin-bottom:22px;"><div style="font-weight:600; font-size:15px; margin-bottom:11px;">' + (i + 1) + '. ' + esc(item.q) + '</div>' + opts + '</div>';
+        return '<div style="margin-bottom:22px;"><div style="font-weight:600; font-size:var(--text-body); margin-bottom:11px;">' + (i + 1) + '. ' + esc(item.q) + '</div>' + opts + '</div>';
       }).join('');
-      var openBlock = '<div style="margin-bottom:8px;"><div style="font-weight:600; font-size:15px; margin-bottom:6px;">9. ' + esc(bank.open) + '</div>' +
-        '<textarea id="test-open" rows="5" placeholder="Ваш ответ…" style="width:100%; font-size:14px; padding:12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;"></textarea></div>';
-      var warnBanner = state.testFullscreenWarn ? '<div style="padding:10px 24px; background:color-mix(in srgb, #b3261e 8%, #fff); border-bottom:1px solid color-mix(in srgb, #b3261e 22%, #fff); font-size:12.5px; color:#b3261e; font-weight:600; flex-shrink:0;">Обнаружена подозрительная активность (переключение окна/выход из полноэкранного режима) — это зафиксировано вместе с результатом.</div>' : '';
+      var openBlock = '<div style="margin-bottom:8px;"><div style="font-weight:600; font-size:var(--text-body); margin-bottom:6px;">9. ' + esc(bank.open) + '</div>' +
+        '<textarea id="test-open" rows="5" placeholder="Ваш ответ…" style="width:100%; font-size:var(--text-caption); padding:12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;"></textarea></div>';
+      var warnBanner = state.testFullscreenWarn ? '<div style="padding:10px 24px; background:color-mix(in srgb, #b3261e 8%, #fff); border-bottom:1px solid color-mix(in srgb, #b3261e 22%, #fff); font-size:var(--text-micro); color:#b3261e; font-weight:600; flex-shrink:0;">Обнаружена подозрительная активность (переключение окна/выход из полноэкранного режима) — это зафиксировано вместе с результатом.</div>' : '';
       inner =
         '<div oncontextmenu="return false" oncopy="return false" onpaste="return false" style="display:flex; flex-direction:column; min-height:0; flex:1; user-select:none;">' +
         '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 24px; border-bottom:1.5px solid var(--line); flex-shrink:0;">' +
-          '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:17px;">ИИ-тест · ' + esc(spec) + '</div></div>' +
-          '<div style="display:flex; align-items:center; gap:14px;"><span style="font-size:13px; color:var(--muted);">Осталось</span><span id="test-timer" style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:20px; min-width:64px; text-align:center;">' + fmtTime(TEST_MIN * 60) + '</span><button data-action="closeTest" title="Закрыть (тест сбросится)" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
+          '<div><div style="font-weight:600; font-size:var(--text-body);">ИИ-тест · ' + esc(spec) + '</div></div>' +
+          '<div style="display:flex; align-items:center; gap:14px;"><span style="font-size:var(--text-caption); color:var(--muted);">Осталось</span><span id="test-timer" style="font-weight:700; font-size:var(--text-title); min-width:64px; text-align:center;">' + fmtTime(TEST_MIN * 60) + '</span><button data-action="closeTest" title="Закрыть (тест сбросится)" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
         '</div>' +
         warnBanner +
         '<div style="padding:22px 24px; overflow-y:auto;">' + q + openBlock + '</div>' +
@@ -4027,14 +4033,14 @@
     } else if (state.testView === 'result' && state.testResult) {
       var r = state.testResult;
       inner = '<div style="padding:34px 32px; overflow-y:auto; text-align:center;">' +
-        '<div style="width:64px; height:64px; border-radius:18px; background:color-mix(in srgb, ' + levelColor(r.level) + ' 14%, #fff); color:' + levelColor(r.level) + '; display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 18px;">✓</div>' +
-        '<h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:24px; margin:0 0 6px;">Тест завершён</h2>' +
-        '<div style="font-size:15px; color:var(--muted); margin-bottom:20px;">Специальность: ' + esc(r.specialty) + '</div>' +
+        '<div style="width:64px; height:64px; border-radius:18px; background:color-mix(in srgb, ' + levelColor(r.level) + ' 14%, #fff); color:' + levelColor(r.level) + '; display:flex; align-items:center; justify-content:center; font-size:var(--text-h1); margin:0 auto 18px;">✓</div>' +
+        '<h2 style="font-weight:600; font-size:var(--text-h2); margin:0 0 6px;">Тест завершён</h2>' +
+        '<div style="font-size:var(--text-body); color:var(--muted); margin-bottom:20px;">Специальность: ' + esc(r.specialty) + '</div>' +
         '<div style="display:inline-flex; flex-direction:column; gap:6px; background:var(--bg); border:1.5px solid var(--line); border-radius:14px; padding:18px 30px; margin-bottom:20px;">' +
-          '<span style="font-size:13px; color:var(--muted);">Ваш уровень</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:26px; color:' + levelColor(r.level) + ';">' + r.level + '</span>' +
-          '<span style="font-size:13px; color:var(--muted);">Верных ответов: ' + r.correct + ' из ' + r.total + '</span></div>' +
-        (r.flags ? '<div style="font-size:12.5px; color:#b3261e; font-weight:600; margin-bottom:16px;">Зафиксировано подозрительных действий: ' + r.flags + '</div>' : '') +
-        '<p style="font-size:13px; color:var(--muted); line-height:1.5; max-width:420px; margin:0 auto 22px;">Открытый ответ в полной версии оценивается ИИ (Claude) по ясности, логике и релевантности. Сейчас засчитаны вопросы с вариантами.</p>' +
+          '<span style="font-size:var(--text-caption); color:var(--muted);">Ваш уровень</span><span style="font-weight:700; font-size:var(--text-h2); color:' + levelColor(r.level) + ';">' + r.level + '</span>' +
+          '<span style="font-size:var(--text-caption); color:var(--muted);">Верных ответов: ' + r.correct + ' из ' + r.total + '</span></div>' +
+        (r.flags ? '<div style="font-size:var(--text-micro); color:#b3261e; font-weight:600; margin-bottom:16px;">Зафиксировано подозрительных действий: ' + r.flags + '</div>' : '') +
+        '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.5; max-width:420px; margin:0 auto 22px;">Открытый ответ в полной версии оценивается ИИ (Claude) по ясности, логике и релевантности. Сейчас засчитаны вопросы с вариантами.</p>' +
         '<button data-action="closeTest" style="' + S.primary.replace('padding:15px', 'padding:13px 30px') + '">Готово</button>' +
       '</div>';
     } else {
@@ -4050,19 +4056,19 @@
     if (!state.gigModal) return '';
     var f = state.form, gs = state.gigSubmit;
     var field = function (label, key, ph, hint) {
-      return '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">' + label + '</span>' +
-        '<input data-field="' + key + '" value="' + esc(f[key] || '') + '" placeholder="' + esc(ph) + '" style="width:100%; font-size:14px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' +
-        (hint ? '<span style="display:block; font-size:12px; color:var(--muted); margin-top:5px;">' + hint + '</span>' : '') + '</label>';
+      return '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">' + label + '</span>' +
+        '<input data-field="' + key + '" value="' + esc(f[key] || '') + '" placeholder="' + esc(ph) + '" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' +
+        (hint ? '<span style="display:block; font-size:var(--text-micro); color:var(--muted); margin-top:5px;">' + hint + '</span>' : '') + '</label>';
     };
     var formats = ['Удалённо', 'Гибрид', 'Офис (Ташкент)'];
     var fmtOpts = [''].concat(formats).map(function (o) { var sel = f.gigFormat === o ? ' selected' : ''; return '<option value="' + esc(o) + '"' + sel + '>' + (o || 'Выберите формат…') + '</option>'; }).join('');
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:520px; width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
-      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;"><h3 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:20px; letter-spacing:-0.01em; margin:0;">Новая задача</h3><button data-action="closeGigForm" style="background:none; border:none; font-size:24px; line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
+      '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0;">Новая задача</h3><button data-action="closeGigForm" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
       field('Название задачи', 'gigTitle', 'Напр. Дизайн лендинга для запуска') +
-      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Описание</span><textarea data-field="gigDesc" rows="4" placeholder="Что нужно сделать, объём работы, требования…" style="width:100%; font-size:14px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;">' + esc(f.gigDesc || '') + '</textarea></label>' +
-      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Формат</span><select data-field="gigFormat" style="width:100%; font-size:14px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' + fmtOpts + '</select></label>' +
+      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Описание</span><textarea data-field="gigDesc" rows="4" placeholder="Что нужно сделать, объём работы, требования…" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;">' + esc(f.gigDesc || '') + '</textarea></label>' +
+      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Формат</span><select data-field="gigFormat" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' + fmtOpts + '</select></label>' +
       '<div class="g2" style="display:grid; gap:14px;">' + field('Длительность', 'gigDuration', 'Напр. 2 недели') + field('Сколько человек нужно', 'gigSlots', 'Напр. 1') + '</div>' +
-      (gs.error ? '<div style="font-size:13px; color:#b3261e; font-weight:600; margin-bottom:8px;">' + esc(gs.error) + '</div>' : '') +
+      (gs.error ? '<div style="font-size:var(--text-caption); color:#b3261e; font-weight:600; margin-bottom:8px;">' + esc(gs.error) + '</div>' : '') +
       '<button data-action="submitGig"' + (gs.loading ? ' disabled' : '') + ' style="width:100%; ' + S.primary + (gs.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (gs.loading ? 'Публикация…' : 'Опубликовать задачу') + '</button>' +
       '<button data-action="closeGigForm" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
     '</div>';
@@ -4278,7 +4284,7 @@
         if (cl) {
           var rest = 120 - e.target.value.trim().length;
           cl.textContent = rest > 0 ? 'Ещё минимум ' + rest + ' символов' : 'Достаточно';
-          cl.style.color = rest > 0 ? 'var(--muted)' : '#16a34a';
+          cl.style.color = rest > 0 ? 'var(--muted)' : '#15803d';
         }
       }
       // Подпись у ползунка обновляем точечно, а не через render(): перерисовка заменит
