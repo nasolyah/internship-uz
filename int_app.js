@@ -458,7 +458,13 @@
           '<a href="#sec-verify" data-action="scrollVerify" class="nav-link">Верификация</a>' +
           '<a href="' + CONSENT_TEMPLATE_URL + '" download class="nav-link">Шаблон согласия родителя</a>' +
         '</nav>' +
-        '<div style="font-size:13px; color:var(--muted); text-align:right;">Платформа стажировок для стартапов и студентов Узбекистана<br>Пилот · 2026</div>' +
+        '<div style="font-size:13px; color:var(--muted); text-align:right; line-height:1.7;">' +
+          'Платформа стажировок для стартапов и студентов Узбекистана<br>' +
+          // Живой контакт: родителю, решающему подписать согласие, и компании, решающей
+          // заплатить, нужен адрес, по которому отвечает человек.
+          '<a href="mailto:markingmark33@gmail.com" style="color:var(--ink); font-weight:600; border-bottom:1.5px solid color-mix(in srgb, var(--ink) 22%, transparent);">markingmark33@gmail.com</a><br>' +
+          'Проект в стадии пилота · Ташкент · 2026' +
+        '</div>' +
       '</div></footer>';
   }
 
