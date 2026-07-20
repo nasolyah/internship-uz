@@ -458,7 +458,8 @@
 
     var hero = '<section style="max-width:1180px; margin:0 auto; padding:76px 28px 40px;">' +
       // Одна колонка: правую занимал блок с цифрами, без него сетка оставляла пустоту.
-      '<div style="max-width:760px;">' +
+      // Ширина под самую длинную строку заголовка — на 760px «—» переносилось отдельно.
+      '<div style="max-width:920px;">' +
         '<div>' +
           '<div class="hero-up" style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1.5px solid var(--line); border-radius:999px; background:#fff; font-size:12.5px; font-weight:600; color:var(--muted); letter-spacing:0.01em; animation-delay:.02s;"><span style="width:6px; height:6px; border-radius:50%; background:var(--accent);"></span>Платформа стажировок · Узбекистан</div>' +
           '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(38px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:22px 0 0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
