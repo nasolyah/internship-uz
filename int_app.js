@@ -57,7 +57,7 @@
     isAdmin: false,
     // Админка: очередь модерации. tab — что показываем, rejectFor — id, для которого
     // открыт ввод причины отказа.
-    admin: { tab: 'pending', items: [], companies: [], statusReqs: [], certs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null },
+    admin: { tab: 'pending', items: [], companies: [], statusReqs: [], certs: [], gigs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null },
     tgDraft: false,
     // Фильтр в плоском списке откликов компании: по умолчанию — те, что ждут ответа.
     respTab: 'pending',
@@ -1600,6 +1600,26 @@
       '</div>' + actionsHtml + docBlock + '</div>';
   }
 
+  // Все задачи платформы. Не модерация — обзор: что размещено, набралось ли, чем кончилось.
+  function adminGigsTable(gigs) {
+    if (!gigs.length) return '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">Задач пока нет.</div>';
+    var rows = gigs.map(function (g) {
+      var seats = Math.max(parseInt(String(g.slots || '1').match(/\d+/), 10) || 1, 1);
+      var st = g.closed_at ? ['снята', '#b3261e'] : g.is_open ? ['в каталоге', '#16a34a'] : ['мест нет', 'var(--muted)'];
+      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-top:1.5px solid var(--line); flex-wrap:wrap;">' +
+        '<div style="min-width:0; flex:1;">' +
+          '<div style="font-weight:600; font-size:14.5px; ' + S.wrap + '">' + esc(g.title || 'Без названия') + '</div>' +
+          '<div style="font-size:12.5px; color:var(--muted); margin-top:2px;">' + esc(g.company_name || '') + ' · ' + esc(fmtDate(g.created_at)) + '</div></div>' +
+        '<div style="display:flex; align-items:center; gap:16px; font-size:12.5px; color:var(--muted); flex-wrap:wrap;">' +
+          '<span title="Откликов всего">' + g.applications + ' ' + pluralRu(g.applications, 'отклик', 'отклика', 'откликов') + '</span>' +
+          '<span title="Занято мест">занято ' + g.taken + ' из ' + seats + '</span>' +
+          '<span title="Завершено стажировок">завершено ' + g.completed + '</span>' +
+          '<span style="font-size:11.5px; font-weight:700; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px;">' + st[0] + '</span>' +
+        '</div></div>';
+    }).join('');
+    return '<div style="' + RO_CARD + ' padding-top:6px;">' + rows + '</div>';
+  }
+
   function adminView() {
     if (!state.isAdmin) return homeView();
     var a = state.admin;
@@ -1618,6 +1638,7 @@
         certs.filter(function (c) { return c.status === 'pending' || c.doc_status === 'pending'; }).length) +
       adminTab('ai', 'Одобрено ИИ', byAi.length) +
       adminTab('all', 'Все решения', items.length) +
+      adminTab('gigs', 'Задачи', (a.gigs || []).length) +
       '<button data-action="adminRefresh" style="font-size:13.5px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 16px; border-radius:10px; cursor:pointer; margin-left:auto;">Обновить</button></div>';
 
     var companies = (a.tab === 'pending' && pendingCompanies.length)
@@ -1652,6 +1673,9 @@
     var certsBlock = (a.tab === 'ai' || !cShown.length) ? ''
       : '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Справки о стажировке</div>' +
         '<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:30px;">' + cShown.map(adminCertCard).join('') + '</div>';
+
+    // Отдельная вкладка: это обзор, а не очередь — смешивать с модерацией незачем.
+    if (a.tab === 'gigs') return pageWrap('Модерация', tabs + adminGigsTable(a.gigs || []), 1200);
 
     var title = '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; margin:6px 0 12px;">Файлы студентов</div>';
     return pageWrap('Модерация', tabs + companies + statuses + certsBlock + title + body, 1200);
@@ -2937,7 +2961,7 @@
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', companyStep: 'login', otpRole: 'student',
         files: [], filesLoading: false, isAdmin: false,
-        admin: { tab: 'pending', items: [], companies: [], statusReqs: [], certs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false, respTab: 'pending',
+        admin: { tab: 'pending', items: [], companies: [], statusReqs: [], certs: [], gigs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false, respTab: 'pending',
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         // Иначе следующий вход в этом же браузере увидел бы привязки предыдущего человека.
@@ -3176,7 +3200,8 @@
       supabase.rpc('admin_moderation_queue', { p_status: null }),
       supabase.from('company_applications').select('id, data, status, created_at').order('created_at', { ascending: false }),
       supabase.rpc('admin_status_queue', { p_status: null }),
-      supabase.rpc('admin_certificate_queue', { p_status: null })
+      supabase.rpc('admin_certificate_queue', { p_status: null }),
+      supabase.rpc('admin_gigs')
     ]).then(function (res) {
       state.admin.loading = false;
       if (res[0].error) state.admin.error = 'Не удалось загрузить очередь';
@@ -3186,6 +3211,8 @@
       state.admin.statusReqs = res[2].error ? [] : (res[2].data || []);
       // 0016 могла быть ещё не применена — тогда раздел просто не показываем.
       state.admin.certs = res[3].error ? [] : (res[3].data || []);
+      // 0020 могла быть ещё не применена — тогда вкладка «Задачи» будет пустой.
+      state.admin.gigs = res[4].error ? [] : (res[4].data || []);
       render();
     });
   }
