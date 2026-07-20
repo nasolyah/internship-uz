@@ -42,7 +42,6 @@
   /* ---------- state ---------- */
   var state = {
     view: 'home',
-    catalogTab: 'students',
     authRole: null,            // null | 'student' | 'company'
     studentStep: 'login',      // login | profile | consent | done
     companyStep: 'login',      // login | email | otp | form | done
@@ -357,7 +356,9 @@
     if (role === 'student') {
       nav = navLink('goCatalog', 'Каталог') + navLink('goResponses', 'Мои отклики') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
     } else if (role === 'company') {
-      nav = navLink('goCatalog', 'Каталог') + navLink('goVacancies', 'Мои вакансии') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
+      // Каталога у компании нет: витрины студентов не существует (студенты приходят
+      // сами, откликаясь), а чужие задачи компании ни к чему.
+      nav = navLink('goVacancies', 'Мои вакансии') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
     } else {
       nav = navLink('scrollHow', 'Как это работает') + navLink('scrollVerify', 'Верификация') + navLink('goCatalog', 'Каталог');
     }
@@ -653,7 +654,7 @@
           '<p style="font-size:12.5px; color:var(--muted); text-align:center; margin:0;">Участие бесплатно на старте. Задачи можно размещать после подтверждения профиля.</p>' +
         '</div></div>';
     } else {
-      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:16px; max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goCatalog" style="' + S.ghost + '">Каталог студентов</button></div></div>';
+      inner = '<div style="text-align:center; padding-top:60px;"><div style="width:60px; height:60px; border-radius:16px; background:color-mix(in srgb, var(--accent) 12%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 22px;">✓</div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:30px; letter-spacing:-0.02em; margin:0 0 10px;">Заявка отправлена</h1><p style="color:var(--muted); font-size:16px; max-width:440px; margin:0 auto 28px;">Сверим данные в госреестре и по корпоративному домену, затем свяжемся для короткого созвона. Обычно 1–2 дня. Профиль компании уже доступен в личном кабинете.</p><div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"><button data-action="goCabinet" style="' + S.primary + '">Перейти в профиль компании</button><button data-action="goVacancies" style="' + S.ghost + '">Мои вакансии</button></div></div>';
     }
     return '<main class="view-in" style="max-width:640px; margin:0 auto; padding:56px 28px 88px;"><a data-action="goHome" style="' + S.back + '">← На главную</a>' + inner + '</main>';
   }
@@ -707,19 +708,23 @@
   /* ---------- CATALOG ---------- */
   function catalogView() {
     var role = state.authRole;
-    var effectiveTab = role === 'company' ? 'students' : role === 'student' ? 'gigs' : state.catalogTab;
-    var studentsActive = effectiveTab === 'students';
+    // Компания сюда попасть не должна (нав-ссылки нет), но вид мог остаться в состоянии
+    // после смены роли — показываем ей вакансии, а не пустую витрину студентов.
+    if (role === 'company') return vacanciesView();
+    // Витрины студентов нет: компания видит студента только после его отклика. Пока это так,
+    // каталог у всех — это каталог задач. Ветка со студентами ниже сохранена: она понадобится,
+    // если появится опт-ин витрина, где студент сам включает себе показ.
+    var studentsActive = false;
     // несовершеннолетний видит замок, пока согласие родителя не подтверждено
     var minorLocked = role === 'student' && isMinor() && docStat('consent') !== 'approved';
 
-    var catTitle = role === 'company' ? 'Каталог студентов' : role === 'student' ? 'Каталог задач' : 'Каталог';
-    var catSub = role === 'company' ? 'Кандидаты для ваших задач' : role === 'student' ? 'Задачи от стартапов и компаний' : 'Студенты и задачи стартапов';
+    var catTitle = 'Каталог задач';
+    var catSub = 'Задачи от стартапов и компаний';
     var head = '<div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:26px;">' +
       '<div><h1 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:32px; letter-spacing:-0.02em; margin:0;">' + catTitle + '</h1><div style="font-size:14.5px; color:var(--muted); margin-top:6px;">' + catSub + '</div></div>';
-    if (role === null) {
-      var tb = 'font-size:13.5px; font-weight:600; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;';
-      head += '<div style="display:flex; background:#fff; border:1.5px solid var(--line); border-radius:11px; padding:4px;"><button data-action="tabStudents" style="' + tb + (studentsActive ? ' background:var(--ink); color:#fff;' : ' background:transparent; color:var(--muted);') + '">Студенты</button><button data-action="tabGigs" style="' + tb + (studentsActive ? ' background:transparent; color:var(--muted);' : ' background:var(--ink); color:#fff;') + '">Задачи стартапов</button></div>';
-    } else if (role === 'company') {
+    // Переключателя «Студенты / Задачи» здесь больше нет: показывать вкладку, которая
+    // всегда пуста, — значит выдавать отсутствующую функцию за сломанную.
+    if (role === 'company') {
       head += companyStatus() === 'approved'
         ? '<button data-action="openGigForm" style="font-size:13.5px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:11px 18px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
         : '<button disabled style="font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:11px 18px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
@@ -1661,14 +1666,17 @@
       var step = state.companyProfile ? 'done' : (state.session && state.authRole === 'company' ? 'form' : 'email');
       setState({ view: 'company', companyStep: step, otpRole: 'company', otp: { email: '', error: '', loading: false } }); top();
     },
-    goCatalog: function () { setState({ view: 'catalog' }); top(); },
+    // У компании каталога нет — уводим её в свои вакансии, чтобы старые ссылки
+    // и кнопки не приводили на пустую витрину.
+    goCatalog: function () {
+      if (state.authRole === 'company') { actions.goVacancies(); return; }
+      setState({ view: 'catalog' }); top();
+    },
     goCabinet: function () { setState({ view: 'cabinet', extrasSave: { loading: false, error: '', ok: false } }); top(); },
     goResponses: function () { loadApplications(); setState({ view: 'responses' }); top(); },
     goVacancies: function () { loadApplications(); setState({ view: 'vacancies' }); top(); },
     // Меню открывается/закрывается без полной перерисовки — иначе тело страницы «дёргается» (повтор анимаций).
     toggleMenu: function () { state.menuOpen = !state.menuOpen; paintHeader(); },
-    tabStudents: function () { setState({ catalogTab: 'students' }); },
-    tabGigs: function () { setState({ catalogTab: 'gigs' }); },
     // Открывает окно авторизации Telegram через JS-API (своя кнопка вместо iframe-виджета).
     loginTelegram: function () { goToTelegram('login'); },
     // Привязка Telegram к открытому аккаунту. Уходим тем же редиректом, что и вход;
@@ -2552,7 +2560,7 @@
         gigModal: false, gigSubmit: { loading: false, error: '' },
         applications: [], appsLoading: false, applyState: {}, chat: null, profileView: null,
         menuOpen: false, modal: null, testView: null, testResult: null,
-        form: {}, view: 'home', catalogTab: 'students'
+        form: {}, view: 'home'
       });
       top();
     }
