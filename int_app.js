@@ -863,7 +863,7 @@
     var editFieldBtn = function (field) { return '<button data-action="startFieldEdit" data-field-edit="' + field + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted); margin-left:6px;">' + icon('pencil', 12) + '</button>'; };
 
     var availTag = '<span style="display:inline-flex; align-items:center; gap:6px; font-size:var(--text-micro); font-weight:600; color:' + availColor(sp.availability) + '; background:color-mix(in srgb, ' + availColor(sp.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(sp.availability) + ';"></span>' + esc(availLabel(sp.availability)) + '</span>' +
-      '<select data-select-action="setAvailability" style="font-size:var(--text-micro); font-weight:600; color:var(--muted); background:#fff; border:1.5px solid var(--line); padding:5px 8px; border-radius:8px; cursor:pointer;">' + availOptions(sp.availability) + '</select>';
+      '<select data-select-action="setAvailability" style="font-size:var(--text-body); font-weight:600; color:var(--muted); background:#fff; border:1.5px solid var(--line); padding:5px 8px; border-radius:8px; cursor:pointer;">' + availOptions(sp.availability) + '</select>';
 
     var avatarUp = state.avatarUpload;
     var avatarBlock = '<div style="position:relative; flex-shrink:0;">' + avatarHtml(64, 18) +
@@ -1210,7 +1210,7 @@
     };
 
     var about = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:10px;">Описание компании <span style="color:var(--muted); font-weight:400; font-size:var(--text-caption);">(необязательно)</span></div>' +
-      '<textarea data-company-field="description" rows="4" maxlength="1000" placeholder="Чем занимается компания, какие задачи и стажировки предлагаете…" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); resize:vertical; font-family:inherit; line-height:1.5;">' + esc(cp.description || '') + '</textarea></div>';
+      '<textarea data-company-field="description" rows="4" maxlength="1000" placeholder="Чем занимается компания, какие задачи и стажировки предлагаете…" style="width:100%; font-size:var(--text-body); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); resize:vertical; font-family:inherit; line-height:1.5;">' + esc(cp.description || '') + '</textarea></div>';
 
     // ---- Мэтчинг и поиск (технический профиль) ----
     var focusAreas = cp.focusAreas || [];
@@ -1540,7 +1540,7 @@
     var decide = '';
     if (state.admin.rejectFor === f.id) {
       decide = '<div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
-        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:var(--text-body); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
         '<button data-action="adminConfirmReject" data-id="' + esc(f.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--err); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
         '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else {
@@ -1595,7 +1595,7 @@
     var actionsHtml = '';
     if (state.admin.rejectFor === r.id) {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
-        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит студент" style="flex:1; min-width:240px; font-size:var(--text-body); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
         '<button data-action="adminStatusConfirmReject" data-id="' + esc(r.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--err); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
         '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else if (r.status === 'pending') {
@@ -1624,7 +1624,7 @@
     var actionsHtml = '';
     if (state.admin.rejectFor === c.id) {
       actionsHtml = '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
-        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит компания" style="flex:1; min-width:240px; font-size:var(--text-caption); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
+        '<input data-field="adminReason" value="' + esc(state.admin.reason || '') + '" placeholder="Причина отказа — её увидит компания" style="flex:1; min-width:240px; font-size:var(--text-body); padding:9px 12px; border:1.5px solid var(--line); border-radius:9px;">' +
         '<button data-action="adminCertConfirmReject" data-id="' + esc(c.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--err); border:none; padding:9px 14px; border-radius:9px; cursor:pointer;">Отклонить</button>' +
         '<button data-action="adminCancelReject" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 14px; border-radius:9px; cursor:pointer;">Отмена</button></div>';
     } else if (c.status === 'pending') {
@@ -1667,10 +1667,14 @@
   // Все задачи платформы. Не модерация — обзор: что размещено, набралось ли, чем кончилось.
   function adminGigsTable(gigs) {
     if (!gigs.length) return '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:var(--text-caption);">Задач пока нет.</div>';
-    var rows = gigs.map(function (g) {
+    var rows = gigs.map(function (g, i) {
       var seats = Math.max(parseInt(String(g.slots || '1').match(/\d+/), 10) || 1, 1);
       var st = g.closed_at ? ['снята', 'var(--err)'] : g.is_open ? ['в каталоге', 'var(--ok)'] : ['мест нет', 'var(--muted)'];
-      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-top:1.5px solid var(--line); flex-wrap:wrap;">' +
+      /* Разделитель отделяет строки друг от друга, поэтому у первой его быть не
+         должно: раньше он рисовался у всех и висел под самым краем карточки,
+         а компенсировали это, урезав верхний отступ контейнера с 24 до 6px. */
+      var sep = i ? 'border-top:1.5px solid var(--line); ' : '';
+      return '<div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; ' + sep + 'flex-wrap:wrap;">' +
         '<div style="min-width:0; flex:1;">' +
           '<div style="font-weight:600; font-size:var(--text-caption); ' + S.wrap + '">' + esc(g.title || 'Без названия') + '</div>' +
           '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:2px;">' + esc(g.company_name || '') + ' · ' + esc(fmtDate(g.created_at)) + '</div></div>' +
@@ -1681,7 +1685,10 @@
           '<span style="font-size:var(--text-micro); font-weight:600; color:' + st[1] + '; background:color-mix(in srgb, ' + st[1] + ' 12%, #fff); padding:4px 9px; border-radius:6px;">' + st[0] + '</span>' +
         '</div></div>';
     }).join('');
-    return '<div style="' + RO_CARD + ' padding-top:6px;">' + rows + '</div>';
+    /* Строки несут по 13px своих вертикальных отступов, поэтому у контейнера
+       11px: 11+13 = 24 сверху и снизу, ровно как по бокам. До этого было
+       19px сверху и 37px снизу. */
+    return '<div style="' + RO_CARD + ' padding:11px 24px;">' + rows + '</div>';
   }
 
   function adminView() {
@@ -1975,7 +1982,11 @@
       '</div></div>';
 
     var composer = '<div style="display:flex; gap:10px; align-items:flex-end; margin-top:14px;">' +
-      '<textarea data-field="chatDraft" data-chat-input rows="1" placeholder="Написать сообщение…" style="flex:1; font-size:var(--text-caption); padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; font-family:inherit; line-height:1.45; resize:none; max-height:140px; background:#fff; color:var(--ink);">' + esc(state.form.chatDraft || '') + '</textarea>' +
+      /* --text-body, а не --text-caption: это поле ввода, а мобильный Safari
+         принудительно зумит страницу при фокусе на поле мельче 16px. В S.input
+         и S.field это уже исправлено, а сюда правка не дошла — переписку
+         студент ведёт как раз с телефона. */
+      '<textarea data-field="chatDraft" data-chat-input rows="1" placeholder="Написать сообщение…" style="flex:1; font-size:var(--text-body); padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; font-family:inherit; line-height:1.45; resize:none; max-height:140px; background:#fff; color:var(--ink);">' + esc(state.form.chatDraft || '') + '</textarea>' +
       '<button data-action="sendMessage"' + (c.sending ? ' disabled' : '') + ' style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); border:none; padding:12px 20px; border-radius:12px; cursor:pointer;' + (c.sending ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (c.sending ? '…' : 'Отправить') + '</button>' +
     '</div>';
 
@@ -4048,7 +4059,7 @@
         return '<div style="margin-bottom:22px;"><div style="font-weight:600; font-size:var(--text-body); margin-bottom:11px;">' + (i + 1) + '. ' + esc(item.q) + '</div>' + opts + '</div>';
       }).join('');
       var openBlock = '<div style="margin-bottom:8px;"><div style="font-weight:600; font-size:var(--text-body); margin-bottom:6px;">9. ' + esc(bank.open) + '</div>' +
-        '<textarea id="test-open" rows="5" placeholder="Ваш ответ…" style="width:100%; font-size:var(--text-caption); padding:12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;"></textarea></div>';
+        '<textarea id="test-open" rows="5" placeholder="Ваш ответ…" style="width:100%; font-size:var(--text-body); padding:12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;"></textarea></div>';
       var warnBanner = state.testFullscreenWarn ? '<div style="padding:10px 24px; background:color-mix(in srgb, var(--err) 8%, #fff); border-bottom:1px solid color-mix(in srgb, var(--err) 22%, #fff); font-size:var(--text-micro); color:var(--err); font-weight:600; flex-shrink:0;">Обнаружена подозрительная активность (переключение окна/выход из полноэкранного режима) — это зафиксировано вместе с результатом.</div>' : '';
       inner =
         '<div oncontextmenu="return false" oncopy="return false" onpaste="return false" style="display:flex; flex-direction:column; min-height:0; flex:1; user-select:none;">' +
@@ -4087,7 +4098,7 @@
     var f = state.form, gs = state.gigSubmit;
     var field = function (label, key, ph, hint) {
       return '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">' + label + '</span>' +
-        '<input data-field="' + key + '" value="' + esc(f[key] || '') + '" placeholder="' + esc(ph) + '" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' +
+        '<input data-field="' + key + '" value="' + esc(f[key] || '') + '" placeholder="' + esc(ph) + '" style="width:100%; font-size:var(--text-body); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' +
         (hint ? '<span style="display:block; font-size:var(--text-micro); color:var(--muted); margin-top:5px;">' + hint + '</span>' : '') + '</label>';
     };
     var formats = ['Удалённо', 'Гибрид', 'Офис (Ташкент)'];
@@ -4095,8 +4106,8 @@
     var dialog = '<div style="pointer-events:auto; background:#fff; border-radius:18px; padding:26px; max-width:520px; width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,0.45);">' +
       '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;"><h3 style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em; margin:0;">Новая задача</h3><button data-action="closeGigForm" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
       field('Название задачи', 'gigTitle', 'Напр. Дизайн лендинга для запуска') +
-      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Описание</span><textarea data-field="gigDesc" rows="4" placeholder="Что нужно сделать, объём работы, требования…" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;">' + esc(f.gigDesc || '') + '</textarea></label>' +
-      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Формат</span><select data-field="gigFormat" style="width:100%; font-size:var(--text-caption); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' + fmtOpts + '</select></label>' +
+      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Описание</span><textarea data-field="gigDesc" rows="4" placeholder="Что нужно сделать, объём работы, требования…" style="width:100%; font-size:var(--text-body); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;">' + esc(f.gigDesc || '') + '</textarea></label>' +
+      '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">Формат</span><select data-field="gigFormat" style="width:100%; font-size:var(--text-body); padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' + fmtOpts + '</select></label>' +
       '<div class="g2" style="display:grid; gap:14px;">' + field('Длительность', 'gigDuration', 'Напр. 2 недели') + field('Сколько человек нужно', 'gigSlots', 'Напр. 1') + '</div>' +
       (gs.error ? '<div style="font-size:var(--text-caption); color:var(--err); font-weight:600; margin-bottom:8px;">' + esc(gs.error) + '</div>' : '') +
       '<button data-action="submitGig"' + (gs.loading ? ' disabled' : '') + ' style="width:100%; ' + S.primary + (gs.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (gs.loading ? 'Публикация…' : 'Опубликовать задачу') + '</button>' +
