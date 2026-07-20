@@ -1089,9 +1089,11 @@
         (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:10px; font-size:12.5px; font-weight:600; color:var(--accent); ' + S.wrap + '">📎 ' + esc(fileLabel || 'Открыть') + ' ↗</a>' : '') + '</div>';
     };
     var addAchCard = '<button data-action="openItemModal" data-item-type="achievement" style="scroll-snap-align:start; flex-shrink:0; width:230px; border:1.5px dashed var(--line); border-radius:14px; padding:16px; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--muted);"><span style="font-size:20px;">+</span><span style="font-size:13px; font-weight:600;">Добавить сертификат</span></button>';
-    var documents = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:8px;">Верифицированные документы и достижения</div>' +
-      '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 16px;">Официальный документ о практике станет доступен после завершения первого проекта.</p>' +
-      '<button disabled style="width:100%; font-size:13.5px; font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed; margin-bottom:18px;">Скачать документ о практике</button>' +
+    // Заглушка «Скачать документ о практике» убрана: кнопка была всегда неактивной, а
+    // настоящие документы теперь живут в блоке «Завершённые стажировки» — там и справка
+    // с проверяемой ссылкой, и официальное свидетельство от компании.
+    var documents = '<div style="' + card + '"><div style="' + cardTitle + ' margin-bottom:8px;">Сертификаты и достижения</div>' +
+      '<p style="font-size:13.5px; color:var(--muted); line-height:1.55; margin:0 0 16px;">Дипломы, курсы, олимпиады. Файл проходит проверку — компании видят только подтверждённые.</p>' +
       '<div style="display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:6px;">' + achievements.map(achCard).join('') + addAchCard + '</div></div>';
 
     // ---- Завершённые стажировки ----
