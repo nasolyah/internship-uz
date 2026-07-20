@@ -59,7 +59,8 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   padding: 14px 20px;
   /* Был единственный кегль в этом файле — 15.5px, не совпадавший ни с чем на сайте. */
   font-size: var(--text-body);
-  font-weight: 700;
+  /* 700 отдан заголовкам. Кнопки — 600, включая эту. */
+  font-weight: 600;
   color: #fff;
   border: none;
   border-radius: 12px;
