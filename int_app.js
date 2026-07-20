@@ -114,8 +114,6 @@
     _statsRan: false
   };
 
-  var STATS_TARGET = { students: 148, companies: 23, projects: 41, score: 84 };
-  var statsCur = { students: 0, companies: 0, projects: 0, score: 0 };
 
   /* ---------- data ---------- */
   var startupValue = [
@@ -452,34 +450,15 @@
       return '<span style="display:flex; align-items:center; gap:7px;"><span style="color:var(--accent); font-weight:700;">✓</span>' + t + '</span>';
     }).join('');
 
-    var statTile = function (id, val, label, dark, suffix) {
-      var numStyle = 'font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:34px; line-height:1; letter-spacing:-0.02em;' + (dark ? '' : (id === 'stat-companies' ? ' color:var(--accent);' : ''));
-      var bg = dark ? 'background:var(--ink); color:#fff;' : 'background:var(--bg); border:1.5px solid var(--line);';
-      var lblColor = dark ? 'rgba(255,255,255,0.62)' : 'var(--muted)';
-      var num = suffix
-        ? '<div style="display:flex; align-items:baseline; gap:2px;"><span id="' + id + '" style="' + numStyle + '">' + val + '</span><span style="font-size:15px; font-weight:600; color:var(--muted);">' + suffix + '</span></div>'
-        : '<div id="' + id + '" style="' + numStyle + '">' + val + '</div>';
-      return '<div style="border-radius:15px; padding:18px; ' + bg + '">' + num + '<div style="font-size:12.5px; color:' + lblColor + '; margin-top:7px;">' + label + '</div></div>';
-    };
 
-    var statsPanel = '<div class="hero-up" style="animation-delay:.18s; position:relative;">' +
-      '<div style="position:absolute; inset:-12% -8% -16% 4%; background:radial-gradient(58% 58% at 60% 40%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%); filter:blur(10px); z-index:0;"></div>' +
-      '<div style="position:relative; z-index:1; background:#fff; border:1.5px solid var(--line); border-radius:20px; box-shadow:0 30px 72px -34px rgba(18,20,26,0.32); padding:26px;">' +
-        '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;"><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:15px;">Платформа в цифрах</span><span style="display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:var(--muted);"><span class="pulse-dot" style="width:8px; height:8px; border-radius:50%; background:#22c55e;"></span>в реальном времени</span></div>' +
-        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' +
-          statTile('stat-students', statsCur.students, 'студентов в базе', true) +
-          statTile('stat-companies', statsCur.companies, 'компаний зарегистрировано', false) +
-          statTile('stat-projects', statsCur.projects, 'проектов закрыто', false) +
-          statTile('stat-score', statsCur.score, 'средний ИИ-балл', false, '/100') +
-        '</div>' +
-        '<div style="margin-top:18px; padding-top:16px; border-top:1.5px solid var(--line); font-size:12px; color:var(--muted); text-align:center;">Данные пилота · обновляется</div>' +
-      '</div>' +
-      '<div class="floaty" style="position:absolute; z-index:2; left:-22px; bottom:-20px; background:var(--ink); color:#fff; border-radius:14px; padding:13px 17px; box-shadow:0 22px 46px -22px rgba(18,20,26,0.55); display:flex; align-items:center; gap:12px;"><span style="width:38px; height:38px; border-radius:10px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:18px;">✦</span><div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:700; font-size:18px; line-height:1.05;">+34</div><div style="font-size:11.5px; color:rgba(255,255,255,0.6);">отклика за неделю</div></div></div>' +
-      '<div class="floaty2" style="position:absolute; z-index:2; right:-16px; top:22px; background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:10px 14px; box-shadow:0 16px 36px -20px rgba(18,20,26,0.35); display:flex; align-items:center; gap:9px;"><span class="pulse-dot" style="width:8px; height:8px; border-radius:50%; background:#22c55e;"></span><span style="font-size:12.5px; font-weight:600;">12 стартапов в пилоте</span></div>' +
-    '</div>';
+    // Блок «Платформа в цифрах» удалён: числа были выдуманные (148 студентов,
+    // 41 закрытый проект) и подавались как живая статистика. Показывать такое
+    // компании, которая заплатила и увидит внутри пустой каталог, — быстрый способ
+    // потерять доверие, то есть ровно то, что платформа и продаёт.
 
     var hero = '<section style="max-width:1180px; margin:0 auto; padding:76px 28px 40px;">' +
-      '<div style="display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px; align-items:center;">' +
+      // Одна колонка: правую занимал блок с цифрами, без него сетка оставляла пустоту.
+      '<div style="max-width:760px;">' +
         '<div>' +
           '<div class="hero-up" style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1.5px solid var(--line); border-radius:999px; background:#fff; font-size:12.5px; font-weight:600; color:var(--muted); letter-spacing:0.01em; animation-delay:.02s;"><span style="width:6px; height:6px; border-radius:50%; background:var(--accent);"></span>Платформа стажировок · Узбекистан</div>' +
           '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(38px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:22px 0 0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
@@ -489,7 +468,7 @@
             '<button data-action="goStudent" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:14px 24px; border-radius:11px; cursor:pointer;">Я студент — ищу опыт</button>' +
           '</div>' +
           '<div class="hero-up" style="display:flex; gap:22px; margin-top:26px; flex-wrap:wrap; font-size:13.5px; color:var(--muted); animation-delay:.26s;">' + trust + '</div>' +
-        '</div>' + statsPanel +
+        '</div>' +
       '</div></section>';
 
     var valItem = function (v, dark) {
@@ -2979,23 +2958,6 @@
   }
   function doScroll(id) { var el = document.getElementById(id); if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: 'smooth' }); }
 
-  /* ---------- count-up ---------- */
-  function writeStats() {
-    var map = { 'stat-students': statsCur.students, 'stat-companies': statsCur.companies, 'stat-projects': statsCur.projects, 'stat-score': statsCur.score };
-    for (var id in map) { var e = document.getElementById(id); if (e) e.textContent = map[id]; }
-  }
-  function startStats() {
-    if (state._statsRan) return; state._statsRan = true;
-    var dur = 1500, start = now(), ease = function (t) { return 1 - Math.pow(1 - t, 3); };
-    function tick() {
-      var t = Math.min(1, (now() - start) / dur), e = ease(t);
-      statsCur = { students: Math.round(STATS_TARGET.students * e), companies: Math.round(STATS_TARGET.companies * e), projects: Math.round(STATS_TARGET.projects * e), score: Math.round(STATS_TARGET.score * e) };
-      writeStats();
-      if (t < 1) requestAnimationFrame(tick);
-    }
-    if ('requestAnimationFrame' in window) requestAnimationFrame(tick);
-    setTimeout(function () { statsCur = { students: STATS_TARGET.students, companies: STATS_TARGET.companies, projects: STATS_TARGET.projects, score: STATS_TARGET.score }; writeStats(); }, 1900);
-  }
   function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
 
   /* ---------- scroll reveal ---------- */
@@ -4042,7 +4004,6 @@
     focusChatInput = false;
     root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml();
     setupReveal();
-    if (state.view === 'home') startStats();
     if (state.view === 'chat') restoreChatUi(keepChatFocus);
   }
   // Перерисовывает только шапку и оверлей (для открытия/закрытия меню), не трогая тело страницы.
