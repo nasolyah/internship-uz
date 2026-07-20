@@ -1426,12 +1426,27 @@
 
     var blocks = myGigs.map(function (g) {
       var apps = state.applications.filter(function (a) { return a.gig_id === g.id; });
-      var head = '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">' +
-        '<div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px;">' + esc(g.title || '') + '</div>' +
-        '<span style="font-size:12.5px; color:var(--muted);">' + apps.length + ' ' + pluralRu(apps.length, 'отклик', 'отклика', 'откликов') + '</span></div>';
+      // Занятыми считаем приглашённых и завершивших — так же, как в политике каталога.
+      var taken = apps.filter(function (a) { return a.status === 'invited' || a.status === 'completed'; }).length;
+      var seats = Math.max(parseInt(String(g.slots || '1').match(/\d+/), 10) || 1, 1);
+      var closed = !!g.closed_at;
+      var full = taken >= seats;
+
+      var mark = closed ? ['снята с публикации', '#b3261e']
+               : full   ? ['мест нет — не показывается в каталоге', 'var(--muted)']
+                        : ['в каталоге · занято ' + taken + ' из ' + seats, '#16a34a'];
+      var toggle = '<button data-action="toggleGigClosed" data-gig-id="' + esc(g.id) + '" data-closed="' + (closed ? '1' : '') + '" style="font-size:12px; font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer;">' +
+        (closed ? 'Вернуть в каталог' : 'Снять с публикации') + '</button>';
+
+      var head = '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">' +
+        '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px;">' + esc(g.title || '') + '</div>' +
+        '<div style="font-size:12.5px; color:' + mark[1] + '; margin-top:3px;">' + esc(mark[0]) + '</div></div>' +
+        '<div style="display:flex; align-items:center; gap:10px;">' + toggle +
+        '<span style="font-size:12.5px; color:var(--muted);">' + apps.length + ' ' + pluralRu(apps.length, 'отклик', 'отклика', 'откликов') + '</span></div></div>';
       var body = apps.length
         ? '<div style="display:flex; flex-direction:column; gap:10px;">' + apps.map(applicationCard).join('') + '</div>'
-        : '<div style="font-size:13.5px; color:var(--muted); padding:14px 0 4px;">Откликов пока нет — задача видна студентам в каталоге.</div>';
+        : '<div style="font-size:13.5px; color:var(--muted); padding:14px 0 4px;">' +
+          (closed || full ? 'Откликов нет, и задача больше не показывается в каталоге.' : 'Откликов пока нет — задача видна студентам в каталоге.') + '</div>';
       return '<section style="margin-bottom:30px;">' + head + body + '</section>';
     }).join('');
 
@@ -1956,6 +1971,15 @@
     goResponses: function () { loadApplications(); setState({ view: 'responses' }); top(); },
     goVacancies: function () { loadApplications(); setState({ view: 'vacancies' }); top(); },
     respTab: function (el) { setState({ respTab: el.getAttribute('data-tab') }); },
+    toggleGigClosed: function (el) {
+      var id = el.getAttribute('data-gig-id');
+      var closed = !!el.getAttribute('data-closed');
+      if (!supabase || !id) return;
+      supabase.rpc('set_gig_closed', { p_gig: id, p_closed: !closed }).then(function (r) {
+        if (r.error) { alert(r.error.message || 'Не удалось изменить публикацию'); return; }
+        loadGigs();
+      });
+    },
     openCompleteModal: function (el) {
       var a = findApplication(el.getAttribute('data-app-id'));
       if (!a) return;
