@@ -425,10 +425,10 @@
         '<button data-action="goStartupForm" style="font-size:14.5px; font-weight:600; color:#fff; background:var(--ink); border:1px solid var(--ink); padding:9px 16px; border-radius:9px; cursor:pointer; white-space:nowrap;">Регистрация компании</button></span>';
     }
     return overlay + '<header style="position:sticky; top:0; z-index:50; background:color-mix(in srgb, #fbfbf9 88%, transparent); backdrop-filter:blur(10px); border-bottom:1.5px solid var(--line);">' +
-      '<div style="max-width:1180px; margin:0 auto; padding:16px 28px; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:24px;">' +
+      '<div class="hdr" style="max-width:1180px; margin:0 auto; padding:16px 28px;">' +
         '<a data-action="goHome" style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
           '<span style="display:inline-block; width:58px; height:34px; overflow:hidden; flex-shrink:0;"><img src="/logo.png" alt="" style="width:90px; height:90px; max-width:none; margin:-29px 0 0 -17px; display:block;"></span>' +
-          '<span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
+          '<span class="brand-name" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:18px; letter-spacing:-0.01em;">internship<span style="color:var(--muted); font-weight:500;">.uz</span></span>' +
         '</a>' +
         '<nav style="display:flex; align-items:center; justify-content:center; gap:30px; white-space:nowrap;">' + nav + '</nav>' +
         '<div style="display:flex; align-items:center; justify-content:flex-end; gap:12px;">' + auth + '</div>' +
@@ -462,7 +462,7 @@
       '<div style="max-width:920px;">' +
         '<div>' +
           '<div class="hero-up" style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1.5px solid var(--line); border-radius:999px; background:#fff; font-size:12.5px; font-weight:600; color:var(--muted); letter-spacing:0.01em; animation-delay:.02s;"><span style="width:6px; height:6px; border-radius:50%; background:var(--accent);"></span>Платформа стажировок · Узбекистан</div>' +
-          '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(38px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:22px 0 0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
+          '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(30px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:22px 0 0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
           '<p class="hero-up" style="font-size:18px; line-height:1.55; color:var(--muted); max-width:500px; margin:22px 0 0; animation-delay:.14s;">internship.uz связывает узбекские стартапы со студентами и школьниками: живые проекты, верифицированные профили и официальный документ о пройденной практике.</p>' +
           '<div class="hero-up" style="display:flex; gap:12px; margin-top:30px; flex-wrap:wrap; animation-delay:.2s;">' +
             '<button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 24px; border-radius:11px; cursor:pointer;">Я стартап — нужна помощь</button>' +
@@ -479,7 +479,7 @@
     };
     var value = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:56px 28px;">' +
       '<div style="text-align:center; max-width:640px; margin:0 auto 44px;"><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Две стороны, одна выгода</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 0;">Каждый получает то, чего ему не хватает</h2></div>' +
-      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">' +
+      '<div class="g2" style="display:grid; gap:24px;">' +
         '<div data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:32px;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">◆</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для стартапов</span></div><p style="color:var(--muted); font-size:15px; margin:0 0 20px;">Ранние команды с ограниченным бюджетом — быстрые руки без затрат на найм.</p>' + startupValue.map(function (v) { return valItem(v, false); }).join('') + '<button data-action="goStartupForm" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:#fff; background:var(--ink); border:none; padding:13px; border-radius:11px; cursor:pointer;">Подтвердить компанию</button></div>' +
         '<div data-stagger style="background:var(--ink); border:1px solid var(--ink); border-radius:18px; padding:32px; color:#fff;"><div style="display:flex; align-items:center; gap:11px; margin-bottom:8px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px;">●</span><span style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:21px;">Для студентов и школьников</span></div><p style="color:rgba(255,255,255,0.62); font-size:15px; margin:0 0 20px;">Реальные проекты в резюме и официальный документ — сильный аргумент при поступлении.</p>' + studentValue.map(function (v) { return valItem(v, true); }).join('') + '<button data-action="goStudent" style="margin-top:22px; width:100%; font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:13px; border-radius:11px; cursor:pointer;">Создать профиль студента</button></div>' +
       '</div></section>';
@@ -492,7 +492,7 @@
     };
     var how = '<section id="sec-how" data-reveal style="background:#fff; border-top:1.5px solid var(--line); border-bottom:1.5px solid var(--line);">' +
       '<div style="max-width:1180px; margin:0 auto; padding:64px 28px;"><div style="text-align:center; max-width:640px; margin:0 auto 44px;"><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Как это работает</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 0;">Два простых пути навстречу</h2></div>' +
-      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:48px;">' +
+      '<div class="g2" style="display:grid; gap:48px;">' +
         '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--ink);"></span>Стартап</div>' + stepsStartup.map(function (s) { return stepItem(s, false); }).join('') + '</div>' +
         '<div><div style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:16px; margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent);"></span>Студент</div>' + stepsStudent.map(function (s) { return stepItem(s, true); }).join('') + '</div>' +
       '</div></div></section>';
@@ -501,12 +501,12 @@
       return '<div data-lift data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:22px;"><div style="width:36px; height:36px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:17px; margin-bottom:14px;">' + q.icon + '</div><div style="font-weight:600; font-size:15.5px;">' + q.title + '</div><div style="font-size:13.5px; color:var(--muted); margin-top:5px; line-height:1.5;">' + q.desc + '</div><div style="margin-top:12px; font-size:11.5px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.04em;">' + q.tag + '</div></div>';
     };
     var verify = '<section id="sec-verify" data-reveal style="max-width:1180px; margin:0 auto; padding:72px 28px;">' +
-      '<div style="display:grid; grid-template-columns:0.9fr 1.1fr; gap:56px; align-items:center;">' +
+      '<div class="g-split" style="display:grid; gap:56px; align-items:center;">' +
         '<div><div style="font-size:13px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">Доверие и качество</div><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3vw,38px); letter-spacing:-0.02em; margin:12px 0 16px;">Профили проверены. Результат — оформлен официально.</h2><p style="font-size:16px; color:var(--muted); line-height:1.6;">Мы снижаем два главных риска: сомнительное качество исполнителей для компаний и юридическую неопределённость для обеих сторон. Верификация — бесплатная, а практика оформляется как учебная, а не как трудоустройство.</p>' +
           '<div style="margin-top:24px; padding:18px 20px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 20%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Официальный документ о практике</strong> — студент получает подтверждение пройденной учебной практики, которое можно приложить к резюме или заявке на поступление.</div>' +
           '<div style="margin-top:14px; padding:18px 20px; background:color-mix(in srgb, #e2a53a 8%, #fff); border:1px solid color-mix(in srgb, #e2a53a 26%, #fff); border-radius:14px; font-size:14.5px; line-height:1.55;"><strong style="font-weight:700;">Защита несовершеннолетних</strong> — участникам до 18 лет доступ открывается только после письменного согласия родителя (по законодательству РУз). Готовый шаблон согласия — в один клик.</div>' +
         '</div>' +
-        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">' + verifyItems.map(verifyCard).join('') + '</div>' +
+        '<div class="g2" style="display:grid; gap:16px;">' + verifyItems.map(verifyCard).join('') + '</div>' +
       '</div></section>';
 
     var waitlist = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:32px 28px 88px;"><div style="background:var(--ink); border-radius:22px; padding:56px 40px; text-align:center; color:#fff; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 60%); opacity:0.5;"></div><div style="position:relative;"><h2 style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(28px,3.2vw,42px); letter-spacing:-0.02em; margin:0;">Присоединяйтесь к пилоту</h2><p style="font-size:17px; color:rgba(255,255,255,0.66); max-width:480px; margin:14px auto 0;">Набираем первые 5–10 стартапов и 10–20 студентов. Ранние участники получают бесплатный доступ и приоритет в матчинге.</p><div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;"><button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:var(--ink); background:#fff; border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Записать стартап</button><button data-action="goStudent" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Записаться студентом</button></div></div></div></section>';
@@ -584,7 +584,7 @@
         '<p style="color:var(--muted); font-size:16px; margin:0 0 24px;">Укажите имя и фамилию <strong style="color:var(--ink);">как в паспорте или студенческом</strong> — именно это имя попадёт в официальный документ о практике.</p>' +
         '<div style="display:flex; flex-direction:column; gap:18px;">' +
           '<label style="' + S.label + '"><span style="' + S.labelSpan + '">Ваш статус</span><select data-field="status" style="' + S.input + '">' + statusOptions() + '</select><span style="font-size:12px; color:var(--muted);">Если вам ещё нет 18 — для доступа к каталогу потребуется согласие родителя.</span></label>' +
-          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('Имя <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'sfirst', 'Азиз') + inputField('Фамилия <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'slast', 'Каримов') + '</div>' +
+          '<div class="g2" style="display:grid; gap:14px;">' + inputField('Имя <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'sfirst', 'Азиз') + inputField('Фамилия <span style="color:var(--muted); font-weight:500;">(как в документах)</span>', 'slast', 'Каримов') + '</div>' +
           (state.profileSave.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.profileSave.error) + '</span>' : '') +
           '<button data-action="saveStudentProfile"' + (state.profileSave.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.profileSave.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.profileSave.loading ? 'Сохранение…' : 'Сохранить и завершить') + '</button>' +
         '</div></div>';
@@ -655,10 +655,10 @@
         '<p style="color:var(--muted); font-size:16px; margin:0 0 28px;">На старте профили компаний подтверждаются вручную — так мы защищаем студентов. Проверяем госреестр, корпоративный домен и созваниваемся с командой.</p>' +
         '<div style="display:flex; flex-direction:column; gap:18px;">' +
           inputField('Название компании', 'company', 'Напр. GreenTech Tashkent LLC') +
-          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('ИНН <span style="color:var(--muted); font-weight:500;">(госреестр)</span>', 'inn', '9 цифр') + inputField('Руководитель', 'director', 'ФИО по реестру') + '</div>' +
+          '<div class="g2" style="display:grid; gap:14px;">' + inputField('ИНН <span style="color:var(--muted); font-weight:500;">(госреестр)</span>', 'inn', '9 цифр') + inputField('Руководитель', 'director', 'ФИО по реестру') + '</div>' +
           inputField('Корпоративная почта <span style="color:var(--muted); font-weight:500;">(@домен, необязательно)</span>', 'corpEmail', 'you@company.uz') +
           inputField('LinkedIn или соцсети компании <span style="color:var(--muted); font-weight:500;">(необязательно)</span>', 'linkedin', 'Ссылка на профиль представителя или страницу') +
-          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + inputField('Контактное лицо', 'contact', 'Имя') + inputField('Телефон для созвона', 'phone', '+998 ...') + '</div>' +
+          '<div class="g2" style="display:grid; gap:14px;">' + inputField('Контактное лицо', 'contact', 'Имя') + inputField('Телефон для созвона', 'phone', '+998 ...') + '</div>' +
           '<div style="display:flex; gap:11px; align-items:flex-start; padding:14px 16px; background:color-mix(in srgb, var(--accent) 6%, #fff); border:1px solid color-mix(in srgb, var(--accent) 18%, #fff); border-radius:12px;"><span style="color:var(--accent); font-weight:700;">ⓘ</span><span style="font-size:13px; color:var(--muted); line-height:1.5;">Для первых компаний обязателен короткий созвон с командой платформы — это даёт максимальное доверие для студентов. Занимает 10–15 минут.</span></div>' +
           (state.companySubmit.error ? '<span style="font-size:13px; color:#b3261e; font-weight:600;">' + esc(state.companySubmit.error) + '</span>' : '') +
           '<button data-action="submitCompany"' + (state.companySubmit.loading ? ' disabled' : '') + ' style="margin-top:4px; ' + S.primary + (state.companySubmit.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (state.companySubmit.loading ? 'Отправка…' : 'Отправить заявку') + '</button>' +
@@ -768,7 +768,7 @@
     var listings;
     if (studentsActive) {
       listings = catalogStudents.length
-        ? '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">' + catalogStudents.map(studentCard).join('') + '</div>'
+        ? '<div class="g2" style="display:grid; gap:16px;">' + catalogStudents.map(studentCard).join('') + '</div>'
         : emptyCard('Пока нет студентов', 'Здесь появятся верифицированные студенты, как только они пройдут регистрацию.');
     } else if (minorLocked) {
       listings = minorLock('Каталог заблокирован');
@@ -782,7 +782,7 @@
     }
 
     return '<main class="view-in" style="max-width:1180px; margin:0 auto; padding:40px 28px 88px;">' + head +
-      '<div style="display:grid; grid-template-columns:270px 1fr; gap:24px; align-items:start;">' + sidebar + '<div>' + listings + '</div></div></main>';
+      '<div class="g-cat" style="display:grid; gap:24px; align-items:start;">' + sidebar + '<div>' + listings + '</div></div></main>';
   }
 
   /* ---------- STUDENT CABINET ---------- */
@@ -1203,7 +1203,7 @@
       textInput('pitch', 'Питч компании (до 200 симв.)', cp.pitch, 'Коротко — чем занимается компания', '', 200) +
       '<label style="display:block; margin:2px 0 12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Длительность проекта по умолчанию</span>' + durationSelect + '</label>' +
       '<div style="font-size:13px; font-weight:600; margin:14px 0 8px;">Куратор для стажёров</div>' +
-      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">' +
+      '<div class="g2" style="display:grid; gap:12px;">' +
       textInput('mentorName', 'Имя куратора', cp.mentorName, 'Например, Данил Темиргалиев') +
       textInput('mentorRole', 'Роль', cp.mentorRole, 'Например, Lead Engineer') +
       '</div>' +
@@ -3651,14 +3651,14 @@
       var specSelect = mySpecs.length
         ? '<label style="display:block; margin-bottom:12px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Специальность проекта <span style="color:var(--muted); font-weight:500;">(необязательно)</span></span><select data-item-field="specialty" style="' + S.field + '"><option value="">Без привязки</option>' + mySpecs.map(function (s) { return '<option value="' + esc(s) + '"' + (f.specialty === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>'
         : '';
-      fields = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' +
+      fields = '<div class="g2" style="display:grid; gap:14px;">' +
           '<div>' + itemField('Название проекта', 'name', f.name, 'Название') + specSelect + '</div>' +
           '<div>' + itemTextarea('Коротко, что вы сделали', 'desc', f.desc, 'Короткая подпись под карточкой — 1–2 предложения') + '</div>' +
         '</div>' +
         '<div style="border-top:1.5px solid var(--line); margin:16px 0 14px; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Разделы (по желанию)</span><span style="display:block; font-size:12px; color:var(--muted); margin:-6px 0 10px;">Например: «Задача», «Что сделал(а)», «Что получилось», «Что узнал(а)».</span>' + sectionsEditorHtml(f.sections || []) + '</div>' +
         '<div style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Детали проекта (по желанию)</span>' + detailsEditorHtml(f.details || []) + '</div>' +
         '<div style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:10px;">Хэштеги / маркеры</span>' + tagsEditorHtml(f.tags || []) + '</div>' +
-        '<div style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:14px;">' +
+        '<div class="g2" style="border-top:1.5px solid var(--line); margin:14px 0; padding-top:14px; display:grid; gap:14px;">' +
           itemField('Ссылка 1 — название', 'link1Label', f.link1Label, 'Например, GitHub, Behance, Портфолио', true) +
           itemField('Ссылка 1 — URL', 'link1Url', f.link1Url, 'https://...', true) +
           itemField('Ссылка 2 — название', 'link2Label', f.link2Label, 'Например, Демо, Кейс', true) +
@@ -3737,7 +3737,7 @@
         (big ? '<span style="position:absolute; bottom:6px; left:6px; font-size:10.5px; font-weight:700; color:#fff; background:rgba(18,20,26,0.55); padding:2px 7px; border-radius:999px;">Обложка</span>' : '') +
       '</div>';
     }).join('');
-    var grid = tiles ? '<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:10px;">' + tiles + '</div>' : '';
+    var grid = tiles ? '<div class="g4" style="display:grid; gap:8px; margin-bottom:10px;">' + tiles + '</div>' : '';
     return '<label data-dropzone style="display:block; cursor:pointer;">' + grid +
       '<div style="border:1.5px dashed var(--line); border-radius:12px; padding:16px; text-align:center; background:var(--bg);">' +
         '<div style="font-size:13px; font-weight:600; color:var(--ink);">' + (multi ? 'Перетащите фото или файлы сюда, или нажмите, чтобы выбрать' : 'Перетащите файл сюда, или нажмите, чтобы выбрать') + '</div>' +
@@ -4010,7 +4010,7 @@
       field('Название задачи', 'gigTitle', 'Напр. Дизайн лендинга для запуска') +
       '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Описание</span><textarea data-field="gigDesc" rows="4" placeholder="Что нужно сделать, объём работы, требования…" style="width:100%; font-size:14px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.5; resize:vertical;">' + esc(f.gigDesc || '') + '</textarea></label>' +
       '<label style="display:block; margin-bottom:14px;"><span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Формат</span><select data-field="gigFormat" style="width:100%; font-size:14px; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink);">' + fmtOpts + '</select></label>' +
-      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">' + field('Длительность', 'gigDuration', 'Напр. 2 недели') + field('Сколько человек нужно', 'gigSlots', 'Напр. 1') + '</div>' +
+      '<div class="g2" style="display:grid; gap:14px;">' + field('Длительность', 'gigDuration', 'Напр. 2 недели') + field('Сколько человек нужно', 'gigSlots', 'Напр. 1') + '</div>' +
       (gs.error ? '<div style="font-size:13px; color:#b3261e; font-weight:600; margin-bottom:8px;">' + esc(gs.error) + '</div>' : '') +
       '<button data-action="submitGig"' + (gs.loading ? ' disabled' : '') + ' style="width:100%; ' + S.primary + (gs.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (gs.loading ? 'Публикация…' : 'Опубликовать задачу') + '</button>' +
       '<button data-action="closeGigForm" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
