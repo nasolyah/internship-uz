@@ -173,6 +173,17 @@ p { text-wrap: pretty; }
 }
 
 @media (max-width: 620px) {
+  /* Карточка задачи была жёстким рядом «аватар | текст | кнопка» и на телефоне
+     не схлопывалась: на 409px заголовку доставалось 96px и он рвался на шесть
+     строк, название компании — на четыре, а под кнопкой пустовало 313px.
+     Кнопка уходит на свою строку во всю ширину, текст забирает первую целиком.
+     Класс, а не правка инлайна: до инлайн-стилей медиазапросы не достают. */
+  .gig-card { flex-wrap: wrap; }
+  .gig-card .gig-action { width: 100%; margin-top: 14px; align-items: stretch !important; }
+  .gig-card .gig-action > button,
+  button.gig-action { width: 100%; }
+  .gig-card .gig-action > span { text-align: left !important; max-width: none !important; }
+
   /* Отступ сверху был рассчитан под пилюлю, которую убрали: на телефоне почти
      100px пустоты съедали первый экран. */
   .hero-sec { padding-top: 34px !important; }

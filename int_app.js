@@ -736,18 +736,18 @@
     if (state.authRole === 'company') return '';
     var applied = applicationForGig(gigId);
     if (applied) {
-      return '<button data-action="openChat" data-app-id="' + esc(applied.id) + '" style="' + base + ' color:var(--ink); background:var(--bg); border:1.5px solid var(--line);">Открыть чат</button>';
+      return '<button class="gig-action" data-action="openChat" data-app-id="' + esc(applied.id) + '" style="' + base + ' color:var(--ink); background:var(--bg); border:1.5px solid var(--line);">Открыть чат</button>';
     }
     var st = state.applyState[gigId] || {};
-    var btn = '<button data-action="applyToGig" data-gig-id="' + esc(gigId) + '"' + (st.loading ? ' disabled' : '') +
+    var btn = '<button class="gig-action" data-action="applyToGig" data-gig-id="' + esc(gigId) + '"' + (st.loading ? ' disabled' : '') +
       ' style="' + base + ' color:#fff; background:var(--accent);' + (st.loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' +
       (st.loading ? 'Отправляем…' : 'Откликнуться') + '</button>';
     if (!st.error) return btn;
-    return '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">' + btn +
+    return '<div class="gig-action" style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">' + btn +
       '<span style="font-size:var(--text-micro); color:var(--err); font-weight:600; max-width:180px; text-align:right;">' + esc(st.error) + '</span></div>';
   }
   function gigCard(g) {
-    return '<div data-lift style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:var(--text-body); flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:var(--text-body);">' + g.title + '</span><span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:2px;">' + companyLink(g) + '</div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:var(--text-micro); color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div>' + gigActionHtml(g.id) + '</div>';
+    return '<div data-lift class="gig-card" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; display:flex; gap:18px; align-items:flex-start;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:var(--text-body); flex-shrink:0;">' + g.initials + '</div><div style="flex:1;"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span style="font-weight:600; font-size:var(--text-body);">' + g.title + '</span><span style="font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:3px 8px; border-radius:6px;">' + g.format + '</span></div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:2px;">' + companyLink(g) + '</div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:10px; line-height:1.5;">' + g.desc + '</div><div style="display:flex; gap:18px; margin-top:12px; font-size:var(--text-micro); color:var(--muted);"><span>⏱ ' + g.duration + '</span><span>👥 нужно ' + g.slots + '</span></div></div>' + gigActionHtml(g.id) + '</div>';
   }
   function minorLock(title) {
     var c = docStat('consent');
