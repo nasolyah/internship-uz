@@ -57,6 +57,8 @@
     // открыт ввод причины отказа.
     admin: { tab: 'pending', items: [], companies: [], statusReqs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null },
     tgDraft: false,
+    // Фильтр в плоском списке откликов компании: по умолчанию — те, что ждут ответа.
+    respTab: 'pending',
     menuOpen: false,
     modal: null,               // null | 'study' | 'consent'
     testView: null,            // null | 'intro' | 'running' | 'result'
@@ -362,7 +364,7 @@
     } else if (role === 'company') {
       // Каталога у компании нет: витрины студентов не существует (студенты приходят
       // сами, откликаясь), а чужие задачи компании ни к чему.
-      nav = navLink('goVacancies', 'Мои вакансии') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
+      nav = navLink('goVacancies', 'Мои вакансии') + navLink('goResponses', 'Отклики') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
     } else {
       nav = navLink('scrollHow', 'Как это работает') + navLink('scrollVerify', 'Верификация') + navLink('goCatalog', 'Каталог');
     }
@@ -1258,7 +1260,50 @@
         '<div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">' + statusChip(a.status) + chatButton(a.id, 'Открыть чат') + '</div>' +
       '</div>' + decision + '</div>';
   }
+  // Отклики компании одним списком по всем вакансиям. «Мои вакансии» отвечают на вопрос
+  // «что происходит по этой задаче», а этот вид — на «что требует ответа прямо сейчас»:
+  // когда вакансий много, новые отклики иначе приходится выискивать по всей странице.
+  function companyResponsesView() {
+    var appId = state.companyProfile && state.companyProfile.id;
+    var mine = (state.applications || []).filter(function (a) { return a.company_app_id === appId; });
+
+    if (!mine.length) {
+      return pageWrap('Отклики', state.appsLoading
+        ? '<div style="text-align:center; padding:48px; color:var(--muted); font-size:14px;">Загружаем отклики…</div>'
+        : emptyState('◎', 'Пока нет откликов', 'Как только студенты откликнутся на ваши задачи, они появятся здесь — все вакансии в одном списке.', 'goVacancies', 'Мои вакансии'), 1200);
+    }
+
+    var counts = { pending: 0, invited: 0, rejected: 0 };
+    mine.forEach(function (a) { if (counts[a.status] != null) counts[a.status]++; });
+    var tab = state.respTab || 'pending';
+    var shown = tab === 'all' ? mine : mine.filter(function (a) { return a.status === tab; });
+
+    var tb = function (id, label, n) {
+      var active = tab === id;
+      return '<button data-action="respTab" data-tab="' + id + '" style="font-size:13.5px; font-weight:600; padding:9px 16px; border-radius:10px; cursor:pointer; border:1.5px solid ' + (active ? 'var(--ink)' : 'var(--line)') + '; background:' + (active ? 'var(--ink)' : '#fff') + '; color:' + (active ? '#fff' : 'var(--muted)') + ';">' +
+        label + (n ? ' · ' + n : '') + '</button>';
+    };
+    var tabs = '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">' +
+      tb('pending', 'Ждут ответа', counts.pending) +
+      tb('invited', 'Приглашены', counts.invited) +
+      tb('rejected', 'Отказ', counts.rejected) +
+      tb('all', 'Все', mine.length) + '</div>';
+
+    // К какой задаче относится отклик — в плоском списке это главное, чего не хватает
+    // карточке: она рассчитана на показ внутри секции вакансии.
+    var list = shown.length
+      ? '<div style="display:flex; flex-direction:column; gap:14px;">' + shown.map(function (a) {
+          var gigTitle = (a.gigs && a.gigs.title) || 'Задача удалена';
+          return '<div><div style="font-size:12.5px; color:var(--muted); margin-bottom:6px; ' + S.wrap + '">' + esc(gigTitle) + '</div>' + applicationCard(a) + '</div>';
+        }).join('') + '</div>'
+      : '<div style="' + RO_CARD + ' text-align:center; color:var(--muted); font-size:14px;">' +
+        (tab === 'pending' ? 'Все отклики разобраны — никто не ждёт ответа.' : 'Пусто.') + '</div>';
+
+    return pageWrap('Отклики', tabs + list, 1200);
+  }
+
   function responsesView() {
+    if (state.authRole === 'company') return companyResponsesView();
     if (state.authRole !== 'student') return homeView();
     if (!state.applications.length) {
       return pageWrap('Мои отклики', state.appsLoading
@@ -1742,6 +1787,7 @@
     goCabinet: function () { setState({ view: 'cabinet', extrasSave: { loading: false, error: '', ok: false } }); top(); },
     goResponses: function () { loadApplications(); setState({ view: 'responses' }); top(); },
     goVacancies: function () { loadApplications(); setState({ view: 'vacancies' }); top(); },
+    respTab: function (el) { setState({ respTab: el.getAttribute('data-tab') }); },
     // Меню открывается/закрывается без полной перерисовки — иначе тело страницы «дёргается» (повтор анимаций).
     toggleMenu: function () { state.menuOpen = !state.menuOpen; paintHeader(); },
     // Открывает окно авторизации Telegram через JS-API (своя кнопка вместо iframe-виджета).
@@ -2666,7 +2712,7 @@
         authRole: null, studentProfile: null, companyProfile: null, session: null,
         studentStep: 'login', companyStep: 'login', otpRole: 'student',
         files: [], filesLoading: false, isAdmin: false,
-        admin: { tab: 'pending', items: [], companies: [], statusReqs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false,
+        admin: { tab: 'pending', items: [], companies: [], statusReqs: [], loading: false, error: '', rejectFor: null, reason: '', busy: null }, tgDraft: false, respTab: 'pending',
         otp: { email: '', error: '', loading: false },
         tgAuth: { loading: false, error: '' },
         // Иначе следующий вход в этом же браузере увидел бы привязки предыдущего человека.
