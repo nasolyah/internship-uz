@@ -485,13 +485,14 @@
     // компании, которая заплатила и увидит внутри пустой каталог, — быстрый способ
     // потерять доверие, то есть ровно то, что платформа и продаёт.
 
-    var hero = '<section style="max-width:1180px; margin:0 auto; padding:76px 28px 40px;">' +
+    var hero = '<section class="hero-sec" style="max-width:1180px; margin:0 auto; padding:76px 28px 40px;">' +
       // Одна колонка: правую занимал блок с цифрами, без него сетка оставляла пустоту.
       // Ширина под самую длинную строку заголовка — на 760px «—» переносилось отдельно.
       '<div style="max-width:920px;">' +
         '<div>' +
-          '<div class="hero-up" style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1.5px solid var(--line); border-radius:999px; background:#fff; font-size:12.5px; font-weight:600; color:var(--muted); letter-spacing:0.01em; animation-delay:.02s;"><span style="width:6px; height:6px; border-radius:50%; background:var(--accent);"></span>Платформа стажировок · Узбекистан</div>' +
-          '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(30px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:22px 0 0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
+          // Пилюля с точкой «Платформа стажировок · Узбекистан» убрана: она дублировала
+          // подзаголовок и была ровно тем ИИ-штампом, который отмечала критика.
+          '<h1 class="hero-up" style="font-family:\'Space Grotesk\',sans-serif; font-weight:600; font-size:clamp(30px,4.6vw,60px); line-height:1.04; letter-spacing:-0.025em; margin:0; animation-delay:.08s;">Стартапам — руки.<br>Студентам и школьникам —<br>первый реальный опыт.</h1>' +
           '<p class="hero-up" style="font-size:18px; line-height:1.55; color:var(--muted); max-width:500px; margin:22px 0 0; animation-delay:.14s;">internship.uz связывает узбекские стартапы со студентами и школьниками: живые проекты, верифицированные профили и официальный документ о пройденной практике.</p>' +
           '<div class="hero-up" style="display:flex; gap:12px; margin-top:30px; flex-wrap:wrap; animation-delay:.2s;">' +
             '<button data-action="goStartupForm" style="font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 24px; border-radius:11px; cursor:pointer;">Разместить задачу</button>' +
