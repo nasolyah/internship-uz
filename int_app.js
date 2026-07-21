@@ -72,6 +72,9 @@
     modal: null,               // null | 'study' | 'consent'
     testView: null,            // null | 'intro' | 'running' | 'result'
     testConfirmExit: false,    // показан ли вопрос «прервать тест?»
+    undoItem: null,            // {key, index, item, label} — что можно вернуть после удаления
+    itemConfirmClose: false,   // показан ли вопрос «закрыть без сохранения?»
+    confirmRejectApp: null,    // id отклика, по которому спрошено подтверждение отказа
     testResult: null,
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
@@ -211,6 +214,25 @@
   // Ключ коллекции профиля по типу элемента (используется модалкой добавления/редактирования).
   function collectionKey(type) {
     return { skill: 'hardSkills', language: 'languages', project: 'projects', achievement: 'achievements' }[type];
+  }
+  // Название удалённого элемента для плашки отмены — в единственном числе.
+  function itemTypeLabel(type) {
+    return { skill: 'Навык', language: 'Язык', project: 'Проект', achievement: 'Сертификат' }[type] || 'Элемент';
+  }
+  var undoTimer = null;
+  /* Есть ли в форме элемента что-то, что жалко потерять. Пустые строки, пустые
+     массивы и служебные поля не считаются: иначе вопрос всплывал бы при закрытии
+     нетронутой формы. */
+  function itemFormDirty() {
+    var f = state.itemForm;
+    if (!f) return false;
+    return Object.keys(f).some(function (k) {
+      var v = f[k];
+      if (v == null || v === '' || v === false) return false;
+      if (Array.isArray(v)) return v.length > 0;
+      if (typeof v === 'object') return Object.keys(v).length > 0;
+      return true;
+    });
   }
   // Локальный id для элементов динамических списков внутри модалки (разделы, детали, файловые слоты).
   function newLocalId(prefix) { return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); }
@@ -1370,10 +1392,19 @@
         '<button data-action="openCompleteModal" data-app-id="' + esc(a.id) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Завершить стажировку</button></div>';
     }
     if (asCompany && a.status === 'pending') {
-      decision = '<div style="display:flex; gap:8px; margin-top:12px;">' +
-        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="invited" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ok); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button>' +
-        '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="rejected" style="font-size:var(--text-micro); font-weight:600; color:var(--err); background:#fff; border:1px solid color-mix(in srgb, var(--err) 30%, #fff); padding:8px 14px; border-radius:8px; cursor:pointer;">Отказать</button>' +
-      '</div>';
+      /* Отказ спрашивает подтверждение и называет студента по имени: решение
+         необратимо и закрывает человеку один путь к документу. */
+      decision = state.confirmRejectApp === a.id
+        ? '<div style="margin-top:12px; padding:12px 14px; background:color-mix(in srgb, var(--err) 8%, #fff); border:1px solid color-mix(in srgb, var(--err) 26%, #fff); border-radius:10px;">' +
+          '<div style="font-size:var(--text-micro); color:var(--err); font-weight:600; margin-bottom:10px; line-height:1.45;">Отказать: ' + esc(a.student_name || 'студенту') + '? Отменить решение будет нельзя.</div>' +
+          '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+            '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="rejected" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--err); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Отказать</button>' +
+            '<button data-action="cancelRejectApp" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:8px 14px; border-radius:8px; cursor:pointer;">Не отказывать</button>' +
+          '</div></div>'
+        : '<div style="display:flex; gap:8px; margin-top:12px;">' +
+          '<button data-action="setAppStatus" data-app-id="' + esc(a.id) + '" data-status="invited" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ok); border:none; padding:8px 14px; border-radius:8px; cursor:pointer;">Пригласить</button>' +
+          '<button data-action="askRejectApp" data-app-id="' + esc(a.id) + '" style="font-size:var(--text-micro); font-weight:600; color:var(--err); background:#fff; border:1px solid color-mix(in srgb, var(--err) 30%, #fff); padding:8px 14px; border-radius:8px; cursor:pointer;">Отказать</button>' +
+        '</div>';
     }
 
     return '<div style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px 26px;">' +
@@ -2408,11 +2439,16 @@
       if (existing && existing.files) existing.files.forEach(function (fl) { slots.push({ id: newLocalId('slot'), kind: 'existing', name: fl.name, url: fl.url, path: fl.path, type: fl.type, size: fl.size }); });
       form.fileSlots = slots;
       state.itemForm = form;
-      setState({ itemModal: { type: type, index: index }, skillDetail: null, projectDetail: null, itemUpload: { loading: false, error: '', fileName: '' } });
+      setState({ itemModal: { type: type, index: index }, skillDetail: null, projectDetail: null, itemConfirmClose: false, itemUpload: { loading: false, error: '', fileName: '' } });
     },
+    /* Подложка модалки закрывает её же, а форма проекта — это разделы, детали,
+       ссылки и загруженные фото. Случайное касание мимо окна стирало всё разом
+       и молча. Если что-то заполнено, сначала спрашиваем. */
     closeItemModal: function () {
-      setState({ itemModal: null, itemForm: {}, itemUpload: { loading: false, error: '', fileName: '' } });
+      if (itemFormDirty() && !state.itemConfirmClose) { setState({ itemConfirmClose: true }); return; }
+      setState({ itemModal: null, itemForm: {}, itemConfirmClose: false, itemUpload: { loading: false, error: '', fileName: '' } });
     },
+    cancelCloseItemModal: function () { setState({ itemConfirmClose: false }); },
     toggleItemFormArrayValue: function (t) {
       var field = t.getAttribute('data-arr-field');
       var val = t.getAttribute('data-arr-value');
@@ -2570,13 +2606,33 @@
       }
       finalizeFiles([]);
     },
+    /* Удаление даёт отмену, а не спрашивает разрешения. Кнопки «изменить» и
+       «удалить» стоят в нескольких пикселях друг от друга, а на грубом указателе
+       область нажатия у каждой 44×44 — промахнуться легко, и раньше промах
+       навсегда уносил проект вместе с загруженными фото. Диалог подтверждения
+       мешал бы при намеренном удалении; отмена не мешает никогда. */
     removeItem: function (t) {
       if (!state.studentProfile) return;
       var type = t.getAttribute('data-item-type');
       var key = collectionKey(type);
       var i = Number(t.getAttribute('data-item-index'));
-      state.studentProfile[key] = (state.studentProfile[key] || []).filter(function (_, idx) { return idx !== i; });
-      setState({});
+      var list = state.studentProfile[key] || [];
+      var removed = list[i];
+      if (!removed) return;
+      state.studentProfile[key] = list.filter(function (_, idx) { return idx !== i; });
+      if (undoTimer) clearTimeout(undoTimer);
+      undoTimer = setTimeout(function () { undoTimer = null; setState({ undoItem: null }); }, 8000);
+      setState({ undoItem: { key: key, index: i, item: removed, label: itemTypeLabel(type) } });
+      if (supabase && currentUserId()) saveProfileToDb();
+    },
+    undoRemoveItem: function () {
+      var u = state.undoItem;
+      if (!u || !state.studentProfile) return;
+      var list = (state.studentProfile[u.key] || []).slice();
+      list.splice(Math.min(u.index, list.length), 0, u.item);
+      state.studentProfile[u.key] = list;
+      if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+      setState({ undoItem: null });
       if (supabase && currentUserId()) saveProfileToDb();
     },
     // Загрузка фото профиля — сразу при выборе файла.
@@ -3036,11 +3092,18 @@
         });
     },
     // Решение компании по отклику: приглашение или отказ.
+    askRejectApp: function (el) { setState({ confirmRejectApp: el.getAttribute('data-app-id') }); },
+    cancelRejectApp: function () { setState({ confirmRejectApp: null }); },
     setAppStatus: function (el) {
       var appId = el.getAttribute('data-app-id');
       var status = el.getAttribute('data-status');
       var a = findApplication(appId);
       if (!a || !supabase || state.authRole !== 'company' || a.status === status) return;
+      /* Отказ необратим: после него ветка «ждёт решения» больше не отрисуется ни
+         у компании, ни у студента, и один путь к документу закрывается навсегда.
+         Приглашение обратимо, поэтому вопрос только про отказ. */
+      if (status === 'rejected' && state.confirmRejectApp !== appId) { setState({ confirmRejectApp: appId }); return; }
+      if (state.confirmRejectApp) state.confirmRejectApp = null;
       var before = a.status;
       a.status = status;
       render();
@@ -3804,6 +3867,14 @@
       fields +
       '<label style="display:block; margin-top:8px;"><span style="display:block; font-size:var(--text-caption); font-weight:600; margin-bottom:6px;">' + (multi ? 'Фото и файлы проекта' : 'Прикрепить файл') + ' <span style="color:var(--muted); font-weight:400;">(необязательно)</span></span>' + picker + aiNote + '</label>' +
       err +
+      (state.itemConfirmClose
+        ? '<div style="margin-top:16px; padding:12px 14px; background:color-mix(in srgb, var(--warn) 10%, #fff); border:1px solid color-mix(in srgb, var(--warn) 26%, #fff); border-radius:10px;">' +
+          '<div style="font-size:var(--text-caption); color:var(--warn); font-weight:600; margin-bottom:10px; line-height:1.45;">Закрыть без сохранения? Заполненное не сохранится.</div>' +
+          '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+            '<button data-action="closeItemModal" style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--warn); border:none; padding:9px 16px; border-radius:9px; cursor:pointer;">Закрыть</button>' +
+            '<button data-action="cancelCloseItemModal" style="font-size:var(--text-caption); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer;">Вернуться к заполнению</button>' +
+          '</div></div>'
+        : '') +
       '<button data-action="saveItemModal"' + (loading ? ' disabled' : '') + ' style="margin-top:16px; width:100%; ' + S.primary + (loading ? ' opacity:0.6; cursor:not-allowed;' : '') + '">' + (loading ? 'Загрузка…' : (isEdit ? 'Сохранить' : 'Добавить')) + '</button>' +
       '<button data-action="closeItemModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
     '</div>';
@@ -4183,6 +4254,17 @@
   }
 
   /* ---------- gig posting modal (company) ---------- */
+  /* Плашка отмены после удаления. Живёт внизу экрана, где до неё дотягивается
+     большой палец, и исчезает сама через 8 секунд. */
+  function undoBarHtml() {
+    var u = state.undoItem;
+    if (!u) return '';
+    return '<div class="rise-in" style="position:fixed; left:50%; transform:translateX(-50%); bottom:20px; z-index:95; display:flex; align-items:center; gap:14px; background:var(--ink); color:#fff; padding:12px 16px; border-radius:12px; box-shadow:0 18px 40px -16px rgba(18,20,26,0.55); max-width:calc(100vw - 32px);">' +
+      '<span style="font-size:var(--text-caption);">' + esc(u.label) + ' удалён</span>' +
+      '<button data-action="undoRemoveItem" style="font-size:var(--text-caption); font-weight:600; color:var(--accent-on-dark); background:none; border:none; cursor:pointer; padding:0; white-space:nowrap;">Отменить</button>' +
+    '</div>';
+  }
+
   function gigModalHtml() {
     if (!state.gigModal) return '';
     var f = state.form, gs = state.gigSubmit;
@@ -4229,7 +4311,7 @@
   function render() {
     var keepChatFocus = state.view === 'chat' && (chatInputHasFocus() || focusChatInput);
     focusChatInput = false;
-    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml();
+    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml() + undoBarHtml();
 
     // render() переписывает весь root, поэтому <main class="view-in"> создаётся заново
     // при каждом изменении состояния — и анимация появления стартовала с нуля на каждый
