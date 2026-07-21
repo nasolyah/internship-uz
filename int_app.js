@@ -147,7 +147,7 @@
     { icon: '✉', title: 'Почта вуза + SMS', desc: 'Базовая верификация студента — бесплатно.', tag: 'Бесплатно' },
     { icon: '★', title: 'Сертификаты навыков', desc: 'Подтверждение через API площадок, а не сканы.', tag: 'Опционально' },
     { icon: '◇', title: 'ИИ-тест навыков', desc: 'Объективная оценка уровня перед откликом.', tag: 'Автоматически' },
-    { icon: '§', title: 'Документ о практике', desc: 'Учебная практика, а не трудоустройство.', tag: 'Официально' }
+    { icon: '✓', title: 'Документ о практике', desc: 'Учебная практика, а не трудоустройство.', tag: 'Официально' }
   ];
   // Каталог наполняется реальными профилями/задачами по мере регистрации. Пока пусто.
   var catalogStudents = [];
@@ -561,8 +561,13 @@
         '<div><div style="font-weight:600; font-size:var(--text-body); margin-bottom:20px; display:flex; align-items:center; gap:9px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent);"></span>Студент</div>' + stepsStudent.map(function (s) { return stepItem(s, true); }).join('') + '</div>' +
       '</div></div></section>';
 
+    /* Тег внизу карточки был надкоронкой заглавными с разрядкой, и так на всех
+       четырёх — ровно тот шаблон, который DESIGN.md называет ИИ-грамматикой.
+       Сама информация («Бесплатно», «Официально») полезна, поэтому осталась,
+       но как обычная подпись приглушённым, а не как акцент на декорации. */
     var verifyCard = function (q) {
-      return '<div data-lift data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:22px;"><div style="width:36px; height:36px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:var(--text-body); margin-bottom:14px;">' + q.icon + '</div><div style="font-weight:600; font-size:var(--text-body);">' + q.title + '</div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:5px; line-height:1.5;">' + q.desc + '</div><div style="margin-top:12px; font-size:var(--text-micro); font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:0.04em;">' + q.tag + '</div></div>';
+      return '<div data-lift data-stagger style="background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:22px;"><div style="width:36px; height:36px; border-radius:9px; background:color-mix(in srgb, var(--accent) 10%, #fff); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:var(--text-body); margin-bottom:14px;">' + q.icon + '</div><div style="font-weight:600; font-size:var(--text-body);">' + q.title + '</div><div style="font-size:var(--text-caption); color:var(--muted); margin-top:5px; line-height:1.5;">' + q.desc + '</div>' +
+        '<div style="margin-top:12px; font-size:var(--text-micro); font-weight:600; color:var(--muted);">' + q.tag + '</div></div>';
     };
     var verify = '<section id="sec-verify" data-reveal style="max-width:1180px; margin:0 auto; padding:72px 28px;">' +
       '<div class="g-split" style="display:grid; gap:56px; align-items:center;">' +
@@ -573,7 +578,14 @@
         '<div class="g2" style="display:grid; gap:16px;">' + verifyItems.map(verifyCard).join('') + '</div>' +
       '</div></section>';
 
-    var waitlist = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:32px 28px 88px;"><div style="background:var(--ink); border-radius:22px; padding:56px 40px; text-align:center; color:#fff; position:relative; overflow:hidden;"><div style="position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 60%); opacity:0.5;"></div><div style="position:relative;"><h2 style="font-weight:700; font-size:clamp(28px,3.2vw,42px); letter-spacing:-0.02em; margin:0;">Присоединяйтесь к пилоту</h2><p style="font-size:var(--text-body); color:rgba(255,255,255,0.66); max-width:480px; margin:14px auto 0;">Набираем первые 5–10 стартапов и 10–20 студентов. Ранние участники получают бесплатный доступ и приоритет в матчинге.</p><div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;"><button data-action="goStartupForm" style="font-size:var(--text-body); font-weight:600; color:var(--ink); background:#fff; border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Разместить задачу</button><button data-action="goStudent" style="font-size:var(--text-body); font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Найти стажировку</button></div></div></div></section>';
+    /* Здесь был радиальный градиент акцента поверх тёмной карточки. Он нарушал
+       сразу четыре записанных правила: анти-пример «тёмная тема, фиолетовые
+       градиенты» из PRODUCT.md, запрет ambient-подсветки «для объёма», запрет
+       акцента на декорации и потолок скругления 18px. Тёмная карточка сама по
+       себе даёт нужный контраст с бумажным фоном — подсветка ничего не
+       добавляла, кроме сходства с типовым SaaS-лендингом. */
+    var waitlist = '<section data-reveal style="max-width:1180px; margin:0 auto; padding:32px 28px 88px;">' +
+      '<div style="background:var(--ink); border-radius:18px; padding:56px 40px; text-align:center; color:#fff;"><div><h2 style="font-weight:700; font-size:clamp(1.75rem, 3vw, 2.375rem); letter-spacing:-0.02em; margin:0;">Присоединяйтесь к пилоту</h2><p style="font-size:var(--text-body); color:rgba(255,255,255,0.66); max-width:480px; margin:14px auto 0;">Набираем первые 5–10 стартапов и 10–20 студентов. Ранние участники получают бесплатный доступ и приоритет в матчинге.</p><div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap;"><button data-action="goStartupForm" style="font-size:var(--text-body); font-weight:600; color:var(--ink); background:#fff; border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Разместить задачу</button><button data-action="goStudent" style="font-size:var(--text-body); font-weight:600; color:#fff; background:var(--accent); border:none; padding:14px 26px; border-radius:11px; cursor:pointer;">Найти стажировку</button></div></div></div></section>';
 
     return '<main class="view-in">' + hero + value + how + verify + waitlist + '</main>';
   }
