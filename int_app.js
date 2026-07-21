@@ -1276,10 +1276,15 @@
       '</div>';
     }
 
-    var rows = steps.map(function (s, i) {
+    var rows = steps.map(function (s) {
+      /* Пункты не нумеруются: порядок между ними не обязателен. Тест, например,
+         нигде не блокирует отклик — он только показывает компаниям уровень,
+         поэтому «3» рядом с уже пройденным откликом при непройденном «2»
+         обещала бы последовательность, которой в продукте нет. Незакрытый
+         пункт — пустой кружок, ждущий проверки — обведён предупреждающим. */
       var mark = s.done
         ? '<span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--ok); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:11px;">✓</span>'
-        : '<span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; border:1.5px solid ' + (s.wait ? 'var(--warn)' : 'var(--line)') + '; color:' + (s.wait ? 'var(--warn)' : 'var(--muted)') + '; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;">' + (i + 1) + '</span>';
+        : '<span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; border:1.5px solid ' + (s.wait ? 'var(--warn)' : 'var(--line)') + '; display:inline-flex;"></span>';
       var label = '<span style="font-size:var(--text-caption); color:' + (s.done ? 'var(--muted)' : 'var(--ink)') + '; font-weight:' + (s.done ? '400' : '600') + ';">' + s.label + (s.wait ? ' · на проверке' : '') + '</span>';
       var go = (!s.done && !s.wait && s.action)
         ? '<button data-action="' + s.action + '" style="margin-left:auto; flex-shrink:0; font-size:var(--text-micro); font-weight:600; color:var(--accent); background:none; border:none; cursor:pointer; padding:0;">Перейти</button>'
@@ -1289,7 +1294,7 @@
 
     return '<div class="journey-panel" style="position:fixed; right:20px; bottom:20px; z-index:60; width:min(300px, calc(100vw - 40px)); background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:16px 18px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34);">' +
       '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">' +
-        '<span style="font-size:var(--text-micro); font-weight:600; color:var(--muted);">Ваш путь · ' + doneCount + ' из ' + steps.length + '</span>' +
+        '<span style="font-size:var(--text-micro); font-weight:600; color:var(--muted);">Ваш прогресс · ' + doneCount + ' из ' + steps.length + '</span>' +
         /* Две кнопки, и разница между ними должна быть очевидна: свернуть —
            временно, закрыть — насовсем. Поэтому у крестика подпись говорит
            прямо, что панель больше не появится. */
