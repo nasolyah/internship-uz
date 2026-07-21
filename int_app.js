@@ -3898,27 +3898,56 @@
       }).catch(function () { setState({ testGenLoading: false }); });
   }
   function fmtTime(sec) { var m = Math.floor(sec / 60), s = sec % 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
-  // ---- Анти-чит во время ИИ-теста: fullscreen + детект переключения окна/вкладки ----
-  // Полная блокировка скриншотов технически невозможна из браузера — это реалистичный набор
-  // сигналов (выход из fullscreen, потеря фокуса, скрытие вкладки), которые фиксируются как
-  // подозрительная активность и сохраняются вместе с результатом теста.
+  /* ---- Анти-чит во время ИИ-теста ----
+     Полная блокировка скриншотов из браузера невозможна, и второй телефон рядом
+     не детектируется вообще. Значит строгость здесь ловит не списывающих, а
+     честных: раньше любая потеря фокуса засчитывалась мгновенно, поэтому входящее
+     уведомление, звонок или появление экранной клавиатуры на iOS делали студента
+     нарушителем. Хуже того, три обработчика (blur, visibilitychange,
+     fullscreenchange) срабатывали на одно переключение и давали три отметки.
+
+     Теперь считается только уход дольше AWAY_GRACE_MS, одно переключение — одна
+     отметка, а выход из полноэкранного режима сам по себе не считается: на iOS
+     Safari requestFullscreen для documentElement не работает в принципе, и
+     наказывать за это владельца айфона бессмысленно. */
+  var AWAY_GRACE_MS = 5000;   // короче — это уведомление, а не списывание
+  var FLAG_DEDUP_MS = 1500;   // события в пределах окна считаются одним уходом
+  var testAwayAt = 0;
+  var testLastFlagAt = 0;
+
   function flagSuspiciousActivity() {
+    var now = Date.now();
+    if (now - testLastFlagAt < FLAG_DEDUP_MS) return;
+    testLastFlagAt = now;
     state.testFlags = (state.testFlags || 0) + 1;
     setState({ testFullscreenWarn: true });
     setTimeout(function () { setState({ testFullscreenWarn: false }); }, 4000);
   }
-  function onTestVisibilityChange() { if (document.hidden && state.testView === 'running') flagSuspiciousActivity(); }
-  function onTestBlur() { if (state.testView === 'running') flagSuspiciousActivity(); }
-  function onTestFullscreenChange() { if (state.testView === 'running' && !document.fullscreenElement) flagSuspiciousActivity(); }
+  function testMarkAway() {
+    if (state.testView !== 'running' || testAwayAt) return;
+    testAwayAt = Date.now();
+  }
+  function testMarkBack() {
+    if (!testAwayAt) return;
+    var gone = Date.now() - testAwayAt;
+    testAwayAt = 0;
+    if (state.testView !== 'running') return;
+    if (gone >= AWAY_GRACE_MS) flagSuspiciousActivity();
+  }
+  function onTestVisibilityChange() { if (document.hidden) testMarkAway(); else testMarkBack(); }
+  function onTestBlur() { testMarkAway(); }
+  function onTestFocus() { testMarkBack(); }
   function attachAntiCheat() {
+    testAwayAt = 0; testLastFlagAt = 0;
     document.addEventListener('visibilitychange', onTestVisibilityChange);
     window.addEventListener('blur', onTestBlur);
-    document.addEventListener('fullscreenchange', onTestFullscreenChange);
+    window.addEventListener('focus', onTestFocus);
   }
   function detachAntiCheat() {
+    testAwayAt = 0;
     document.removeEventListener('visibilitychange', onTestVisibilityChange);
     window.removeEventListener('blur', onTestBlur);
-    document.removeEventListener('fullscreenchange', onTestFullscreenChange);
+    window.removeEventListener('focus', onTestFocus);
   }
   function enterTestFullscreen() {
     try {
@@ -4069,10 +4098,17 @@
         (state.testGenLoading ? '<div style="display:flex; align-items:center; gap:8px; font-size:var(--text-micro); color:var(--muted); margin-bottom:14px;">Готовим свежие вопросы…</div>'
           : aiGenerated ? '<div style="display:inline-flex; align-items:center; gap:6px; font-size:var(--text-micro); font-weight:600; color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, #fff); padding:4px 10px; border-radius:999px; margin-bottom:14px;">Вопросы сгенерированы ИИ специально для вас</div>' : '') +
         '<div style="background:var(--bg); border:1.5px solid var(--line); border-radius:14px; padding:18px 20px;"><div style="font-weight:600; font-size:var(--text-caption); margin-bottom:12px;">Как проходит тест</div><ul style="margin:0; padding-left:20px; font-size:var(--text-caption); color:var(--ink);">' +
-          li('<strong>8 вопросов с вариантами</strong> ответа + <strong>1 открытый</strong> практический вопрос.') +
+          /* Число берётся из банка: он может генерироваться ИИ, и жёстко зашитая
+             «8» врала бы, если вопросов пришло другое количество. */
+          li('<strong>' + ((bank && bank.mcq) ? bank.mcq.length : 8) + ' вопросов с вариантами</strong> ответа + <strong>1 открытый</strong> практический вопрос.') +
           li('На весь тест — <strong>' + TEST_MIN + ' минут</strong>, идёт обратный отсчёт. По истечении тест завершится автоматически.') +
-          li('<strong>Одна попытка.</strong> Если закрыть окно — тест сбросится и его нужно будет начать заново.') +
-          li('Тест проходит в полноэкранном режиме. Переключение окна или выход из полноэкранного режима фиксируется как подозрительная активность.') +
+          /* Раньше здесь стояли две угрозы подряд: «тест сбросится» и «фиксируется
+             как подозрительная активность». Подросток читал это перед началом и
+             входил в тест уже под давлением. Закрыть окно случайно теперь нельзя
+             (подложка инертна, крестик спрашивает), а про отметки честнее сказать,
+             что именно они значат: они не приговор и никого не блокируют. */
+          li('<strong>Одна попытка.</strong> Прервать можно в любой момент, но начать заново не получится.') +
+          li('Если надолго переключитесь на другое приложение, это отметится рядом с результатом — компания увидит пометку. Короткие уведомления и звонки не считаются.') +
           li('По результату вы получите <strong>уровень</strong> (Базовый / Уверенный / Продвинутый).') +
         '</ul></div>' +
         (bank ? '' : '<div style="margin-top:16px; padding:12px 14px; background:color-mix(in srgb, var(--err) 8%, #fff); border:1px solid color-mix(in srgb, var(--err) 22%, #fff); border-radius:10px; font-size:var(--text-caption); color:var(--err);">Для этой специальности пока нет вопросов.</div>') +
@@ -4118,8 +4154,19 @@
         '<div style="display:inline-flex; flex-direction:column; gap:6px; background:var(--bg); border:1.5px solid var(--line); border-radius:14px; padding:18px 30px; margin-bottom:20px;">' +
           '<span style="font-size:var(--text-caption); color:var(--muted);">Ваш уровень</span><span style="font-weight:600; font-size:var(--text-h2); color:' + levelColor(r.level) + ';">' + r.level + '</span>' +
           '<span style="font-size:var(--text-caption); color:var(--muted);">Верных ответов: ' + r.correct + ' из ' + r.total + '</span></div>' +
-        (r.flags ? '<div style="font-size:var(--text-micro); color:var(--err); font-weight:600; margin-bottom:16px;">Зафиксировано подозрительных действий: ' + r.flags + '</div>' : '') +
-        '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.5; max-width:420px; margin:0 auto 22px;">Открытый ответ в полной версии оценивается ИИ (Claude) по ясности, логике и релевантности. Сейчас засчитаны вопросы с вариантами.</p>' +
+        /* Раньше здесь стояло «Зафиксировано подозрительных действий: N» красным
+           и без единого слова о последствиях: максимум тревоги при нуле
+           информации. Формулировка нейтральная, последствие названо прямо. */
+        (r.flags ? '<div style="font-size:var(--text-caption); color:var(--warn); background:color-mix(in srgb, var(--warn) 10%, #fff); border:1px solid color-mix(in srgb, var(--warn) 24%, #fff); border-radius:10px; padding:10px 14px; margin-bottom:16px; line-height:1.45; max-width:420px; margin-left:auto; margin-right:auto;">Во время теста вы отходили от вкладки: ' + r.flags + ' ' + pluralRu(r.flags, 'раз', 'раза', 'раз') + '. Пометка сохранится рядом с результатом — на уровень она не влияет, но компания её увидит.</div>' : '') +
+        /* Было: «Открытый ответ в полной версии оценивается ИИ (Claude)…».
+           Две проблемы. Во-первых, «в полной версии» студент читает буквально —
+           что ему подсунули неполный продукт. Во-вторых, это неправда по факту:
+           submitTest читает поле в openEl, но в aiTest сохраняются только уровень,
+           счёт, время и отметки — открытый ответ не записывается никуда и его
+           никто никогда не прочитает. Для платформы, чей первый принцип —
+           «не обещать статуса, которого нет», обещание несуществующей проверки
+           хуже, чем её отсутствие. Текст говорит ровно то, что происходит. */
+        '<p style="font-size:var(--text-caption); color:var(--muted); line-height:1.5; max-width:420px; margin:0 auto 22px;">Уровень посчитан по вопросам с вариантами. Открытый вопрос — для практики: автоматическая проверка развёрнутых ответов пока не подключена.</p>' +
         '<button data-action="closeTest" style="' + S.primary.replace('padding:15px', 'padding:13px 30px') + '">Готово</button>' +
       '</div>';
     } else {
