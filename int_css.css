@@ -386,9 +386,3 @@ p { text-wrap: pretty; }
   }
 }
 @media print { .journey-panel { display: none !important; } }
-
-/* Панель шагов висит поверх страницы и накрывала подвал с почтой и статусом.
-   Отступ добавляется только когда панель на экране — иначе внизу зияла бы
-   пустота. Высота панели ~200px при четырёх шагах плюс её отступ снизу. */
-.has-journey > footer { padding-bottom: 232px; }
-@media (max-width: 620px) { .has-journey > footer { padding-bottom: 300px; } }
