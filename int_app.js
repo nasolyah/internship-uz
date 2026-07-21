@@ -853,14 +853,14 @@
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1.5px solid var(--line);"><span style="font-size:var(--text-caption); color:var(--muted);">' + label + '</span>' + right + '</div>';
     };
     var val = function (v) { return '<span style="font-size:var(--text-caption); font-weight:600; text-align:right; ' + S.wrap + '">' + esc(v || '—') + '</span>'; };
-    var editBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + S.iconBtn + '">' + icon('pencil', 13) + '</button>'; };
-    var removeBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + S.iconBtn + ' color:var(--err);">' + icon('x', 13) + '</button>'; };
+    var editBtn = function (type, i) { return '<button class="icon-btn" data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + S.iconBtn + '">' + icon('pencil', 13) + '</button>'; };
+    var removeBtn = function (type, i) { return '<button class="icon-btn" data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + S.iconBtn + ' color:var(--err);">' + icon('x', 13) + '</button>'; };
     var addBtn = function (type, label) { return '<button data-action="openItemModal" data-item-type="' + type + '" style="display:inline-flex; align-items:center; gap:7px; font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:8px 14px; border-radius:9px; cursor:pointer;">' + icon('plus', 13) + label + '</button>'; };
     var chipIconStyle = 'width:20px; height:20px; border-radius:6px; border:none; background:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;';
-    var chipEditBtn = function (type, i) { return '<button data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted);">' + icon('pencil', 12) + '</button>'; };
-    var chipRemoveBtn = function (type, i) { return '<button data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + chipIconStyle + ' color:var(--err);">' + icon('x', 12) + '</button>'; };
+    var chipEditBtn = function (type, i) { return '<button class="icon-btn" data-action="openItemModal" data-item-type="' + type + '" data-item-index="' + i + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted);">' + icon('pencil', 12) + '</button>'; };
+    var chipRemoveBtn = function (type, i) { return '<button class="icon-btn" data-action="removeItem" data-item-type="' + type + '" data-item-index="' + i + '" title="Удалить" style="' + chipIconStyle + ' color:var(--err);">' + icon('x', 12) + '</button>'; };
     var fileBadge = function (file) { return (file && file.url) ? '<a href="' + esc(file.url) + '" target="_blank" rel="noopener" title="' + esc(file.name || 'файл') + '" style="color:var(--muted); display:inline-flex;">' + icon('paperclip', 13) + '</a>' + modBadge(file.path) : ''; };
-    var editFieldBtn = function (field) { return '<button data-action="startFieldEdit" data-field-edit="' + field + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted); margin-left:6px;">' + icon('pencil', 12) + '</button>'; };
+    var editFieldBtn = function (field) { return '<button class="icon-btn" data-action="startFieldEdit" data-field-edit="' + field + '" title="Изменить" style="' + chipIconStyle + ' color:var(--muted); margin-left:6px;">' + icon('pencil', 12) + '</button>'; };
 
     var availTag = '<span style="display:inline-flex; align-items:center; gap:6px; font-size:var(--text-micro); font-weight:600; color:' + availColor(sp.availability) + '; background:color-mix(in srgb, ' + availColor(sp.availability) + ' 12%, #fff); padding:4px 11px; border-radius:999px;"><span style="width:6px; height:6px; border-radius:50%; background:' + availColor(sp.availability) + ';"></span>' + esc(availLabel(sp.availability)) + '</span>' +
       '<select data-select-action="setAvailability" style="font-size:var(--text-body); font-weight:600; color:var(--muted); background:#fff; border:1.5px solid var(--line); padding:5px 8px; border-radius:8px; cursor:pointer;">' + availOptions(sp.availability) + '</select>';
@@ -895,8 +895,8 @@
         else inputHtml = '<input id="field-edit-input" value="' + esc(sp[field] || '') + '" style="' + S.field + '">';
         return '<div style="padding:12px 0; border-top:1.5px solid var(--line);"><div style="font-size:var(--text-caption); color:var(--muted); margin-bottom:7px;">' + label + '</div>' +
           '<div style="display:flex; gap:8px; align-items:center;">' + inputHtml +
-          '<button data-action="saveFieldEdit" title="Сохранить" style="' + chipIconStyle + ' color:var(--ok);">' + icon('check', 14) + '</button>' +
-          '<button data-action="cancelFieldEdit" title="Отмена" style="' + chipIconStyle + '">' + icon('x', 14) + '</button></div>' +
+          '<button class="icon-btn" data-action="saveFieldEdit" title="Сохранить" style="' + chipIconStyle + ' color:var(--ok);">' + icon('check', 14) + '</button>' +
+          '<button class="icon-btn" data-action="cancelFieldEdit" title="Отмена" style="' + chipIconStyle + '">' + icon('x', 14) + '</button></div>' +
           (state.fieldEditError ? '<div style="font-size:var(--text-micro); color:var(--err); margin-top:6px;">' + esc(state.fieldEditError) + '</div>' : '') + '</div>';
       }
       return row(label, '<span style="display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:2px;">' + val(sp[field]) + editFieldBtn(field) + (extra || '') + '</span>');
@@ -3788,7 +3788,7 @@
   function sectionsEditorHtml(sections) {
     var rows = sections.map(function (s) {
       return '<div style="border:1.5px solid var(--line); border-radius:10px; padding:12px; margin-bottom:8px; position:relative;">' +
-        '<button type="button" data-action="removeProjectSection" data-sec-id="' + esc(s.id) + '" title="Удалить раздел" style="position:absolute; top:8px; right:8px; ' + S.chipIcon + ' color:var(--err);">' + icon('x', 12) + '</button>' +
+        '<button class="icon-btn" type="button" data-action="removeProjectSection" data-sec-id="' + esc(s.id) + '" title="Удалить раздел" style="position:absolute; top:8px; right:8px; ' + S.chipIcon + ' color:var(--err);">' + icon('x', 12) + '</button>' +
         '<input data-item-array-field="sections" data-item-array-id="' + esc(s.id) + '" data-item-array-key="title" value="' + esc(s.title) + '" placeholder="Название раздела" style="' + S.field + ' margin-bottom:6px; font-weight:600; padding-right:32px;">' +
         '<textarea data-item-array-field="sections" data-item-array-id="' + esc(s.id) + '" data-item-array-key="text" rows="2" placeholder="Подробности…" style="' + S.field + ' resize:vertical; font-family:inherit; line-height:1.5;">' + esc(s.text) + '</textarea>' +
       '</div>';
@@ -3801,7 +3801,7 @@
       return '<div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">' +
         '<input data-item-array-field="details" data-item-array-id="' + esc(d.id) + '" data-item-array-key="label" value="' + esc(d.label) + '" placeholder="Например, Роль" style="' + S.field + ' flex:1;">' +
         '<input data-item-array-field="details" data-item-array-id="' + esc(d.id) + '" data-item-array-key="value" value="' + esc(d.value) + '" placeholder="Например, Frontend" style="' + S.field + ' flex:1;">' +
-        '<button type="button" data-action="removeProjectDetail" data-det-id="' + esc(d.id) + '" title="Удалить" style="' + S.chipIcon + ' color:var(--err); flex-shrink:0;">' + icon('x', 12) + '</button>' +
+        '<button class="icon-btn" type="button" data-action="removeProjectDetail" data-det-id="' + esc(d.id) + '" title="Удалить" style="' + S.chipIcon + ' color:var(--err); flex-shrink:0;">' + icon('x', 12) + '</button>' +
       '</div>';
     }).join('');
     return rows + '<button type="button" data-action="addProjectDetail" style="font-size:var(--text-micro); font-weight:600; color:var(--ink); background:#fff; border:1.5px dashed var(--line); padding:8px 14px; border-radius:9px; cursor:pointer;">+ Добавить деталь</button>';
