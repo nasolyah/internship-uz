@@ -75,6 +75,8 @@
     undoItem: null,            // {key, index, item, label} — что можно вернуть после удаления
     itemConfirmClose: false,   // показан ли вопрос «закрыть без сохранения?»
     confirmRejectApp: null,    // id отклика, по которому спрошено подтверждение отказа
+    seen: {},                  // appId -> когда ветку последний раз открывали
+    lastMsgAt: {},             // appId -> когда в ветке было последнее чужое сообщение
     testResult: null,
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
@@ -423,11 +425,13 @@
     // центральная навигация — свой набор для каждой роли
     var nav;
     if (role === 'student') {
-      nav = navLink('goCatalog', 'Каталог') + navLink('goResponses', 'Мои отклики') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
+      /* Счётчик у «Моих откликов» — единственное место, где студент узнаёт о
+         новом сообщении, не открывая каждую ветку по очереди. */
+      nav = navLink('goCatalog', 'Каталог') + navLink('goResponses', 'Мои отклики' + unreadBadge()) + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
     } else if (role === 'company') {
       // Каталога у компании нет: витрины студентов не существует (студенты приходят
       // сами, откликаясь), а чужие задачи компании ни к чему.
-      nav = navLink('goVacancies', 'Мои вакансии') + navLink('goResponses', 'Отклики') + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
+      nav = navLink('goVacancies', 'Мои вакансии') + navLink('goResponses', 'Отклики' + unreadBadge()) + (state.isAdmin ? navLink('goAdmin', 'Модерация') : '');
     } else {
       nav = navLink('scrollHow', 'Как это работает', '#sec-how') + navLink('scrollVerify', 'Верификация', '#sec-verify') + navLink('goCatalog', 'Каталог');
     }
@@ -1419,8 +1423,10 @@
     if (isNaN(d)) return '';
     return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
   }
+  /* Кнопка чата несёт точку, если в ветке есть непрочитанное: так видно, какая
+     именно переписка ждёт ответа, а не только что «что-то есть». */
   function chatButton(appId, label) {
-    return '<button data-action="openChat" data-app-id="' + esc(appId) + '" style="font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:9px 15px; border-radius:8px; cursor:pointer; white-space:nowrap;">' + label + '</button>';
+    return '<button data-action="openChat" data-app-id="' + esc(appId) + '" style="display:inline-flex; align-items:center; font-size:var(--text-micro); font-weight:600; color:#fff; background:var(--ink); border:none; padding:9px 15px; border-radius:8px; cursor:pointer; white-space:nowrap;">' + label + unreadDot(appId, true) + '</button>';
   }
   // Карточка отклика. Студент видит задачу и компанию, компания — студента и своё решение.
   // У компании карточки сгруппированы под задачей, поэтому её название здесь не повторяем.
@@ -3193,6 +3199,7 @@
       pendingDocFile = null;
       stopTestTimer();
       unsubscribeMessages();
+      unsubscribeSession();
       try { localStorage.removeItem('company_app_id'); } catch (e) {}
       setState({
         authRole: null, studentProfile: null, companyProfile: null, session: null,
@@ -3574,7 +3581,9 @@
       var session = res.data && res.data.session;
       if (!session) return;
       state.session = session;
+      state.seen = loadSeen();   // отметки прочитанного переживают перезагрузку
       checkAdmin();
+      subscribeSession();        // слушаем сообщения и смену статусов, пока человек в системе
       return claimLegacyCompanyApp().then(loadCompanyProfile).then(function (isCompany) {
         if (isCompany) return true;
         return applyStudentProfile(session);
@@ -3600,6 +3609,7 @@
 
   /* ---------- отклики и чат ---------- */
   var chatChannel = null;
+  var sessionChannel = null;   // канал уровня сессии: непрочитанное и смена статусов
   // Вернуть курсор в поле ввода после отправки, когда фокус уже сняли кликом по кнопке.
   var focusChatInput = false;
 
@@ -3659,6 +3669,7 @@
   function openChat(appId) {
     var a = findApplication(appId);
     if (!a) return;
+    markChatSeen(appId);   // ветку открыли — значит прочитали
     state.chat = {
       appId: appId, peer: chatPeer(a), gigTitle: (a.gigs && a.gigs.title) || '',
       studentId: a.student_id, companyAppId: a.company_app_id,
@@ -3688,6 +3699,82 @@
     return false;
   }
   // Realtime уважает RLS: в канал приходят только сообщения из веток, где мы участник.
+  /* ---------- Непрочитанное ----------
+     Раньше приглашение от компании и новое сообщение приходили в полной тишине:
+     подписка на messages жила только пока открыт конкретный чат, а понятия
+     «непрочитано» в продукте не было вовсе. Студент узнавал о приглашении,
+     только если сам открывал нужную ветку.
+
+     Отметки «прочитано» хранятся на клиенте, в localStorage: схему БД менять
+     нельзя (миграции накатываются вручную), а для сигнала достаточно помнить,
+     когда человек последний раз открывал каждую ветку. Ключ привязан к
+     пользователю, чтобы на общем устройстве отметки не смешивались. */
+  function seenKey() { return 'iu-seen-' + (currentUserId() || 'anon'); }
+  function loadSeen() {
+    try { return JSON.parse(localStorage.getItem(seenKey())) || {}; } catch (e) { return {}; }
+  }
+  function markChatSeen(appId) {
+    var seen = loadSeen();
+    seen[appId] = Date.now();
+    try { localStorage.setItem(seenKey(), JSON.stringify(seen)); } catch (e) {}
+    state.seen = seen;
+  }
+  // Непрочитано ли в конкретной ветке: есть сообщение новее отметки и не своё.
+  function chatUnread(appId) {
+    var last = state.lastMsgAt && state.lastMsgAt[appId];
+    if (!last) return false;
+    var seen = state.seen || {};
+    return !seen[appId] || last > seen[appId];
+  }
+  function unreadCount() {
+    var n = 0;
+    (state.applications || []).forEach(function (a) { if (chatUnread(a.id)) n++; });
+    return n;
+  }
+  // Счётчик рядом с пунктом меню. Пусто, когда читать нечего.
+  function unreadBadge() {
+    var n = unreadCount();
+    if (!n) return '';
+    return '<span style="display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; margin-left:6px; border-radius:999px; background:var(--accent); color:#fff; font-size:var(--text-micro); font-weight:600; line-height:1;">' + n + '</span>';
+  }
+  /* Точка у карточки отклика: какая именно ветка ждёт ответа. На тёмной кнопке
+     берётся осветлённый акцент — базовый синий даёт на --ink всего 2.91:1. */
+  function unreadDot(appId, onDark) {
+    if (!chatUnread(appId)) return '';
+    var c = onDark ? 'var(--accent-on-dark)' : 'var(--accent)';
+    return '<span title="Новое сообщение" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:' + c + '; margin-left:8px; flex-shrink:0;"></span>';
+  }
+
+  /* Канал уровня сессии: живёт, пока человек в системе, и слушает всё, что ему
+     доступно. Фильтра нет намеренно — RLS и так отдаёт только свои строки. */
+  function subscribeSession() {
+    unsubscribeSession();
+    if (!supabase || !supabase.channel || !state.session) return;
+    try { supabase.realtime.setAuth(state.session.access_token); } catch (e) {}
+    sessionChannel = supabase.channel('session-' + (currentUserId() || 'anon'))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, function (payload) {
+        var m = payload && payload.new;
+        if (!m || m.sender_id === currentUserId()) return;
+        state.lastMsgAt = state.lastMsgAt || {};
+        state.lastMsgAt[m.application_id] = Date.now();
+        // Открытая ветка считается прочитанной сразу — там сообщение уже видно.
+        if (state.chat && state.chat.appId === m.application_id) markChatSeen(m.application_id);
+        render();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'gig_applications' }, function (payload) {
+        var a = payload && payload.new;
+        if (!a) return;
+        var local = findApplication(a.id);
+        if (local && local.status !== a.status) { local.status = a.status; render(); }
+      })
+      .subscribe();
+  }
+  function unsubscribeSession() {
+    if (!sessionChannel) return;
+    try { supabase.removeChannel(sessionChannel); } catch (e) {}
+    sessionChannel = null;
+  }
+
   function subscribeMessages(appId) {
     unsubscribeMessages();
     if (!supabase || !supabase.channel) return;
