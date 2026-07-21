@@ -1,0 +1,401 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-21T07:27:59.743Z",
+  "title": "Design System: internship.uz",
+  "extensions": {
+    "colorMeta": {
+      "flotskiy-siniy": {
+        "role": "primary",
+        "displayName": "Флотский синий",
+        "canonical": "oklch(50.0% 0.2021 266)",
+        "tonalRamp": [
+          "#010133",
+          "#040773",
+          "#0e27a8",
+          "#264dcd",
+          "#4371f3",
+          "#6496ff",
+          "#9bbfff",
+          "#d4e5ff"
+        ]
+      },
+      "flotskiy-na-tyomnom": {
+        "role": "primary",
+        "displayName": "Флотский на тёмном",
+        "canonical": "oklch(70.0% 0.1344 266)",
+        "tonalRamp": [
+          "#020726",
+          "#0a1c59",
+          "#1e3885",
+          "#3958a9",
+          "#5779cd",
+          "#799bef",
+          "#a8c0f7",
+          "#dae5fc"
+        ]
+      },
+      "chernila": {
+        "role": "neutral",
+        "displayName": "Чернила",
+        "canonical": "oklch(19.2% 0.0126 271)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#222429",
+          "#3d4047",
+          "#5b5d65",
+          "#7a7d85",
+          "#9b9ea6",
+          "#bfc1c6",
+          "#e4e4e7"
+        ]
+      },
+      "priglushonnyy": {
+        "role": "neutral",
+        "displayName": "Приглушённый",
+        "canonical": "oklch(49.2% 0.0221 266)",
+        "tonalRamp": [
+          "#090b10",
+          "#20242d",
+          "#3a404c",
+          "#585e6b",
+          "#777d8b",
+          "#989eac",
+          "#bdc1ca",
+          "#e3e4e8"
+        ]
+      },
+      "bumaga": {
+        "role": "neutral",
+        "displayName": "Бумага",
+        "canonical": "oklch(98.8% 0.0026 106)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242423",
+          "#40403e",
+          "#5e5e5c",
+          "#7d7d7b",
+          "#9e9e9d",
+          "#c1c1c0",
+          "#e4e4e4"
+        ]
+      },
+      "liniya": {
+        "role": "neutral",
+        "displayName": "Линия",
+        "canonical": "oklch(85.1% 0.0145 268)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#21242a",
+          "#3c4048",
+          "#5a5d66",
+          "#797d86",
+          "#9b9ea7",
+          "#bec1c7",
+          "#e3e4e7"
+        ]
+      },
+      "podtverzhdeno": {
+        "role": "tertiary",
+        "displayName": "Подтверждено",
+        "canonical": "oklch(49.8% 0.1289 150)",
+        "tonalRamp": [
+          "#001100",
+          "#003101",
+          "#005113",
+          "#077133",
+          "#389252",
+          "#60b475",
+          "#9dd0a7",
+          "#d6ebd9"
+        ]
+      },
+      "na-proverke": {
+        "role": "tertiary",
+        "displayName": "На проверке",
+        "canonical": "oklch(50.3% 0.1086 63)",
+        "tonalRamp": [
+          "#1a0500",
+          "#411500",
+          "#662e00",
+          "#884d03",
+          "#aa6d30",
+          "#cd8f57",
+          "#e0b895",
+          "#f3e1d2"
+        ]
+      },
+      "otkloneno": {
+        "role": "tertiary",
+        "displayName": "Отклонено",
+        "canonical": "oklch(50.1% 0.1783 29)",
+        "tonalRamp": [
+          "#250000",
+          "#580000",
+          "#860000",
+          "#ac1d17",
+          "#d2463a",
+          "#f66d5e",
+          "#ffa699",
+          "#ffdad3"
+        ]
+      },
+      "otsenka": {
+        "role": "tertiary",
+        "displayName": "Оценка",
+        "canonical": "oklch(76.2% 0.1384 77)",
+        "tonalRamp": [
+          "#1a0500",
+          "#411600",
+          "#663000",
+          "#874f00",
+          "#aa7000",
+          "#cc922a",
+          "#dfba82",
+          "#f2e2cb"
+        ]
+      },
+      "telegram": {
+        "role": "tertiary",
+        "displayName": "Telegram",
+        "canonical": "oklch(66.2% 0.1334 236)",
+        "tonalRamp": [
+          "#000d22",
+          "#002751",
+          "#00467b",
+          "#00669e",
+          "#0087c1",
+          "#3caae3",
+          "#8dcaef",
+          "#d0e9f9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Только заголовок героя на главной. Единственное место с текучим размером."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Заголовки страниц, h1 и h2."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Заголовки карточек, названия сущностей, h3."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Основной текст, описания, все поля ввода и кнопки. Проза — не более 68ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Статусные плашки, чипы, метки времени, мелкие данные."
+      }
+    },
+    "shadows": [
+      {
+        "name": "dialog",
+        "value": "0 30px 60px -20px rgba(0,0,0,0.45)",
+        "purpose": "Модальное окно над затемнённой подложкой. Единственная сильная тень в системе."
+      },
+      {
+        "name": "lift-hover",
+        "value": "0 26px 50px -30px rgba(18,20,26,0.30)",
+        "purpose": "Подъём кликабельной карточки при наведении, вместе с translateY(-3px). Только на точном указателе."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(.16,1,.3,1)",
+        "purpose": "Единственная кривая в системе. Экспоненциальное замедление, без отскоков."
+      },
+      {
+        "name": "duration-fast",
+        "value": "150ms",
+        "purpose": "Смена цвета: ссылки, пункты меню, границы."
+      },
+      {
+        "name": "duration-base",
+        "value": "200ms",
+        "purpose": "Состояния кнопок и полей."
+      },
+      {
+        "name": "duration-lift",
+        "value": "280ms",
+        "purpose": "Подъём карточки при наведении."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "При prefers-reduced-motion анимации не отключаются, а делаются мгновенными — иначе появляющиеся элементы остались бы невидимыми."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "header",
+        "value": "1000px"
+      },
+      {
+        "name": "catalog",
+        "value": "900px"
+      },
+      {
+        "name": "grid",
+        "value": "760px"
+      },
+      {
+        "name": "mobile",
+        "value": "620px"
+      },
+      {
+        "name": "narrow",
+        "value": "560px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Основная кнопка",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Действие, ради которого открыт экран. Одна на экран.",
+      "html": "<button class=\"ds-btn-primary\">Откликнуться</button>",
+      "css": ".ds-btn-primary{font-family:Manrope,system-ui,sans-serif;font-size:var(--text-body,1rem);font-weight:600;color:#fff;background:var(--accent,#2b54d4);border:none;padding:15px;border-radius:11px;cursor:pointer;transition:transform .18s cubic-bezier(.16,1,.3,1),filter .2s ease}.ds-btn-primary:hover{filter:brightness(1.04)}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#2b54d4) 30%,transparent)}.ds-btn-primary:active{transform:translateY(1px) scale(.995)}"
+    },
+    {
+      "name": "Призрачная кнопка",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Отмена и второстепенные действия.",
+      "html": "<button class=\"ds-btn-ghost\">Отмена</button>",
+      "css": ".ds-btn-ghost{font-family:Manrope,system-ui,sans-serif;font-size:var(--text-body,1rem);font-weight:600;color:var(--ink,#12141a);background:#fff;border:1.5px solid var(--line,#caced8);padding:14px;border-radius:11px;cursor:pointer;transition:transform .18s cubic-bezier(.16,1,.3,1),filter .2s ease}.ds-btn-ghost:hover{filter:brightness(1.04)}.ds-btn-ghost:focus-visible{outline:none;border-color:var(--accent,#2b54d4);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#2b54d4) 14%,transparent)}.ds-btn-ghost:active{transform:translateY(1px) scale(.995)}"
+    },
+    {
+      "name": "Иконочная кнопка",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "Изменить или удалить. На грубом указателе область нажатия расширяется до 44×44 без изменения визуального размера.",
+      "html": "<button class=\"ds-icon-btn\" title=\"Изменить\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z\"/></svg></button>",
+      "css": ".ds-icon-btn{width:20px;height:20px;border-radius:6px;border:none;background:none;color:var(--muted,#5b616e);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:color .15s ease}.ds-icon-btn:hover{color:var(--ink,#12141a)}.ds-icon-btn:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#2b54d4) 14%,transparent)}@media (pointer:coarse){.ds-icon-btn{min-width:44px;min-height:44px;margin-top:-12px;margin-bottom:-12px}}"
+    },
+    {
+      "name": "Поле ввода",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "Кегль строго 16px: мобильный Safari зумит страницу при фокусе на поле мельче.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Название задачи\">",
+      "css": ".ds-input{font-family:Manrope,system-ui,sans-serif;font-size:var(--text-body,1rem);padding:13px 14px;border:1.5px solid var(--line,#caced8);border-radius:11px;background:#fff;color:var(--ink,#12141a);width:100%;transition:border-color .18s ease,box-shadow .18s ease}.ds-input::placeholder{color:var(--muted,#5b616e)}.ds-input:focus{outline:none;border-color:var(--accent,#2b54d4);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#2b54d4) 14%,transparent)}"
+    },
+    {
+      "name": "Карточка",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Плоская белая поверхность, отделённая границей, а не тенью. Вложение карточек запрещено.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Разработка интерфейса</div><div class=\"ds-card-meta\">ООО «Компания» · 2 недели</div></div>",
+      "css": ".ds-card{background:#fff;border:1.5px solid var(--line,#caced8);border-radius:16px;padding:22px;transition:transform .28s cubic-bezier(.16,1,.3,1),box-shadow .3s ease}.ds-card:hover{transform:translateY(-3px);box-shadow:0 26px 50px -30px rgba(18,20,26,.30)}.ds-card-title{font-family:Manrope,system-ui,sans-serif;font-size:var(--text-title,1.25rem);font-weight:600;color:var(--ink,#12141a);letter-spacing:-.01em}.ds-card-meta{font-family:Manrope,system-ui,sans-serif;font-size:var(--text-caption,.875rem);color:var(--muted,#5b616e);margin-top:4px}"
+    },
+    {
+      "name": "Статусная плашка",
+      "kind": "chip",
+      "refersTo": "chip-status",
+      "description": "Текст цветом состояния на подложке из него же (12%). Контраст проверяется против подложки, а не против фона страницы.",
+      "html": "<span class=\"ds-chip ds-chip-ok\">подтверждено</span> <span class=\"ds-chip ds-chip-warn\">на проверке</span> <span class=\"ds-chip ds-chip-err\">отклонено</span>",
+      "css": ".ds-chip{font-family:Manrope,system-ui,sans-serif;font-size:var(--text-micro,.75rem);font-weight:600;padding:4px 9px;border-radius:6px;display:inline-block}.ds-chip-ok{color:var(--ok,#137638);background:color-mix(in srgb,var(--ok,#137638) 12%,#fff)}.ds-chip-warn{color:var(--warn,#8f5410);background:color-mix(in srgb,var(--warn,#8f5410) 12%,#fff)}.ds-chip-err{color:var(--err,#b3261e);background:color-mix(in srgb,var(--err,#b3261e) 12%,#fff)}"
+    },
+    {
+      "name": "Пункт навигации",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "Приглушённый в покое, чернильный при наведении. На грубом указателе — минимум 44px по высоте.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link\" href=\"#\">Каталог</a><a class=\"ds-nav-link ds-nav-link-active\" href=\"#\">Мои отклики</a></nav>",
+      "css": ".ds-nav{display:flex;gap:24px;font-family:Manrope,system-ui,sans-serif}.ds-nav-link{font-size:var(--text-caption,.875rem);color:var(--muted,#5b616e);text-decoration:none;cursor:pointer;transition:color .15s ease}.ds-nav-link:hover,.ds-nav-link-active{color:var(--ink,#12141a)}.ds-nav-link:focus-visible{outline:2px solid var(--accent,#2b54d4);outline-offset:3px;border-radius:4px}@media (pointer:coarse){.ds-nav-link{min-height:44px;display:inline-flex;align-items:center}}"
+    },
+    {
+      "name": "Модальное окно",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Высота ограничена, при переполнении прокручивается внутри себя. Прокрутка на самом диалоге: у центрирующей обёртки pointer-events:none.",
+      "html": "<div class=\"ds-dialog\"><div class=\"ds-dialog-head\"><h3 class=\"ds-dialog-title\">Смена статуса</h3><button class=\"ds-dialog-close\" aria-label=\"Закрыть\">×</button></div><p class=\"ds-dialog-text\">Статус подтверждает модератор.</p></div>",
+      "css": ".ds-dialog{background:#fff;border-radius:18px;padding:26px;max-width:460px;width:100%;box-shadow:0 30px 60px -20px rgba(0,0,0,.45);max-height:calc(100vh - 40px);overflow-y:auto}.ds-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.ds-dialog-title{font-family:Manrope,system-ui,sans-serif;font-size:var(--text-h2,1.5rem);font-weight:700;color:var(--ink,#12141a);margin:0;letter-spacing:-.01em}.ds-dialog-close{background:none;border:none;font-size:var(--text-h2,1.5rem);line-height:1;color:var(--muted,#5b616e);cursor:pointer;padding:0}.ds-dialog-close:hover{color:var(--ink,#12141a)}.ds-dialog-text{font-family:Manrope,system-ui,sans-serif;font-size:var(--text-body,1rem);color:var(--muted,#5b616e);line-height:1.55;margin:12px 0 0}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Судовой журнал",
+    "overview": "Знак платформы — корабль, и это не декорация. Судовой журнал ведут точно, по порядку и без украшений: каждая запись что-то удостоверяет. Так же устроен и этот интерфейс. Его конечный продукт — официальный документ о пройденной практике, который студент показывает работодателю или приёмной комиссии, поэтому вся система работает на одно ощущение: здесь ничего не приукрашено и каждому статусу можно верить.\n\nОтсюда плоские поверхности, тонкая граница вместо тени, редкий акцент и жёсткая дисциплина статусных цветов. Плотность средняя: воздуха достаточно, чтобы школьник не растерялся, но не столько, чтобы экран выглядел рекламным буклетом. Интерфейс на русском языке, аудитория заходит преимущественно с телефонов, поэтому мобильная раскладка — не адаптация десктопа, а равноправный случай.\n\nСистема сознательно отвергает две крайности. Первая — «дружелюбное приложение для молодёжи»: крупные скругления, пастельные градиенты, иллюстрированные маскоты. Платформа выдаёт юридически значимые документы несовершеннолетним, и заигрывающий тон подрывает доверие к ним. Вторая — «серьёзный корпоративный портал»: серые таблицы, канцелярит, тени под каждым блоком. Пользователю шестнадцать лет, и он не должен чувствовать себя в отделе кадров.",
+    "keyCharacteristics": [
+      "Плоские белые поверхности на почти белом фоне, разделённые границей 1.5px",
+      "Одна гарнитура (Manrope) в трёх весах, шкала из шести ступеней с шагом 1.2",
+      "Акцент только на действии, выборе и фокусе — никогда на декорации",
+      "Четыре статусных цвета с закреплённым смыслом, одинаковым на всех экранах",
+      "Тень существует только там, где есть настоящая высота: модалка над страницей",
+      "Движение короткое и функциональное, экспоненциальное замедление, без отскоков"
+    ],
+    "rules": [
+      {
+        "name": "Правило одного значения",
+        "section": "colors",
+        "body": "Один цвет значит одно и то же на всех экранах: #137638 — подтверждено, #8f5410 — на проверке, #b3261e — отклонено. Запрещено красить статусными цветами что-либо иное: уровень владения навыком, категорию, порядок. Порядковые шкалы кодируются нарастанием акцента, а не светофором."
+      },
+      {
+        "name": "Правило собственной подложки",
+        "section": "colors",
+        "body": "Статусная плашка ставит текст цветом C на фоне color-mix(in srgb, C 12%, #fff). Такая подложка темнее белого, поэтому контраст проверяется против неё, а не против фона страницы. Порог 4.5:1: при 12% проходят все четыре статусных цвета, но запас невелик — насыщать подложку сильнее нельзя."
+      },
+      {
+        "name": "Правило редкого акцента",
+        "section": "colors",
+        "body": "Флотский синий занимает не более 10% площади экрана. Он работает именно потому, что редок."
+      },
+      {
+        "name": "Правило шести ступеней",
+        "section": "typography",
+        "body": "Кегли берутся только из шкалы: 12 / 14 / 16 / 20 / 24 / 30px, шаг 1.2. Половинки пикселя запрещены. Размеры задаются в rem, а не в px."
+      },
+      {
+        "name": "Правило шестнадцати пикселей",
+        "section": "typography",
+        "body": "Любое поле ввода — ровно 16px. Мобильный Safari принудительно зумит страницу при фокусе на поле мельче 16px, и это не стилистический вопрос, а поломка."
+      },
+      {
+        "name": "Правило трёх весов",
+        "section": "typography",
+        "body": "400 — текст и подсказки, 600 — кнопки, подписи, плашки, заголовки карточек, 700 — только h1/h2 и герой. Вес 500 запрещён."
+      },
+      {
+        "name": "Правило кириллицы",
+        "section": "typography",
+        "body": "Гарнитура допускается только с полным кириллическим набором. Проверять по unicode-range в ответе поставщика шрифтов, а не по внешнему виду в макете."
+      },
+      {
+        "name": "Правило плоскости по умолчанию",
+        "section": "elevation",
+        "body": "Поверхность в покое плоская. Тень — это ответ на состояние (наведение, поднятие), а не свойство элемента."
+      }
+    ],
+    "dos": [
+      "Do брать кегль только из шкалы 12/14/16/20/24/30 и задавать его в rem.",
+      "Do ставить любому полю ввода ровно 16px — иначе мобильный Safari зумит страницу при фокусе.",
+      "Do проверять контраст статусного текста против его собственной подложки (12%), а не против фона страницы.",
+      "Do выводить и текст, и цвет статуса из одного состояния, через общую функцию. Подпись, не спрашивающая состояние, рано или поздно соврёт.",
+      "Do разделять поверхности границей 1.5px цветом линии.",
+      "Do ограничивать прозу 68ch.",
+      "Do давать иконочным кнопкам область нажатия 44×44 на грубом указателе, гася прирост высоты отрицательными отступами.",
+      "Do ограничивать высоту модалки и включать в ней прокрутку: на телефоне с открытой клавиатурой остаётся около 560px."
+    ],
+    "donts": [
+      "Don't добавлять вторую гарнитуру. Одного семейства в трёх весах достаточно.",
+      "Don't использовать вес 500 — против 600 он неразличим.",
+      "Don't подключать шрифт, не проверив кириллицу по unicode-range.",
+      "Don't красить статусными цветами то, что не является статусом: уровень, категорию, порядок.",
+      "Don't ставить акцент на декорацию. Только действие, выбор, фокус, не более 10% экрана.",
+      "Don't вешать тень на поверхность в покое. Тень — отклик на состояние.",
+      "Don't сочетать границу 1px с мягкой широкой тенью на одном элементе.",
+      "Don't скруглять карточки сильнее 18px и не вкладывать карточку в карточку.",
+      "Don't использовать border-left/border-right толще 1px как цветную полосу-акцент.",
+      "Don't ставить серый текст на цветной фон — он выглядит выцветшим.",
+      "Don't писать надкоронку заглавными над каждой секцией.",
+      "Don't полагаться на цвет как на единственный признак состояния: рядом всегда текст."
+    ]
+  }
+}
