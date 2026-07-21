@@ -76,6 +76,7 @@
     itemConfirmClose: false,   // показан ли вопрос «закрыть без сохранения?»
     confirmRejectApp: null,    // id отклика, по которому спрошено подтверждение отказа
     stepsCollapsed: false,     // свёрнута ли плавающая панель шагов
+    stepsDismissed: false,     // закрыта ли панель насовсем
     seen: {},                  // appId -> когда ветку последний раз открывали
     lastMsgAt: {},             // appId -> когда в ветке было последнее чужое сообщение
     testResult: null,
@@ -1260,13 +1261,19 @@
     if (!steps.length) return '';
     var doneCount = steps.filter(function (s) { return s.done; }).length;
     if (doneCount === steps.length) return '';   // путь пройден — панель уходит
+    if (state.stepsDismissed) return '';         // закрыта насовсем
     if (state.chat || state.testView) return ''; // в чате и тесте не мешаем
 
     if (state.stepsCollapsed) {
-      return '<button data-action="toggleSteps" class="journey-panel" style="position:fixed; right:20px; bottom:20px; z-index:60; display:flex; align-items:center; gap:8px; background:var(--ink); color:#fff; border:none; padding:12px 16px; border-radius:12px; cursor:pointer; box-shadow:0 18px 40px -16px rgba(18,20,26,0.55);">' +
-        '<span style="font-size:var(--text-caption); font-weight:600;">Шаги</span>' +
-        '<span style="font-size:var(--text-micro); color:var(--accent-on-dark); font-weight:600;">' + doneCount + ' из ' + steps.length + '</span>' +
-      '</button>';
+      /* Из свёрнутой кнопки тоже нужен выход насовсем, иначе единственный способ
+         избавиться от панели — сначала развернуть её обратно. */
+      return '<div class="journey-panel" style="position:fixed; right:20px; bottom:20px; z-index:60; display:inline-flex; align-items:center; background:var(--ink); border-radius:12px; box-shadow:0 18px 40px -16px rgba(18,20,26,0.55);">' +
+        '<button data-action="toggleSteps" style="display:flex; align-items:center; gap:8px; background:none; color:#fff; border:none; padding:12px 4px 12px 16px; border-radius:12px 0 0 12px; cursor:pointer;">' +
+          '<span style="font-size:var(--text-caption); font-weight:600;">Шаги</span>' +
+          '<span style="font-size:var(--text-micro); color:var(--accent-on-dark); font-weight:600;">' + doneCount + ' из ' + steps.length + '</span>' +
+        '</button>' +
+        '<button data-action="dismissSteps" title="Больше не показывать" style="background:none; border:none; color:rgba(255,255,255,0.6); cursor:pointer; font-size:var(--text-body); line-height:1; padding:12px 14px 12px 8px; border-radius:0 12px 12px 0;">×</button>' +
+      '</div>';
     }
 
     var rows = steps.map(function (s, i) {
@@ -1283,7 +1290,13 @@
     return '<div class="journey-panel" style="position:fixed; right:20px; bottom:20px; z-index:60; width:min(300px, calc(100vw - 40px)); background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:16px 18px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34);">' +
       '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">' +
         '<span style="font-size:var(--text-micro); font-weight:600; color:var(--muted);">Ваш путь · ' + doneCount + ' из ' + steps.length + '</span>' +
-        '<button data-action="toggleSteps" title="Свернуть" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:var(--text-body); line-height:1; padding:0;">−</button>' +
+        /* Две кнопки, и разница между ними должна быть очевидна: свернуть —
+           временно, закрыть — насовсем. Поэтому у крестика подпись говорит
+           прямо, что панель больше не появится. */
+        '<span style="display:inline-flex; align-items:center; gap:4px; flex-shrink:0;">' +
+          '<button data-action="toggleSteps" title="Свернуть" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:var(--text-body); line-height:1; padding:2px 6px;">−</button>' +
+          '<button data-action="dismissSteps" title="Больше не показывать" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:var(--text-body); line-height:1; padding:2px 6px;">×</button>' +
+        '</span>' +
       '</div>' + rows +
     '</div>';
   }
@@ -3010,6 +3023,10 @@
       location.href = '/cert/' + encodeURIComponent(id);
     },
     printCert: function () { try { window.print(); } catch (e) {} },
+    dismissSteps: function () {
+      try { localStorage.setItem("iu-steps-dismissed", "1"); } catch (e) {}
+      setState({ stepsDismissed: true });
+    },
     toggleSteps: function () {
       var v = !state.stepsCollapsed;
       try { localStorage.setItem("iu-steps-collapsed", v ? "1" : ""); } catch (e) {}
@@ -3697,7 +3714,10 @@
       if (!session) return;
       state.session = session;
       state.seen = loadSeen();   // отметки прочитанного переживают перезагрузку
-      try { state.stepsCollapsed = !!localStorage.getItem("iu-steps-collapsed"); } catch (e) {}
+      try {
+        state.stepsCollapsed = !!localStorage.getItem("iu-steps-collapsed");
+        state.stepsDismissed = !!localStorage.getItem("iu-steps-dismissed");
+      } catch (e) {}
       checkAdmin();
       subscribeSession();        // слушаем сообщения и смену статусов, пока человек в системе
       return claimLegacyCompanyApp().then(loadCompanyProfile).then(function (isCompany) {
@@ -4610,6 +4630,10 @@
     var keepChatFocus = state.view === 'chat' && (chatInputHasFocus() || focusChatInput);
     focusChatInput = false;
     root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml() + undoBarHtml() + journeyPanelHtml();
+
+    /* Панель висит поверх страницы и раньше накрывала подвал с почтой. Класс на
+       корне даёт подвалу нижний отступ ровно тогда, когда панель на экране. */
+    root.classList.toggle("has-journey", !!journeyPanelHtml());
 
     // render() переписывает весь root, поэтому <main class="view-in"> создаётся заново
     // при каждом изменении состояния — и анимация появления стартовала с нуля на каждый
