@@ -1239,6 +1239,27 @@
       return '<button data-action="' + action + '" style="flex-shrink:0; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px 22px; border-radius:11px; cursor:pointer;">' + label + '</button>';
     };
 
+    /* 0. Выданная справка — то, ради чего всё и затевалось. Она обходит все
+       остальные шаги: если документ готов, это и есть главное на экране.
+       Висит, пока человек её не откроет; отметка живёт рядом с отметками
+       прочитанного, в localStorage. Оценка компании сюда не попадает намеренно —
+       RPC student_history её не отдаёт, она внутренняя по замыслу. */
+    var fresh = freshCert();
+    if (fresh) {
+      return '<div class="pop-in" style="background:#fff; border:1.5px solid color-mix(in srgb, var(--ok) 40%, var(--line)); border-radius:16px; padding:24px; margin-bottom:20px;">' +
+        '<div style="font-size:var(--text-micro); font-weight:600; color:var(--ok); margin-bottom:6px;">Стажировка завершена</div>' +
+        '<div style="font-weight:600; font-size:var(--text-h2); letter-spacing:-0.01em;">Ваша справка готова</div>' +
+        '<div style="font-size:var(--text-caption); color:var(--muted); margin-top:6px; line-height:1.5;">' +
+          esc(fresh.gig_title || 'Стажировка') + ' · ' + esc(fresh.company_name || '') +
+        '</div>' +
+        (fresh.body ? '<div style="margin-top:14px; padding:14px 16px; background:var(--bg); border-radius:12px; font-size:var(--text-body); line-height:1.6; max-width:68ch; white-space:pre-wrap; ' + S.wrap + '">' + esc(fresh.body) + '</div>' : '') +
+        '<div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">' +
+          '<button data-action="openFreshCert" data-cert-id="' + esc(fresh.public_id) + '" style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px 22px; border-radius:11px; cursor:pointer;">Открыть и скачать</button>' +
+        '</div>' +
+        '<div style="font-size:var(--text-micro); color:var(--muted); margin-top:12px;">Ссылку на справку можно отправить работодателю или в приёмную комиссию — она проверяется на нашем сайте.</div>' +
+      '</div>';
+    }
+
     // 1. Согласие родителя — единственный шаг, который реально закрывает каталог.
     if (isMinor()) {
       var c = docStat('consent');
@@ -1574,6 +1595,13 @@
         '<div style="margin-top:22px; padding-top:18px; border-top:1.5px solid var(--line); font-size:var(--text-micro); color:var(--muted); line-height:1.6;">' +
           'Справка №' + esc(d.public_id) + (d.issued_at ? ' · выдана ' + esc(fmtDate(d.issued_at)) : '') + '<br>' +
           'Текст написан компанией и проверен платформой. После выдачи не редактируется.</div>' +
+      '</div>' +
+      /* Настоящего файла у справки нет — она живёт как страница. Печать браузера
+         даёт из неё PDF без бэкенда, и это честнее кнопки «Скачать», за которой
+         ничего не стоит: такую заглушку из продукта уже однажды убирали.
+         В самой печати кнопка скрыта — см. @media print в int_css.css. */
+      '<div class="no-print" style="margin-top:18px; display:flex; gap:10px; flex-wrap:wrap;">' +
+        '<button data-action="printCert" style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px 22px; border-radius:11px; cursor:pointer;">Скачать PDF</button>' +
       '</div>', 780);
   }
 
@@ -2900,6 +2928,16 @@
       if (supabase && currentUserId()) saveProfileToDb();
     },
     // Спрашиваем, прежде чем уничтожить единственную попытку.
+    /* Справку открываем на её публичной странице — там она в том виде, в каком
+       её увидит работодатель, и оттуда же печатается в PDF. Отмечаем как
+       увиденную, чтобы карточка перестала висеть. */
+    openFreshCert: function (el) {
+      var id = el.getAttribute('data-cert-id');
+      if (!id) return;
+      markCertSeen(id);
+      location.href = '/cert/' + encodeURIComponent(id);
+    },
+    printCert: function () { try { window.print(); } catch (e) {} },
     askCloseTest: function () { setState({ testConfirmExit: true }); },
     cancelCloseTest: function () { setState({ testConfirmExit: false }); },
     closeTest: function () {
@@ -3726,6 +3764,26 @@
     var seen = state.seen || {};
     return !seen[appId] || last > seen[appId];
   }
+  /* Справка, которую ещё не открывали. Отметка та же по смыслу, что и у чатов:
+     событие разовое, и висеть оно должно, пока человек его не увидит. */
+  function certSeenKey() { return 'iu-cert-' + (currentUserId() || 'anon'); }
+  function freshCert() {
+    var list = state.history || [];
+    if (!list.length) return null;
+    var seen;
+    try { seen = JSON.parse(localStorage.getItem(certSeenKey())) || {}; } catch (e) { seen = {}; }
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].public_id && !seen[list[i].public_id]) return list[i];
+    }
+    return null;
+  }
+  function markCertSeen(publicId) {
+    var seen;
+    try { seen = JSON.parse(localStorage.getItem(certSeenKey())) || {}; } catch (e) { seen = {}; }
+    seen[publicId] = Date.now();
+    try { localStorage.setItem(certSeenKey(), JSON.stringify(seen)); } catch (e) {}
+  }
+
   function unreadCount() {
     var n = 0;
     (state.applications || []).forEach(function (a) { if (chatUnread(a.id)) n++; });

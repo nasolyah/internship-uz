@@ -364,3 +364,12 @@ p { text-wrap: pretty; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Печать справки. Страница и есть документ: файла у неё нет, поэтому PDF
+   человек получает через печать браузера. Убираем всё, что в бумажной версии
+   лишнее — шапку, подвал и саму кнопку печати. */
+@media print {
+  header, footer, .no-print { display: none !important; }
+  body { background: #fff; }
+  main { padding: 0 !important; }
+}
