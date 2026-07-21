@@ -1198,6 +1198,7 @@
 
     return '<main class="view-in" style="width:100%; max-width:1200px; margin:0 auto; padding:40px 28px 88px;">' +
       '<h1 style="font-weight:700; font-size:var(--text-h1); letter-spacing:-0.02em; margin:0 0 24px;">Личный кабинет</h1>' +
+      nextStepCard() +
       profile +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-top:20px;">' + contacts + verification + '</div>' +
       '<div style="margin-top:20px;">' + specialtiesSection + '</div>' +
@@ -1209,6 +1210,68 @@
       '<div style="margin-top:20px;">' + ratingSection + '</div>' +
       '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:var(--text-caption); font-weight:600; color:var(--err); background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
+  }
+
+  /* Кабинет — это девять равнозначных карточек подряд, и новый студент попадает
+     сюда сразу после регистрации. Что делать дальше, нигде не сказано, а порядок
+     неочевиден: согласие родителя (если нет 18) → специальность → тест → каталог.
+     Карточка ниже показывает ровно один следующий шаг и одну кнопку к нему.
+     Состояние берётся из тех же функций, что и остальной интерфейс, поэтому
+     подпись здесь не может разойтись с правдой. */
+  function nextStepCard() {
+    var sp = state.studentProfile || {};
+    var wrap = function (tone, title, text, btn) {
+      /* Граница по всему периметру, а не цветная полоса слева: полоса толще 1px
+         как акцент — прямой запрет в DESIGN.md. */
+      return '<div style="background:#fff; border:1.5px solid color-mix(in srgb, ' + tone + ' 30%, var(--line)); border-radius:16px; padding:22px 24px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;">' +
+        '<div style="min-width:0; flex:1;">' +
+          '<div style="font-size:var(--text-micro); font-weight:600; color:' + tone + '; margin-bottom:4px;">Следующий шаг</div>' +
+          '<div style="font-weight:600; font-size:var(--text-title); letter-spacing:-0.01em;">' + title + '</div>' +
+          '<div style="font-size:var(--text-caption); color:var(--muted); margin-top:4px; line-height:1.5; max-width:62ch;">' + text + '</div>' +
+        '</div>' + (btn || '') +
+      '</div>';
+    };
+    var button = function (action, label) {
+      return '<button data-action="' + action + '" style="flex-shrink:0; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px 22px; border-radius:11px; cursor:pointer;">' + label + '</button>';
+    };
+
+    // 1. Согласие родителя — единственный шаг, который реально закрывает каталог.
+    if (isMinor()) {
+      var c = docStat('consent');
+      if (c === 'pending') {
+        return wrap('var(--warn)', 'Согласие родителя на проверке',
+          'Обычно занимает 1–2 дня. Как только модератор подтвердит документ, каталог задач откроется.', '');
+      }
+      if (c === 'rejected') {
+        var f = fileFor('consent');
+        return wrap('var(--err)', 'Согласие родителя отклонено',
+          (f && f.reason) ? esc(f.reason) : 'Причина не указана. Проверьте, что документ виден целиком и текст читаем.',
+          button('openConsentDoc', 'Загрузить заново'));
+      }
+      if (c !== 'approved') {
+        return wrap('var(--err)', 'Загрузите согласие родителя',
+          'Вам ещё нет 18 лет, поэтому по закону нужно письменное согласие родителя. Шаблон для распечатки — внутри. Пока его нет, каталог задач закрыт.',
+          button('openConsentDoc', 'Загрузить'));
+      }
+    }
+
+    // 2. Специальность — без неё ИИ-тест не подберёт вопросы.
+    if (!sp.specialty && !(sp.specialties && sp.specialties.length)) {
+      return wrap('var(--accent)', 'Выберите специальность',
+        'Она определяет, какие задачи вам подойдут и по какому направлению будет ИИ-тест. Раздел «Специальности» ниже на этой странице.', '');
+    }
+
+    // 3. Тест — то, что компании видят в профиле как оценку уровня.
+    if (!sp.aiTest) {
+      return wrap('var(--accent)', 'Пройдите ИИ-тест навыков',
+        'Компании видят уровень в вашем профиле — с ним отклик заметнее. Занимает ' + TEST_MIN + ' минут, попытка одна.',
+        button('openTest', 'Пройти тест'));
+    }
+
+    // 4. Всё готово — единственное, что осталось, это откликнуться.
+    return wrap('var(--ok)', 'Профиль готов — можно откликаться',
+      'Осталось выбрать задачу в каталоге. Отклик открывает переписку с компанией прямо здесь.',
+      button('goCatalog', 'Открыть каталог'));
   }
 
   /* ---------- COMPANY CABINET ---------- */
