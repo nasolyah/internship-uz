@@ -3600,7 +3600,7 @@
       items +
       '<button data-action="closeModal" style="margin-top:18px; width:100%; ' + S.ghost + '">Закрыть</button></div>';
     return '<div data-action="closeModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
-      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+      '<div class="modal-wrap" style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
   // Смена статуса: объясняем последствия до того, как человек начнёт, — иначе он подаст
@@ -3631,7 +3631,7 @@
       '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button></div>';
 
     return '<div data-action="closeModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
-      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+      '<div class="modal-wrap" style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
   // Завершение стажировки. Характеристика — то, ради чего справка существует, поэтому
@@ -3672,7 +3672,7 @@
       '<button data-action="closeModal" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button></div>';
 
     return '<div data-action="closeModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
-      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+      '<div class="modal-wrap" style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
   function modalHtml() {
@@ -3712,7 +3712,7 @@
     '</div>';
 
     return '<div data-action="closeModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
-      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+      '<div class="modal-wrap" style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
   // Модалка добавления/редактирования элемента профиля: навык, язык, проект, достижение.
@@ -3782,7 +3782,7 @@
     '</div>';
 
     return '<div data-action="closeItemModal" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
-      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+      '<div class="modal-wrap" style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
   // Динамический список «разделов» проекта (заголовок + текст) внутри модалки.
   function sectionsEditorHtml(sections) {
@@ -3956,7 +3956,7 @@
       '<button data-action="openItemModal" data-item-type="skill" data-item-index="' + idx + '" style="margin-top:20px; width:100%; ' + S.primary.replace('padding:15px', 'padding:12px') + '">Изменить</button>' +
     '</div>';
     return '<div data-action="closeSkillDetail" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
-      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+      '<div class="modal-wrap" style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
   // Детальная карточка проекта: обложка/галерея (свайп/стрелки), полное описание, разделы, детали, теги, ссылки.
@@ -4008,7 +4008,7 @@
       '<button data-action="openItemModal" data-item-type="project" data-item-index="' + idx + '" style="margin-top:20px; width:100%; ' + S.primary.replace('padding:15px', 'padding:12px') + '">Изменить</button>' +
     '</div>';
     return '<div data-action="closeProjectDetail" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
-      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
+      '<div class="modal-wrap" style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:20px; pointer-events:none;">' + dialog + '</div>';
   }
 
   // Просмотр фото/файла на месте (свой предпросмотр, без ухода с платформы).
@@ -4114,7 +4114,7 @@
       '<button data-action="closeGigForm" style="margin-top:10px; width:100%; ' + S.ghost + '">Отмена</button>' +
     '</div>';
     return '<div data-action="closeGigForm" style="position:fixed; inset:0; z-index:70; background:rgba(18,20,26,0.45);"></div>' +
-      '<div style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:16px; pointer-events:none;">' + dialog + '</div>';
+      '<div class="modal-wrap" style="position:fixed; inset:0; z-index:71; display:flex; align-items:center; justify-content:center; padding:16px; pointer-events:none;">' + dialog + '</div>';
   }
 
   // Каждый render переписывает innerHTML целиком, а чат перерисовывается на каждое входящее
