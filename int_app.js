@@ -71,6 +71,7 @@
     menuOpen: false,
     modal: null,               // null | 'study' | 'consent'
     testView: null,            // null | 'intro' | 'running' | 'result'
+    testConfirmExit: false,    // показан ли вопрос «прервать тест?»
     testResult: null,
     otp: { email: '', error: '', loading: false },
     tgAuth: { loading: false, error: '' },
@@ -990,7 +991,20 @@
           ? '<span style="display:inline-flex; align-items:center; gap:8px;"><span style="font-size:var(--text-micro); font-weight:600; color:var(--err);">отклонено</span>' + btn + '</span>'
           : btn;
       }
-      return row(label, right);
+      /* Модератор пишет причину в поле, подписанное «её увидит студент», и в схеме
+         student_files у колонки reason тот же комментарий. Но студенту выводилось
+         одно слово «отклонено»: причина приходила с сервера и молча терялась.
+         Несовершеннолетний с отклонённым согласием при этом заблокирован в
+         каталоге и не знает, что исправить — загрузит тот же документ снова.
+         Формат взят у соседней ветки заявок на смену статуса (выше). */
+      var out = row(label, right);
+      if (s === 'rejected') {
+        var f = fileFor(type);
+        var why = (f && f.reason) ? esc(f.reason)
+          : 'Причина не указана. Загрузите документ заново — фото целиком, все углы в кадре, текст читаем.';
+        out += '<div style="font-size:var(--text-micro); color:var(--err); padding:0 0 10px; line-height:1.45;">' + why + '</div>';
+      }
+      return out;
     };
     var at = sp.aiTest;
     var testRight = at
@@ -2720,7 +2734,7 @@
     },
     startTest: function () {
       if (!activeTestBank()) return;
-      setState({ testView: 'running' });
+      setState({ testView: 'running', testConfirmExit: false });
       state.testFlags = 0;
       startTestTimer();  // после setState DOM отрисован, #test-timer существует
       enterTestFullscreen();
@@ -2748,11 +2762,14 @@
       setState({ testView: 'result', testResult: result, dynamicBank: null });
       if (supabase && currentUserId()) saveProfileToDb();
     },
+    // Спрашиваем, прежде чем уничтожить единственную попытку.
+    askCloseTest: function () { setState({ testConfirmExit: true }); },
+    cancelCloseTest: function () { setState({ testConfirmExit: false }); },
     closeTest: function () {
       stopTestTimer();
       detachAntiCheat();
       exitTestFullscreen();
-      setState({ testView: null, testResult: null, dynamicBank: null });
+      setState({ testView: null, testResult: null, dynamicBank: null, testConfirmExit: false });
     },
     // Модальные окна загрузки документов
     openStudyDoc: function () { pendingDocFile = null; setState({ modal: 'study', docUpload: { loading: false, error: '', fileName: '' } }); },
@@ -3691,9 +3708,19 @@
     var tmpl = isConsent
       ? '<a href="' + CONSENT_TEMPLATE_URL + '" download style="display:flex; align-items:center; justify-content:center; gap:9px; font-size:var(--text-caption); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:12px; border-radius:11px; text-decoration:none; margin-bottom:16px;"><span>⬇</span>Скачать шаблон согласия</a>'
       : '';
-    var statusNote = (status === 'pending' || status === 'approved')
-      ? '<div style="padding:11px 14px; background:color-mix(in srgb, ' + docColor(status) + ' 10%, #fff); border:1px solid color-mix(in srgb, ' + docColor(status) + ' 26%, #fff); border-radius:10px; font-size:var(--text-caption); color:' + docColor(status) + '; margin-bottom:16px;">Текущий статус: ' + docLabel(status) + '. При необходимости загрузите файл заново.</div>'
-      : '';
+    var statusNote;
+    if (status === 'pending' || status === 'approved') {
+      statusNote = '<div style="padding:11px 14px; background:color-mix(in srgb, ' + docColor(status) + ' 10%, #fff); border:1px solid color-mix(in srgb, ' + docColor(status) + ' 26%, #fff); border-radius:10px; font-size:var(--text-caption); color:' + docColor(status) + '; margin-bottom:16px;">Текущий статус: ' + docLabel(status) + '. При необходимости загрузите файл заново.</div>';
+    } else if (status === 'rejected') {
+      /* Раньше при отклонении модалка не говорила ничего: студент открывал её,
+         чтобы понять, что не так, и видел ту же форму загрузки, что и в первый раз. */
+      var rf = fileFor(type);
+      var rWhy = (rf && rf.reason) ? esc(rf.reason)
+        : 'Причина не указана. Проверьте, что документ виден целиком, все углы в кадре и текст читаем.';
+      statusNote = '<div style="padding:11px 14px; background:color-mix(in srgb, var(--err) 10%, #fff); border:1px solid color-mix(in srgb, var(--err) 26%, #fff); border-radius:10px; font-size:var(--text-caption); color:var(--err); margin-bottom:16px; line-height:1.5;"><strong style="font-weight:600;">Документ отклонён.</strong> ' + rWhy + '</div>';
+    } else {
+      statusNote = '';
+    }
     var fileName = state.docUpload.fileName || '';
     var picker = '<label class="file-drop" style="display:flex; align-items:center; gap:12px; padding:10px 12px; border:1.5px dashed var(--line); border-radius:12px; background:var(--bg); cursor:pointer;">' +
       '<span style="flex-shrink:0; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--ink); padding:8px 14px; border-radius:8px;">Выбрать файл</span>' +
@@ -4065,8 +4092,19 @@
         '<div oncontextmenu="return false" oncopy="return false" onpaste="return false" style="display:flex; flex-direction:column; min-height:0; flex:1; user-select:none;">' +
         '<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 24px; border-bottom:1.5px solid var(--line); flex-shrink:0;">' +
           '<div><div style="font-weight:600; font-size:var(--text-body);">ИИ-тест · ' + esc(spec) + '</div></div>' +
-          '<div style="display:flex; align-items:center; gap:14px;"><span style="font-size:var(--text-caption); color:var(--muted);">Осталось</span><span id="test-timer" style="font-weight:600; font-size:var(--text-title); min-width:64px; text-align:center;">' + fmtTime(TEST_MIN * 60) + '</span><button data-action="closeTest" title="Закрыть (тест сбросится)" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
+          '<div style="display:flex; align-items:center; gap:14px;"><span style="font-size:var(--text-caption); color:var(--muted);">Осталось</span><span id="test-timer" style="font-weight:600; font-size:var(--text-title); min-width:64px; text-align:center;">' + fmtTime(TEST_MIN * 60) + '</span><button data-action="askCloseTest" title="Прервать тест" style="background:none; border:none; font-size:var(--text-h2); line-height:1; color:var(--muted); cursor:pointer;">×</button></div>' +
         '</div>' +
+        /* Крестик раньше вёл прямо в closeTest с подписью «тест сбросится» —
+           одно нажатие уничтожало единственную попытку без вопроса. Теперь он
+           спрашивает, а решение остаётся за студентом. */
+        (state.testConfirmExit
+          ? '<div style="padding:14px 24px; background:color-mix(in srgb, var(--err) 8%, #fff); border-bottom:1.5px solid color-mix(in srgb, var(--err) 26%, #fff);">' +
+            '<div style="font-size:var(--text-caption); color:var(--err); font-weight:600; margin-bottom:10px;">Прервать тест? Попытка не сохранится, а она одна.</div>' +
+            '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+              '<button data-action="closeTest" style="font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--err); border:none; padding:9px 16px; border-radius:9px; cursor:pointer;">Прервать</button>' +
+              '<button data-action="cancelCloseTest" style="font-size:var(--text-caption); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:9px 16px; border-radius:9px; cursor:pointer;">Продолжить тест</button>' +
+            '</div></div>'
+          : '') +
         warnBanner +
         '<div style="padding:22px 24px; overflow-y:auto;">' + q + openBlock + '</div>' +
         '<div style="padding:16px 24px; border-top:1.5px solid var(--line); flex-shrink:0;"><button data-action="submitTest" style="width:100%; ' + S.primary + '">Завершить тест</button></div>' +
@@ -4088,7 +4126,12 @@
       inner = '<div style="padding:30px; text-align:center; color:var(--muted);">Что-то пошло не так.<div style="margin-top:16px;"><button data-action="closeTest" style="' + S.ghost + '">Закрыть</button></div></div>';
     }
 
-    return '<div data-action="closeTest" style="position:fixed; inset:0; z-index:80; background:rgba(18,20,26,0.55);"></div>' +
+    /* Пока тест идёт, подложка инертна. Раньше на ней висел closeTest, который
+       без единого вопроса сносил таймер и состояние, — а во вступлении обещана
+       «Одна попытка». На телефоне одно случайное касание большим пальцем мимо
+       окна заканчивало попытку без возможности восстановления. */
+    var backdropAction = state.testView === 'running' ? '' : ' data-action="closeTest"';
+    return '<div' + backdropAction + ' style="position:fixed; inset:0; z-index:80; background:rgba(18,20,26,0.55);"></div>' +
       '<div style="position:fixed; inset:0; z-index:81; display:flex; align-items:center; justify-content:center; padding:16px; pointer-events:none;"><div style="' + dialogStyle + '">' + inner + '</div></div>';
   }
 
