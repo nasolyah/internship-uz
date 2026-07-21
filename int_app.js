@@ -75,6 +75,7 @@
     undoItem: null,            // {key, index, item, label} — что можно вернуть после удаления
     itemConfirmClose: false,   // показан ли вопрос «закрыть без сохранения?»
     confirmRejectApp: null,    // id отклика, по которому спрошено подтверждение отказа
+    stepsCollapsed: false,     // свёрнута ли плавающая панель шагов
     seen: {},                  // appId -> когда ветку последний раз открывали
     lastMsgAt: {},             // appId -> когда в ветке было последнее чужое сообщение
     testResult: null,
@@ -1214,6 +1215,77 @@
       '<div style="margin-top:20px;">' + ratingSection + '</div>' +
       '<div style="margin-top:24px; text-align:center;"><button data-action="logout" style="font-size:var(--text-caption); font-weight:600; color:var(--err); background:#fff; border:1.5px solid var(--line); padding:11px 24px; border-radius:10px; cursor:pointer;">Выйти из аккаунта</button></div>' +
       '</main>';
+  }
+
+  /* ---------- Плавающая панель шагов ----------
+     Карточка «Что дальше» в кабинете показывает один шаг и видна только там.
+     Панель ниже показывает весь путь сразу и висит на любом экране: человеку
+     не нужно возвращаться в кабинет, чтобы вспомнить, что он не доделал.
+     Исчезает, когда путь пройден, — инструкция нужна, пока ей есть что сказать.
+
+     Пути разные. У студента: согласие родителя (если нет 18) → специальность →
+     тест → отклик. У компании: одобрение заявки → задача в каталоге → отклики →
+     завершение стажировки со справкой. */
+  function journeySteps() {
+    var role = state.authRole;
+    if (role === 'student') {
+      var sp = state.studentProfile || {};
+      var steps = [];
+      if (isMinor()) {
+        var c = docStat('consent');
+        steps.push({ label: 'Согласие родителя', done: c === 'approved', wait: c === 'pending', action: c === 'approved' ? null : 'openConsentDoc' });
+      }
+      steps.push({ label: 'Специальность', done: !!(sp.specialty || (sp.specialties && sp.specialties.length)), action: null });
+      steps.push({ label: 'ИИ-тест навыков', done: !!sp.aiTest, action: sp.aiTest ? null : 'openTest' });
+      steps.push({ label: 'Первый отклик', done: (state.applications || []).length > 0, action: 'goCatalog' });
+      return steps;
+    }
+    if (role === 'company') {
+      var cs = companyStatus();
+      var appId = state.companyProfile && state.companyProfile.id;
+      var myGigs = (state.gigs || []).filter(function (g) { return g.company_app_id === appId; });
+      var apps = state.applications || [];
+      return [
+        { label: 'Заявка компании', done: cs === 'approved', wait: cs === 'pending', action: null },
+        { label: 'Первая задача', done: myGigs.length > 0, action: cs === 'approved' ? 'openGigForm' : null },
+        { label: 'Отклики студентов', done: apps.length > 0, action: apps.length ? 'goResponses' : null },
+        { label: 'Справка стажёру', done: apps.some(function (a) { return a.status === 'completed'; }), action: null }
+      ];
+    }
+    return [];
+  }
+
+  function journeyPanelHtml() {
+    var steps = journeySteps();
+    if (!steps.length) return '';
+    var doneCount = steps.filter(function (s) { return s.done; }).length;
+    if (doneCount === steps.length) return '';   // путь пройден — панель уходит
+    if (state.chat || state.testView) return ''; // в чате и тесте не мешаем
+
+    if (state.stepsCollapsed) {
+      return '<button data-action="toggleSteps" class="journey-panel" style="position:fixed; right:20px; bottom:20px; z-index:60; display:flex; align-items:center; gap:8px; background:var(--ink); color:#fff; border:none; padding:12px 16px; border-radius:12px; cursor:pointer; box-shadow:0 18px 40px -16px rgba(18,20,26,0.55);">' +
+        '<span style="font-size:var(--text-caption); font-weight:600;">Шаги</span>' +
+        '<span style="font-size:var(--text-micro); color:var(--accent-on-dark); font-weight:600;">' + doneCount + ' из ' + steps.length + '</span>' +
+      '</button>';
+    }
+
+    var rows = steps.map(function (s, i) {
+      var mark = s.done
+        ? '<span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--ok); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:11px;">✓</span>'
+        : '<span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; border:1.5px solid ' + (s.wait ? 'var(--warn)' : 'var(--line)') + '; color:' + (s.wait ? 'var(--warn)' : 'var(--muted)') + '; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;">' + (i + 1) + '</span>';
+      var label = '<span style="font-size:var(--text-caption); color:' + (s.done ? 'var(--muted)' : 'var(--ink)') + '; font-weight:' + (s.done ? '400' : '600') + ';">' + s.label + (s.wait ? ' · на проверке' : '') + '</span>';
+      var go = (!s.done && !s.wait && s.action)
+        ? '<button data-action="' + s.action + '" style="margin-left:auto; flex-shrink:0; font-size:var(--text-micro); font-weight:600; color:var(--accent); background:none; border:none; cursor:pointer; padding:0;">Перейти</button>'
+        : '';
+      return '<div style="display:flex; align-items:center; gap:10px; padding:8px 0;">' + mark + label + go + '</div>';
+    }).join('');
+
+    return '<div class="journey-panel" style="position:fixed; right:20px; bottom:20px; z-index:60; width:min(300px, calc(100vw - 40px)); background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:16px 18px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34);">' +
+      '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">' +
+        '<span style="font-size:var(--text-micro); font-weight:600; color:var(--muted);">Ваш путь · ' + doneCount + ' из ' + steps.length + '</span>' +
+        '<button data-action="toggleSteps" title="Свернуть" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:var(--text-body); line-height:1; padding:0;">−</button>' +
+      '</div>' + rows +
+    '</div>';
   }
 
   /* Кабинет — это девять равнозначных карточек подряд, и новый студент попадает
@@ -2938,6 +3010,11 @@
       location.href = '/cert/' + encodeURIComponent(id);
     },
     printCert: function () { try { window.print(); } catch (e) {} },
+    toggleSteps: function () {
+      var v = !state.stepsCollapsed;
+      try { localStorage.setItem("iu-steps-collapsed", v ? "1" : ""); } catch (e) {}
+      setState({ stepsCollapsed: v });
+    },
     askCloseTest: function () { setState({ testConfirmExit: true }); },
     cancelCloseTest: function () { setState({ testConfirmExit: false }); },
     closeTest: function () {
@@ -3620,6 +3697,7 @@
       if (!session) return;
       state.session = session;
       state.seen = loadSeen();   // отметки прочитанного переживают перезагрузку
+      try { state.stepsCollapsed = !!localStorage.getItem("iu-steps-collapsed"); } catch (e) {}
       checkAdmin();
       subscribeSession();        // слушаем сообщения и смену статусов, пока человек в системе
       return claimLegacyCompanyApp().then(loadCompanyProfile).then(function (isCompany) {
@@ -4531,7 +4609,7 @@
   function render() {
     var keepChatFocus = state.view === 'chat' && (chatInputHasFocus() || focusChatInput);
     focusChatInput = false;
-    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml() + undoBarHtml();
+    root.innerHTML = header() + viewHtml() + footer() + modalHtml() + itemModalHtml() + skillDetailModalHtml() + projectDetailModalHtml() + mediaPreviewHtml() + testModalHtml() + gigModalHtml() + undoBarHtml() + journeyPanelHtml();
 
     // render() переписывает весь root, поэтому <main class="view-in"> создаётся заново
     // при каждом изменении состояния — и анимация появления стартовала с нуля на каждый

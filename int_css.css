@@ -373,3 +373,16 @@ p { text-wrap: pretty; }
   body { background: #fff; }
   main { padding: 0 !important; }
 }
+
+/* Плавающая панель шагов. На телефоне прижимается к обоим краям и садится
+   выше — там же снизу появляется плашка отмены удаления, и перекрывать её
+   нельзя. При печати справки панели быть не должно. */
+@media (max-width: 620px) {
+  .journey-panel {
+    right: 12px !important;
+    left: 12px !important;
+    width: auto !important;
+    bottom: 96px !important;
+  }
+}
+@media print { .journey-panel { display: none !important; } }
