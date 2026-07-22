@@ -1259,6 +1259,7 @@
   /* Наблюдатель за подвалом. render() пересоздаёт весь root, поэтому и подвал, и
      панель каждый раз новые — наблюдатель переустанавливается после отрисовки,
      а старый отключается, иначе они копились бы по одному на каждый рендер. */
+  var footerOverlapped = false;   // последнее известное: подвал на экране?
   var footerWatchAttached = false;
   var footerWatchTicking = 0;
   function syncFooterOverlap() {
@@ -1267,6 +1268,7 @@
     if (!panel || !ft) return;
     // Панель прячется, как только подвал показался в нижней части экрана.
     var overlap = ft.getBoundingClientRect().top < window.innerHeight;
+    footerOverlapped = overlap;
     panel.classList.toggle('journey-hidden', overlap);
   }
   function watchFooterOverlap() {
@@ -1297,7 +1299,7 @@
     if (state.stepsCollapsed) {
       /* Из свёрнутой кнопки тоже нужен выход насовсем, иначе единственный способ
          избавиться от панели — сначала развернуть её обратно. */
-      return '<div class="journey-panel" style="position:fixed; right:20px; bottom:20px; z-index:60; display:inline-flex; align-items:center; background:var(--ink); border-radius:12px; box-shadow:0 18px 40px -16px rgba(18,20,26,0.55);">' +
+      return '<div class="journey-panel' + (footerOverlapped ? ' journey-hidden' : '') + '" style="position:fixed; right:20px; bottom:20px; z-index:60; display:inline-flex; align-items:center; background:var(--ink); border-radius:12px; box-shadow:0 18px 40px -16px rgba(18,20,26,0.55);">' +
         '<button data-action="toggleSteps" style="display:flex; align-items:center; gap:8px; background:none; color:#fff; border:none; padding:12px 4px 12px 16px; border-radius:12px 0 0 12px; cursor:pointer;">' +
           '<span style="font-size:var(--text-caption); font-weight:600;">Шаги</span>' +
           '<span style="font-size:var(--text-micro); color:var(--accent-on-dark); font-weight:600;">' + doneCount + ' из ' + steps.length + '</span>' +
@@ -1322,7 +1324,7 @@
       return '<div style="display:flex; align-items:center; gap:10px; padding:8px 0;">' + mark + label + go + '</div>';
     }).join('');
 
-    return '<div class="journey-panel" style="position:fixed; right:20px; bottom:20px; z-index:60; width:min(300px, calc(100vw - 40px)); background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:16px 18px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34);">' +
+    return '<div class="journey-panel' + (footerOverlapped ? ' journey-hidden' : '') + '" style="position:fixed; right:20px; bottom:20px; z-index:60; width:min(300px, calc(100vw - 40px)); background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:16px 18px; box-shadow:0 22px 48px -22px rgba(18,20,26,0.34);">' +
       '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">' +
         '<span style="font-size:var(--text-micro); font-weight:600; color:var(--muted);">Ваш прогресс · ' + doneCount + ' из ' + steps.length + '</span>' +
         /* Две кнопки, и разница между ними должна быть очевидна: свернуть —
