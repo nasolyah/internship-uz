@@ -2250,10 +2250,52 @@
   /* ---------- actions ---------- */
   var root;
   var pendingDocFile = null;  // выбранный в модалке файл (хранится вне DOM, чтобы переживать перерисовку)
+  /* ---------- Адреса экранов ----------
+     До этого все тринадцать экранов жили на одном URL: «Назад» уводил с сайта,
+     обновление сбрасывало на каталог, ссылку на экран отправить было нельзя.
+
+     В карте только экраны без параметров. Чат и чужой профиль требуют
+     идентификатора и сюда пока не входят: их адрес не меняется, поведение
+     остаётся прежним. Лучше меньше, но предсказуемо.
+
+     /cert/:id разбирается отдельно в init() до всего остального и здесь не
+     участвует — ломать работающую публичную ссылку на справку нельзя.
+
+     Cloudflare Pages отдаёт index.html на любой путь, поэтому прямой заход по
+     адресу открывает приложение (проверено на проде до этой правки). */
+  var VIEW_PATHS = {
+    home: '/',
+    catalog: '/catalog',
+    cabinet: '/cabinet',
+    responses: '/responses',
+    vacancies: '/vacancies',
+    admin: '/admin',
+    student: '/student',
+    company: '/company'
+  };
+  var restoringRoute = false;   // пока восстанавливаем из адреса — новую запись не пишем
+
+  function pathForView(v) { return VIEW_PATHS[v] || null; }
+  function viewForPath(p) {
+    p = (p || '/').replace(/\/+$/, '') || '/';
+    for (var v in VIEW_PATHS) if (VIEW_PATHS[v] === p) return v;
+    return null;
+  }
+  function syncRoute(v) {
+    if (restoringRoute) return;
+    var path = pathForView(v);
+    if (!path) return;                       // экран без своего адреса — не трогаем
+    if (location.pathname === path) return;  // уже здесь
+    try { history.pushState({ view: v }, '', path); } catch (e) {}
+  }
+
   function setState(patch) {
     // Переход на другой экран закрывает мобильное меню — иначе оно остаётся
     // открытым поверх нового содержимого.
-    if (patch.view && patch.view !== state.view) state.navOpen = false;
+    if (patch.view && patch.view !== state.view) {
+      state.navOpen = false;
+      syncRoute(patch.view);   // адрес меняется вместе с экраном
+    }
     for (var k in patch) state[k] = patch[k];
     render();
   }
@@ -4742,6 +4784,26 @@
         state.cert = { loading: false, data: null, error: 'Supabase не настроен' };
       }
     }
+
+    /* Экран из адреса. Ставится до восстановления сессии: та переводит человека
+       в каталог только с главной (state.view === "home"), поэтому явный адрес
+       она не затрёт. Если роль не подходит — например /admin у не-админа, —
+       сработает защита внутри самой view-функции и покажется главная. */
+    if (!certMatch) {
+      var bootView = viewForPath(location.pathname);
+      if (bootView) state.view = bootView;
+    }
+
+    /* Кнопка «Назад» и «Вперёд». Флаг не даёт записать новую запись в историю
+       в ответ на переход по ней же — иначе назад было бы не выбраться. */
+    window.addEventListener("popstate", function () {
+      if ((location.pathname || "").indexOf("/cert/") === 0) { location.reload(); return; }
+      var v = viewForPath(location.pathname);
+      if (!v) return;
+      restoringRoute = true;
+      setState({ view: v });
+      restoringRoute = false;
+    });
 
     var tgUser = certMatch ? null : readTelegramReturn();
     var tgIntent = certMatch ? null : takeTelegramIntent();
