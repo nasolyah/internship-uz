@@ -3752,8 +3752,16 @@
       if (!session) return;
       state.session = session;
       state.seen = loadSeen();   // отметки прочитанного переживают перезагрузку
-      try {
-        state.stepsCollapsed = !!localStorage.getItem("iu-steps-collapsed");
+            try {
+        /* На телефоне развёрнутая панель занимает треть экрана и накрывает
+           карточки кабинета. Пока человек сам не свернул или не развернул её,
+           на узком экране показываем свёрнутой: кнопка «Шаги» ничего не
+           закрывает, а по нажатию раскрывается. Свой выбор человека уважаем —
+           если запись в хранилище уже есть, берём её. */
+        var savedCollapsed = localStorage.getItem("iu-steps-collapsed");
+        state.stepsCollapsed = savedCollapsed === null
+          ? window.innerWidth <= 620
+          : !!savedCollapsed;
         state.stepsDismissed = !!localStorage.getItem("iu-steps-dismissed");
       } catch (e) {}
       checkAdmin();
