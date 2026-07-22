@@ -2274,6 +2274,12 @@
     company: '/company'
   };
   var restoringRoute = false;   // пока восстанавливаем из адреса — новую запись не пишем
+  var pendingChatId = null;     // чат, открытия которого ждём после загрузки откликов
+
+  function chatIdFromPath(p) {
+    var m = (p || "").match(/^\/chat\/([A-Za-z0-9-]+)\/?$/);
+    return m ? m[1] : null;
+  }
 
   function pathForView(v) { return VIEW_PATHS[v] || null; }
   function viewForPath(p) {
@@ -2281,9 +2287,11 @@
     for (var v in VIEW_PATHS) if (VIEW_PATHS[v] === p) return v;
     return null;
   }
-  function syncRoute(v) {
+  function syncRoute(v, chatId) {
     if (restoringRoute) return;
-    var path = pathForView(v);
+    /* У чата адрес с идентификатором ветки: без него ссылку на переписку не
+       отправить, а «Назад» из чата возвращал бы не туда. */
+    var path = (v === "chat" && chatId) ? "/chat/" + encodeURIComponent(chatId) : pathForView(v);
     if (!path) return;                       // экран без своего адреса — не трогаем
     if (location.pathname === path) return;  // уже здесь
     try { history.pushState({ view: v }, '', path); } catch (e) {}
@@ -2294,7 +2302,8 @@
     // открытым поверх нового содержимого.
     if (patch.view && patch.view !== state.view) {
       state.navOpen = false;
-      syncRoute(patch.view);   // адрес меняется вместе с экраном
+      // id ветки берём из того же патча: state.chat к этому моменту ещё старый
+      syncRoute(patch.view, (patch.chat && patch.chat.appId) || (state.chat && state.chat.appId));
     }
     for (var k in patch) state[k] = patch[k];
     render();
@@ -3815,6 +3824,16 @@
       .then(function (r) {
         state.appsLoading = false;
         if (!r.error && r.data) state.applications = r.data;
+        /* Чат, открытый по прямой ссылке: до загрузки откликов ветку не найти,
+           поэтому открываем её здесь. Если ветки нет — чужая, удалённая или
+           просто неверный адрес, — человек остаётся в списке откликов, а не
+           смотрит в пустой экран. */
+        if (pendingChatId) {
+          var wanted = pendingChatId;
+          pendingChatId = null;
+          if (findApplication(wanted)) { restoringRoute = true; openChat(wanted); restoringRoute = false; }
+          else state.view = 'responses';
+        }
         // Компании нужен id справки, чтобы приложить к ней свидетельство. RLS отдаёт
         // только свои — по политике certificates_select_involved.
         if (state.authRole === 'company') {
@@ -4790,14 +4809,28 @@
        она не затрёт. Если роль не подходит — например /admin у не-админа, —
        сработает защита внутри самой view-функции и покажется главная. */
     if (!certMatch) {
-      var bootView = viewForPath(location.pathname);
-      if (bootView) state.view = bootView;
+      var bootChat = chatIdFromPath(location.pathname);
+      if (bootChat) {
+        pendingChatId = bootChat;     // откроется, когда придут отклики
+        state.view = "responses";     // до тех пор человек видит список, а не пустоту
+      } else {
+        var bootView = viewForPath(location.pathname);
+        if (bootView) state.view = bootView;
+      }
     }
 
     /* Кнопка «Назад» и «Вперёд». Флаг не даёт записать новую запись в историю
        в ответ на переход по ней же — иначе назад было бы не выбраться. */
     window.addEventListener("popstate", function () {
       if ((location.pathname || "").indexOf("/cert/") === 0) { location.reload(); return; }
+      var backChat = chatIdFromPath(location.pathname);
+      if (backChat) {
+        restoringRoute = true;
+        if (findApplication(backChat)) openChat(backChat);
+        else setState({ view: "responses" });
+        restoringRoute = false;
+        return;
+      }
       var v = viewForPath(location.pathname);
       if (!v) return;
       restoringRoute = true;
