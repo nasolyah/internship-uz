@@ -386,3 +386,13 @@ p { text-wrap: pretty; }
   }
 }
 @media print { .journey-panel { display: none !important; } }
+
+/* Панель уходит, когда подвал появился на экране: человек долистал до низа,
+   идти ему уже некуда, а перекрывать почту и статус проекта нельзя.
+   Прячем плавно и отключаем нажатия, чтобы невидимая панель не ловила касания. */
+.journey-panel { transition: opacity .2s ease, transform .2s cubic-bezier(.16,1,.3,1); }
+.journey-panel.journey-hidden {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}

@@ -1256,6 +1256,36 @@
     return [];
   }
 
+  /* Наблюдатель за подвалом. render() пересоздаёт весь root, поэтому и подвал, и
+     панель каждый раз новые — наблюдатель переустанавливается после отрисовки,
+     а старый отключается, иначе они копились бы по одному на каждый рендер. */
+  var footerWatchAttached = false;
+  var footerWatchTicking = 0;
+  function syncFooterOverlap() {
+    var panel = document.querySelector('.journey-panel');
+    var ft = document.querySelector('#root footer');
+    if (!panel || !ft) return;
+    // Панель прячется, как только подвал показался в нижней части экрана.
+    var overlap = ft.getBoundingClientRect().top < window.innerHeight;
+    panel.classList.toggle('journey-hidden', overlap);
+  }
+  function watchFooterOverlap() {
+    syncFooterOverlap();
+    if (footerWatchAttached) return;   // слушатели вешаются один раз на страницу
+    footerWatchAttached = true;
+    /* Троттлинг по времени, а не через requestAnimationFrame: rAF не выполняется
+       в неактивной вкладке, и панель застревала бы в том состоянии, в котором
+       её застало переключение. 80 мс на глаз незаметны. */
+    var onScroll = function () {
+      var now = Date.now();
+      if (now - footerWatchTicking < 80) return;
+      footerWatchTicking = now;
+      syncFooterOverlap();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+  }
+
   function journeyPanelHtml() {
     var steps = journeySteps();
     if (!steps.length) return '';
@@ -4638,14 +4668,11 @@
 
     /* Панель висит поверх страницы и раньше накрывала подвал с почтой. Класс на
        корне даёт подвалу нижний отступ ровно тогда, когда панель на экране. */
-    /* Отступ подвала считается по фактической высоте панели, а не по заранее
-       выбранному числу: высота зависит от количества шагов, от того, свёрнута
-       панель или нет, и от ширины экрана. Любая константа здесь либо
-       перекрывает подвал, либо оставляет под ним пустоту — оба варианта уже
-       успели проявиться. */
-    var jp = root.querySelector(".journey-panel");
-    var ft = root.querySelector("footer");
-    if (ft) ft.style.paddingBottom = jp ? (Math.round(jp.getBoundingClientRect().height) + 40) + "px" : "";
+    /* Панель прячется, когда подвал доехал до экрана. Раньше я раздувал подвал
+       отступом под её высоту — и получал ровно то, от чего уходил: пустое место
+       внизу страницы. Подвал трогать не нужно вовсе: человек, долиставший до
+       низа, уже никуда не идёт, и панель ему там не нужна. */
+    watchFooterOverlap();
 
     // render() переписывает весь root, поэтому <main class="view-in"> создаётся заново
     // при каждом изменении состояния — и анимация появления стартовала с нуля на каждый
