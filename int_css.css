@@ -155,17 +155,11 @@ p { text-wrap: pretty; }
 .g2 { grid-template-columns: 1fr 1fr; }
 .g4 { grid-template-columns: repeat(4, 1fr); }
 .g-split { grid-template-columns: 0.9fr 1.1fr; }   /* «Верификация»: текст + карточки */
-.g-cat { grid-template-columns: 270px 1fr; }        /* Каталог: боковая колонка + список */
+/* Правила .g-cat и .cat-aside убраны вместе с боковой колонкой каталога:
+   задачи занимают всю ширину, делить её больше не с кем. */
 
 /* Шапка: логотип | навигация | вход */
 .hdr { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 24px; }
-
-@media (max-width: 900px) {
-  .g-cat { grid-template-columns: 1fr; }
-  /* Боковая колонка каталога уходит под список и перестаёт прилипать: на телефоне
-     карточка профиля залипала под шапкой и ехала за содержимым при прокрутке. */
-  .g-cat > aside, .cat-aside { position: static !important; top: auto !important; }
-}
 
 @media (max-width: 760px) {
   .g2, .g-split { grid-template-columns: 1fr; }

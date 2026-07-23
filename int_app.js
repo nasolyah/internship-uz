@@ -824,36 +824,11 @@
     }
     head += '</div>';
 
-    // sidebar
-    var sidebar;
-    if (role === 'student') {
-      /* Раньше здесь безусловно стояло «✓ Профиль подтверждён» синим: текст не
-         спрашивал состояние вообще. Несовершеннолетний с отклонённым или ещё не
-         загруженным согласием родителя видел в каталоге подтверждение, которого
-         нет, — и это на той самой группе, ради которой согласие и собирается.
-         Такого статуса у студента к тому же не существует: verifyStatus() даёт
-         «Профиль активен» либо состояние согласия. Берём текст и цвет оттуда же,
-         откуда их берёт соседняя ветка компании. Галочка — только у ok-состояния,
-         иначе она утверждает то же самое молча. */
-      var svText = verifyStatus();
-      var svColor = verifyColor();
-      var svTick = svColor === 'var(--ok)' ? '✓ ' : '';
-      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;">' + avatarHtml(46, 12) + '<div><div style="font-weight:600; font-size:var(--text-body);">' + esc(studentName()) + '</div><div style="font-size:var(--text-micro); color:' + svColor + '; font-weight:600;">' + svTick + esc(svText) + '</div></div></div></aside>';
-    } else if (role === 'company') {
-      var scs = companyStatus();
-      /* Текст и цвет здесь дословно повторяли verifyStatus()/verifyColor() для
-         роли компании. Пока совпадало, но две копии одного правила расходятся
-         при первой же правке — а расхождение в статусе верификации выглядит
-         именно так, как выглядел баг в студенческой ветке выше. */
-      var scColor = verifyColor();
-      var scText = verifyStatus();
-      var scPost = scs === 'approved'
-        ? '<button data-action="openGigForm" style="margin-top:18px; width:100%; font-size:var(--text-caption); font-weight:600; color:#fff; background:var(--accent); border:none; padding:12px; border-radius:10px; cursor:pointer;">Разместить задачу</button>'
-        : '<button disabled style="margin-top:18px; width:100%; font-size:var(--text-caption); font-weight:600; color:var(--muted); background:var(--bg); border:1.5px solid var(--line); padding:12px; border-radius:10px; cursor:not-allowed;">Разместить задачу (после подтверждения)</button>';
-      sidebar = '<aside class="cat-aside" style="background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:22px; position:sticky; top:88px;"><div style="display:flex; align-items:center; gap:12px;"><div style="width:46px; height:46px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:var(--text-title);">◆</div><div><div style="font-weight:600; font-size:var(--text-body);">' + esc(companyName()) + '</div><div style="display:inline-flex; align-items:center; gap:5px; font-size:var(--text-micro); color:' + scColor + '; font-weight:600;"><span style="width:6px; height:6px; border-radius:50%; background:' + scColor + ';"></span>' + scText + '</div></div></div><div style="margin-top:18px; padding-top:18px; border-top:1.5px solid var(--line);"><div style="font-size:var(--text-micro); color:var(--muted);">Что дальше</div><div style="font-size:var(--text-caption); color:var(--muted); line-height:1.55; margin-top:2px;">Отбирайте подходящих студентов и приглашайте их в свои задачи.</div></div>' + scPost + '<button data-action="goCabinet" style="margin-top:10px; width:100%; font-size:var(--text-caption); font-weight:600; color:var(--ink); background:#fff; border:1.5px solid var(--line); padding:11px; border-radius:10px; cursor:pointer;">Профиль компании</button></aside>';
-    } else {
-      sidebar = '<div aria-hidden="true"></div>';
-    }
+    /* Боковой колонки с профилем здесь больше нет. Она повторяла то, что человек
+       и так знает о себе, и забирала 270px под это на каждом экране каталога —
+       а каталог существует ради задач. У компании она вдобавок дублировала
+       кнопку «Разместить задачу», которая и без того стоит в шапке. Прогресс
+       по шагам показывает плавающая панель, профиль — кабинет. */
 
     // listings
     var emptyCard = function (title, text) {
@@ -878,8 +853,8 @@
         : emptyCard('Пока нет задач', 'Компании ещё не разместили задачи. Загляните позже — здесь появятся реальные проекты.');
     }
 
-    return '<main class="view-in" style="max-width:1180px; margin:0 auto; padding:40px 28px 88px;">' + head +
-      '<div class="g-cat" style="display:grid; gap:24px; align-items:start;">' + sidebar + '<div>' + listings + '</div></div></main>';
+    // Задачи занимают всю ширину: делить её больше не с кем.
+    return '<main class="view-in" style="max-width:1180px; margin:0 auto; padding:40px 28px 88px;">' + head + listings + '</main>';
   }
 
   /* ---------- STUDENT CABINET ---------- */
